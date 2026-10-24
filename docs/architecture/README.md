@@ -6,11 +6,11 @@ This folder describes what is **built**, not what is planned. Plans live in [`..
 
 | Path                       | Holds                                                                     |
 | -------------------------- | ------------------------------------------------------------------------- |
-| `overview.md`              | Layers, dependency rules, data flow. (Not written yet: nothing is built.) |
+| `overview.md`              | Layers, dependency rules, data flow. (Not written yet.)                         |
 | [`modules/`](modules/)     | One doc per module, mirroring the folders under `src/`.                   |
 | `data-formats.md`          | Instrument JSON schema and storage schema. (Not written yet.)             |
 | [`decisions/`](decisions/) | ADRs: accepted decisions and why.                                         |
 
-## Planned layer rule (to be confirmed in an ADR)
+## Layer rule
 
 The drill engine depends only on pitch and instrument definitions. It must not import from rendering, audio or the UI. See `../vision/vision.md#required-abstractions`.

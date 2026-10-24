@@ -37,13 +37,13 @@ The app runs entirely in the browser. The tools below are only needed to develop
 
 Everything else is installed per project by `bun install`, so there is no global install for them:
 
-| Tool                          | Role                              |
-| ----------------------------- | --------------------------------- |
-| [Preact](https://preactjs.com/) | UI library                      |
-| TypeScript                    | Language and type checking        |
-| [Vite](https://vite.dev/)     | Dev server and production bundler |
-| [Vitest](https://vitest.dev/) | Test runner                       |
-| [Biome](https://biomejs.dev/) | Linting and formatting            |
+| Tool                            | Role                              |
+| ------------------------------- | --------------------------------- |
+| [Preact](https://preactjs.com/) | UI library                        |
+| TypeScript                      | Language and type checking        |
+| [Vite](https://vite.dev/)       | Dev server and production bundler |
+| [Vitest](https://vitest.dev/)   | Test runner                       |
+| [Biome](https://biomejs.dev/)   | Linting and formatting            |
 
 Check the install with `bun --version`. `make` is also used and is present on Bazzite.
 

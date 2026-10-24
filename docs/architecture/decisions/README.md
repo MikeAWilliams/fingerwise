@@ -15,4 +15,4 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 
 ## Likely next ADRs
 
-Open questions in `../../vision/vision.md#open-questions`: code license, first fingering style.
+Open questions in `../../vision/vision.md#open-questions`: first fingering style.

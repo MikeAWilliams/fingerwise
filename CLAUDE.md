@@ -36,7 +36,7 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 | ------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------- |
 | `plan/<topic>`      | Vision, ADRs, feature designs, stories, glossary. Docs only.                           | `plan/spaced-repetition`, `plan/f01-core-flashcards` | `fw-plan`                    |
 | `story/<ID>-<slug>` | Building one story: code, tests, module docs, the progress file. One story per branch. | `story/F01-S02-reveal-after-delay`                   | `fw-breakdown`, `fw-execute` |
-| `chore/<topic>`     | Tooling, scaffolding, CI, skills, `CLAUDE.md`.                                         | `chore/scaffold-vite`                                | none                         |
+| `chore/<topic>`     | Tooling, scaffolding, CI, skills, `CLAUDE.md`.                                         | `chore/ci-pages`                                     | none                         |
 | `fix/<topic>`       | Bug fixes outside a story.                                                             | `fix/ledger-line-clip`                               | none                         |
 
 - The initial project scaffold (Bun, Vite, Preact, Vitest, Biome, Makefile) was committed straight to `main`, a one-time exception made by the user. Everything after follows these rules.

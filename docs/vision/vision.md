@@ -34,7 +34,7 @@ As of Oct 2026. Nothing found does this exact loop.
 
 - **Platform:** Progressive Web App (installable on Android, works offline).
 - **Language:** TypeScript with Preact (TSX) and plain CSS. Decided in [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
-- **Build:** Vite (set `base` to the repo path for GitHub Pages).
+- **Build:** Vite, with `base` set to the repo path for GitHub Pages ([ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md)).
 - **Staff rendering:** VexFlow (MIT).
 - **Tablature:** panzi's open-source ocarina fonts.
 - **Audio:** Web Audio API (sine-wave synth, optional samples).
@@ -88,7 +88,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 
 ### License and assets
 
-- **Code:** MIT (simple, permissive) or Apache 2.0 (adds a patent grant); GPL/AGPL if derivatives must stay open.
+- **Code:** MIT (see the repo's `LICENSE`).
 - **Dependencies:** VexFlow, Pitchy, and abcjs are MIT; panzi's fonts are unrestricted.
 - **Avoid:** copying commercial fingering charts (Songbird, STL Ocarina, etc.); generate charts from the open fonts.
 - Keep code license and third-party asset notes clearly separated in the repo.
@@ -106,4 +106,3 @@ Main value is to ocarina players using the app.
 - Which fingering style(s) to support first (Japanese vs Taiwanese)?
 - Default staff convention for sounding vs written pitch? (Now a per-instrument setting in the instrument definition.)
 - Delay length default and whether it adapts to the user's speed?
-- Code license: the repo's `LICENSE` is MIT. Confirm, or switch to Apache 2.0 for the patent grant, then record it as an ADR.
