@@ -26,3 +26,4 @@ Outside `docs/`:
 - Story IDs are `F<feature>-S<story>` (for example `F01-S02`), and story files are named `F01-S02-short-name.md`.
 - ADRs are numbered: `architecture/decisions/0001-short-name.md`.
 - Link to sections by anchor instead of duplicating text.
+- Branches are `plan/`, `story/`, `chore/` or `fix/`; the rules are in [`../CLAUDE.md`](../CLAUDE.md#branches).

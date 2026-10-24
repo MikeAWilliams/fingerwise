@@ -11,8 +11,8 @@ Invoking this skill is the user's authorization to edit code and make local comm
 
 ## Preconditions (check, then stop if not met)
 - `story-progress/<ID>.md` exists with sub-tasks. If not, tell the user to run `fw-breakdown` first.
-- The working tree is clean. If not, stop and report.
-- You are on a branch named for the story (for example `F01-S02-reveal-after-delay`). If on `main`, create it. Never commit to `main`.
+- You are on the story's branch, `story/<ID>-<slug>` (see CLAUDE.md#branches), where `<ID>` matches the argument. On `main` or any other branch, stop and tell the user to switch (or run `fw-breakdown`, which creates the story branch). Never create branches here and never commit to `main`.
+- The working tree is clean, except that `story-progress/<ID>.md` may be new and uncommitted from `fw-breakdown`; commit it with sub-task 1. Any other uncommitted change: stop and report.
 - The project's build, lint and test commands are known (see the README's Building section). If none exist yet, stop and report.
 
 ## Per sub-task loop
@@ -31,6 +31,7 @@ Invoking this skill is the user's authorization to edit code and make local comm
 - Tests or build fail and the cause is not your change, or you cannot fix them after a reasonable effort.
 - A tool or dependency is needed that the user has not agreed to install.
 - Anything would be destructive or outward-facing (force push, deleting user work, publishing).
+- The work turns out to need a planning change (vision, ADR, feature design, story). That goes on a separate `plan/` branch; report it rather than editing planning docs here.
 
 When stopping, record what happened under Notes in the progress file, leave the tree committed or cleanly stashed, and report: what was finished, where you stopped, and the specific decision needed.
 

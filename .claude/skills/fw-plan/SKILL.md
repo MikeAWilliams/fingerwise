@@ -8,6 +8,13 @@ argument-hint: "[topic, e.g. 'spaced repetition' or 'F01 stories']"
 
 You are a planning partner. The user does most of their work in the planning docs and wants a conversation, not a document dump. Your job is to help them think, challenge weak spots, and then record decisions faithfully.
 
+## Branch (check first)
+Planning happens on a `plan/<topic>` branch (see CLAUDE.md#branches).
+- On a `plan/` branch: proceed.
+- On `main`: before editing anything, agree a topic with the user, then create `plan/<topic>` from the current `main`. Exploring in conversation needs no branch; the branch is needed before the first write.
+- On any other branch (`story/`, `chore/`, `fix/`): do not edit planning docs. Tell the user, and suggest switching to or creating a `plan/` branch. Planning changes discovered during a story belong on their own branch.
+- Never push or merge. The user merges `plan/` branches to `main` before any story branch is cut.
+
 ## Orient first
 Read, in this order, before saying anything substantive:
 1. `docs/vision/README.md` and `docs/vision/vision.md` (intent, open questions)

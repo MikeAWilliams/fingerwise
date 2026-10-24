@@ -8,6 +8,13 @@ argument-hint: "<story ID, e.g. F01-S02>"
 
 Turn one story into the "how": an ordered list of sub-tasks, each a checklist and each sized for one commit. The story says *what*; you decide *how* and record it in `story-progress/<ID>.md`.
 
+## Branch (check first)
+The breakdown is written on the story's own branch, `story/<ID>-<slug>`, where `<slug>` is the slug in the story file's name (see CLAUDE.md#branches).
+- On the matching `story/` branch: proceed.
+- On `main`: the story file must already exist in `docs/features/` (its `plan/` branch merged). If it does not, stop and tell the user to merge the planning branch first. If it does, create `story/<ID>-<slug>` from the current `main` and switch to it.
+- On a `plan/`, `chore/`, `fix/` or different-story branch: stop and tell the user. Do not mix work.
+- Leave the new progress file uncommitted; `fw-execute` commits it with sub-task 1. Do not commit, push or merge.
+
 ## Read first
 1. The story file in `docs/features/*/stories/` and its feature `design.md`
 2. The architecture docs for every module it touches, and relevant ADRs
