@@ -1,10 +1,24 @@
-# 12-Hole Ocarina Flashcards: Project Plan
+# fingerwise Vision
 
-## Concept
+> **Status: draft, living document.** This is intent and planning, not fact. What is actually built is described in [`../architecture/`](../architecture/). See [README.md](README.md) for how this file feeds the rest of the docs.
+
+## Vision
+
+### Concept
 A flashcard drill for 12-hole ocarina. A note appears on the staff, the player fingers it from memory, then after a delay the app reveals the note letter and tablature. Self-graded, no microphone needed. Open source.
 
-## Prior art (as of Oct 2026)
-Nothing found does this exact loop.
+### The gap
+Nothing found does this exact loop (see [Prior art](#prior-art)). The opening is a no-mic, self-graded, delayed-reveal drill with spaced repetition, on Android-friendly tech.
+
+### Who it is for
+Ocarina players learning to read the staff and recall fingerings from memory.
+
+---
+
+## Detailed planning
+
+### Prior art
+As of Oct 2026. Nothing found does this exact loop.
 - **Eidolophone EARTHWIND** (Steam, not yet released): staff-reading game and a note/fingering card game, but mic-centered.
 - **Mickji quizzes**: note image with 4 multiple-choice names; no fingerings.
 - **Soloist Ocarina, Ocarina Tabs** (iOS): song-focused, with fingering charts.
@@ -12,9 +26,7 @@ Nothing found does this exact loop.
 - **Pure Ocarinas "Match the note"**: ear training with mic.
 - **panzi/ocarina_tabs**: open-source tab generator and fonts (free for any use).
 
-**Gap:** a no-mic, self-graded, delayed-reveal drill with spaced repetition, on Android-friendly tech.
-
-## Stack
+### Stack
 - **Platform:** Progressive Web App (installable on Android, works offline).
 - **Language:** TypeScript, plain HTML/CSS (optional small framework: Svelte or Preact).
 - **Build:** Vite (set `base` to the repo path for GitHub Pages).
@@ -27,8 +39,8 @@ Nothing found does this exact loop.
 - **WASM (C++/Rust):** not needed; the workloads are tiny and DOM/Web Audio access goes through JS anyway. Keep only as an optional escape hatch for the pitch detector.
 - **Native later (optional):** Tauri wrapper for Linux/Mac/Windows. Same web code. Mac needs signing/notarization ($99/yr); Windows shows SmartScreen warnings unless signed.
 
-## Required abstractions (design these in from the start)
-Keep these as separate, swappable layers so nothing is hardcoded to treble clef or 12-hole ocarina.
+### Required abstractions
+Design these in from the start. Keep them as separate, swappable layers so nothing is hardcoded to treble clef or 12-hole ocarina.
 
 - **Pitch:** a single internal representation (e.g. MIDI number or note name + octave). Every other layer converts to and from this.
 - **Staff:** owns how a pitch is drawn. Inputs: pitch, clef, key signature, accidental handling. Outputs: a VexFlow rendering. Supports ledger lines and range limits. Adding a new staff style (e.g. grand staff, single-line) should not touch the drill logic.
@@ -46,9 +58,9 @@ Keep these as separate, swappable layers so nothing is hardcoded to treble clef 
 - **Drill engine:** operates only on pitches and instrument definitions; knows nothing about clef, staff, or hole count.
 - **Audio and judging:** synth and pitch detection work in sounding pitch, with the instrument's transposition applied at the boundary.
 
-Instrument definitions live as JSON files so contributors can add instruments without writing code.
+Instrument definitions live as JSON files (`data/instruments/`) so contributors can add instruments without writing code.
 
-## Feature order
+### Feature order
 1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length.
 2. **Spaced repetition:** Leitner boxes or SM-2; self-rating (got it / missed it) feeds scheduling.
 3. **Play the note:** synthesized tone; "hear it, then finger it" drill.
@@ -58,7 +70,7 @@ Instrument definitions live as JSON files so contributors can add instruments wi
 7. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.
 8. **Other instruments and clefs (optional):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
 
-## Technical gotchas
+### Technical gotchas
 - **Transposition:** many ocarina charts write notes an octave below sounding pitch; the app must define what the staff means and let users set their instrument.
 - **Breath sensitivity:** ocarina pitch rises with blowing pressure, so judging needs a wide window.
 - **Pitch is not fingering:** the judge hears what came out, not what the fingers did.
@@ -66,20 +78,23 @@ Instrument definitions live as JSON files so contributors can add instruments wi
 - **Repeated notes and fast passages:** hard to detect on a soft-attack instrument.
 - **Mic requires HTTPS** (GitHub Pages provides it).
 
-## License and assets
+### License and assets
 - **Code:** MIT (simple, permissive) or Apache 2.0 (adds a patent grant); GPL/AGPL if derivatives must stay open.
 - **Dependencies:** VexFlow, Pitchy, and abcjs are MIT; panzi's fonts are unrestricted.
 - **Avoid:** copying commercial fingering charts (Songbird, STL Ocarina, etc.); generate charts from the open fonts.
 - Keep code license and third-party asset notes clearly separated in the repo.
 
-## Reuse potential
+### Reuse potential
 Low as a library (the pieces already exist). Modest value in:
 - A clean, machine-readable 12-hole fingering dataset (JSON) per key and style; check panzi's repo first.
 - An instrument-definition format that lets others add instruments.
 
 Main value is to ocarina players using the app.
 
-## Open questions
+### Open questions
 - Which fingering style(s) to support first (Japanese vs Taiwanese)?
 - Default staff convention for sounding vs written pitch? (Now a per-instrument setting in the instrument definition.)
 - Delay length default and whether it adapts to the user's speed?
+- Toolchain: Node + pnpm or Bun? (Decide before the README build section is filled in.)
+- UI layer: vanilla TypeScript, Svelte, or Preact?
+- Code license: the repo's `LICENSE` is MIT. Confirm, or switch to Apache 2.0 for the patent grant, then record it as an ADR.
