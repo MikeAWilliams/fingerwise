@@ -18,7 +18,7 @@ Planning comes first in this project. The docs are organized by what they are fo
 | [`docs/research/`](docs/research/) | Background research: prior art, fingering data sources, licensing. |
 | [`docs/templates/`](docs/templates/) | Templates for features, stories, ADRs and progress files. |
 | [`docs/glossary.md`](docs/glossary.md) | Domain terms. |
-| [`story-progress/`](story-progress/) | Temporary tracking of stories currently being built. Purged at milestones. |
+| [`story-progress/`](story-progress/) | A checklist per story currently being built. Deleted when the story is accepted. |
 | [`data/instruments/`](data/instruments/) | Instrument definitions as JSON files. |
 | [`CLAUDE.md`](CLAUDE.md) | Working rules for Claude, which writes most of the code. |
 
