@@ -9,10 +9,10 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 
 ## Index
 
-| #          | Decision | Status |
-| ---------- | -------- | ------ |
-| (none yet) |          |        |
+| #                                | Decision                                                  | Status   |
+| -------------------------------- | --------------------------------------------------------- | -------- |
+| [0001](0001-toolchain-and-ui.md) | Toolchain and UI layer: Bun, Vite, Vitest, Biome, Preact | accepted |
 
-## Likely first ADRs
+## Likely next ADRs
 
-Open questions in `../../vision/vision.md#open-questions`: toolchain (Node/pnpm vs Bun), UI layer, code license, first fingering style.
+Open questions in `../../vision/vision.md#open-questions`: code license, first fingering style.

@@ -56,7 +56,7 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 - Respect the layer rule: the drill engine knows only pitch and instrument definitions, never clef, staff, audio or UI. Pitch is the single internal representation.
 - Instruments are data (JSON in `data/instruments/`), not code.
 - Never copy commercial fingering charts; use open sources only.
-- The stack is Bun, Vite, Preact, Vitest and Biome (provisional until its ADR). Do not add dependencies or tools without the user's agreement.
+- The stack is Bun, Vite, Preact, Vitest and Biome ([ADR 0001](docs/architecture/decisions/0001-toolchain-and-ui.md)). Do not add dependencies or tools without the user's agreement.
 - `make verify` (lint, type-check, tests, build) must pass before any commit. Biome does not touch Markdown or `.claude/`; do not run formatters over them.
 - `src/core/` imports no framework or browser APIs, and `src/` never uses Bun-specific APIs.
 - Do not commit unless asked. Running `fw-execute` counts as asking: it commits locally on a `story/` branch, never on `main`, and never pushes.

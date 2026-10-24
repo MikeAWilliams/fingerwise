@@ -28,8 +28,6 @@ The flow is: vision, then feature designs and stories, then progress tracking an
 
 The app runs entirely in the browser. The tools below are only needed to develop and build it; the built result is static files that any web host can serve.
 
-> **Provisional:** the toolchain below (Bun, Vite, Vitest, Biome, Preact) is the working choice, pending an ADR (see the [vision's open questions](docs/vision/vision.md#open-questions)).
-
 ### Prerequisites
 
 | Tool                    | Role                                       | Install                     |
