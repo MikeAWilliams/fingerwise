@@ -26,7 +26,43 @@ The flow is: vision, then feature designs and stories, then progress tracking an
 
 ## Building
 
-Not yet available. The toolchain (Node + pnpm or Bun, and the UI layer) is an open decision recorded in the [vision](docs/vision/vision.md#open-questions). This section will list prerequisites and the install, dev, test and build commands once it is decided.
+The app runs entirely in the browser. The tools below are only needed to develop and build it; the built result is static files that any web host can serve.
+
+> **Provisional:** the toolchain below is the working choice, pending an ADR (see the [vision's open questions](docs/vision/vision.md#open-questions)). The UI layer is still undecided.
+
+### Prerequisites
+
+| Tool | Role | Install |
+|---|---|---|
+| git | Version control | Already present on Bazzite. |
+| [Bun](https://bun.com/) | Runtime, package manager and script runner | `brew install bun` |
+
+Everything else is installed per project by `bun install`, so there is no global install for them:
+
+| Tool | Role |
+|---|---|
+| TypeScript | Language and type checking |
+| [Vite](https://vite.dev/) | Dev server and production bundler |
+| [Vitest](https://vitest.dev/) | Test runner |
+| [Biome](https://biomejs.dev/) | Linting and formatting |
+
+Check the install with `bun --version`.
+
+### Commands
+
+The project is not scaffolded yet (no `package.json`), so these do not work today. They will once the scaffolding branch lands:
+
+```bash
+bun install          # install dependencies from the lockfile
+bun run dev          # dev server with hot reload (http://localhost:5173)
+bun run test         # run tests
+bun run check        # lint and format with Biome
+bunx tsc --noEmit    # type-check (Vite does not type-check)
+bun run build        # production build into dist/
+bun run preview      # serve dist/ locally
+```
+
+Vite is run through Bun here, and application code in `src/` runs in the browser, so it must not use Bun-specific APIs.
 
 ## Using
 

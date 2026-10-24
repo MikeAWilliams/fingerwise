@@ -95,6 +95,6 @@ Main value is to ocarina players using the app.
 - Which fingering style(s) to support first (Japanese vs Taiwanese)?
 - Default staff convention for sounding vs written pitch? (Now a per-instrument setting in the instrument definition.)
 - Delay length default and whether it adapts to the user's speed?
-- Toolchain: Node + pnpm or Bun? (Decide before the README build section is filled in.)
+- Toolchain: the README currently documents Bun (+ Vite, Vitest, Biome) as a provisional choice. Node + pnpm is the more conventional alternative. Confirm and record as an ADR.
 - UI layer: vanilla TypeScript, Svelte, or Preact?
 - Code license: the repo's `LICENSE` is MIT. Confirm, or switch to Apache 2.0 for the patent grant, then record it as an ADR.
