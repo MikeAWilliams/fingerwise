@@ -5,12 +5,15 @@
 ## Vision
 
 ### Concept
+
 A flashcard drill for 12-hole ocarina. A note appears on the staff, the player fingers it from memory, then after a delay the app reveals the note letter and tablature. Self-graded, no microphone needed. Open source.
 
 ### The gap
+
 Nothing found does this exact loop (see [Prior art](#prior-art)). The opening is a no-mic, self-graded, delayed-reveal drill with spaced repetition, on Android-friendly tech.
 
 ### Who it is for
+
 Ocarina players learning to read the staff and recall fingerings from memory.
 
 ---
@@ -18,6 +21,7 @@ Ocarina players learning to read the staff and recall fingerings from memory.
 ## Detailed planning
 
 ### Prior art
+
 As of Oct 2026. Nothing found does this exact loop.
 - **Eidolophone EARTHWIND** (Steam, not yet released): staff-reading game and a note/fingering card game, but mic-centered.
 - **Mickji quizzes**: note image with 4 multiple-choice names; no fingerings.
@@ -27,8 +31,9 @@ As of Oct 2026. Nothing found does this exact loop.
 - **panzi/ocarina_tabs**: open-source tab generator and fonts (free for any use).
 
 ### Stack
+
 - **Platform:** Progressive Web App (installable on Android, works offline).
-- **Language:** TypeScript, plain HTML/CSS (optional small framework: Svelte or Preact).
+- **Language:** TypeScript with Preact (TSX) and plain CSS. Scaffolded; to be recorded in an ADR.
 - **Build:** Vite (set `base` to the repo path for GitHub Pages).
 - **Staff rendering:** VexFlow (MIT).
 - **Tablature:** panzi's open-source ocarina fonts.
@@ -40,6 +45,7 @@ As of Oct 2026. Nothing found does this exact loop.
 - **Native later (optional):** Tauri wrapper for Linux/Mac/Windows. Same web code. Mac needs signing/notarization ($99/yr); Windows shows SmartScreen warnings unless signed.
 
 ### Required abstractions
+
 Design these in from the start. Keep them as separate, swappable layers so nothing is hardcoded to treble clef or 12-hole ocarina.
 
 - **Pitch:** a single internal representation (e.g. MIDI number or note name + octave). Every other layer converts to and from this.
@@ -61,6 +67,7 @@ Design these in from the start. Keep them as separate, swappable layers so nothi
 Instrument definitions live as JSON files (`data/instruments/`) so contributors can add instruments without writing code.
 
 ### Feature order
+
 1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length.
 2. **Spaced repetition:** Leitner boxes or SM-2; self-rating (got it / missed it) feeds scheduling.
 3. **Play the note:** synthesized tone; "hear it, then finger it" drill.
@@ -71,6 +78,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 8. **Other instruments and clefs (optional):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
 
 ### Technical gotchas
+
 - **Transposition:** many ocarina charts write notes an octave below sounding pitch; the app must define what the staff means and let users set their instrument.
 - **Breath sensitivity:** ocarina pitch rises with blowing pressure, so judging needs a wide window.
 - **Pitch is not fingering:** the judge hears what came out, not what the fingers did.
@@ -79,12 +87,14 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 - **Mic requires HTTPS** (GitHub Pages provides it).
 
 ### License and assets
+
 - **Code:** MIT (simple, permissive) or Apache 2.0 (adds a patent grant); GPL/AGPL if derivatives must stay open.
 - **Dependencies:** VexFlow, Pitchy, and abcjs are MIT; panzi's fonts are unrestricted.
 - **Avoid:** copying commercial fingering charts (Songbird, STL Ocarina, etc.); generate charts from the open fonts.
 - Keep code license and third-party asset notes clearly separated in the repo.
 
 ### Reuse potential
+
 Low as a library (the pieces already exist). Modest value in:
 - A clean, machine-readable 12-hole fingering dataset (JSON) per key and style; check panzi's repo first.
 - An instrument-definition format that lets others add instruments.
@@ -92,9 +102,10 @@ Low as a library (the pieces already exist). Modest value in:
 Main value is to ocarina players using the app.
 
 ### Open questions
+
 - Which fingering style(s) to support first (Japanese vs Taiwanese)?
 - Default staff convention for sounding vs written pitch? (Now a per-instrument setting in the instrument definition.)
 - Delay length default and whether it adapts to the user's speed?
 - Toolchain: the README currently documents Bun (+ Vite, Vitest, Biome) as a provisional choice. Node + pnpm is the more conventional alternative. Confirm and record as an ADR.
-- UI layer: vanilla TypeScript, Svelte, or Preact?
+- UI layer: Preact was chosen and scaffolded (over vanilla TypeScript and Svelte). Record it in the same ADR as the toolchain.
 - Code license: the repo's `LICENSE` is MIT. Confirm, or switch to Apache 2.0 for the patent grant, then record it as an ADR.

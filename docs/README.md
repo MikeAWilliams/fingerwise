@@ -2,14 +2,14 @@
 
 fingerwise is planned in documents first. This is the map.
 
-| Folder | Holds | Nature |
-|---|---|---|
-| [`vision/`](vision/) | The vision and detailed planning. Where most human work happens. | Intent (may be unbuilt) |
-| [`architecture/`](architecture/) | Overview, one doc per module, data formats, decision records (ADRs). | As-built fact |
-| [`features/`](features/) | One folder per feature: a design doc plus its stories. | Specs |
-| [`research/`](research/) | Background investigation: prior art, fingering sources, licensing notes. | Reference |
-| [`templates/`](templates/) | Templates for feature designs, stories, ADRs and progress files. | Tooling |
-| [`glossary.md`](glossary.md) | Domain terms used across the docs. | Reference |
+| Folder                           | Holds                                                                    | Nature                  |
+| -------------------------------- | ------------------------------------------------------------------------ | ----------------------- |
+| [`vision/`](vision/)             | The vision and detailed planning. Where most human work happens.         | Intent (may be unbuilt) |
+| [`architecture/`](architecture/) | Overview, one doc per module, data formats, decision records (ADRs).     | As-built fact           |
+| [`features/`](features/)         | One folder per feature: a design doc plus its stories.                   | Specs                   |
+| [`research/`](research/)         | Background investigation: prior art, fingering sources, licensing notes. | Reference               |
+| [`templates/`](templates/)       | Templates for feature designs, stories, ADRs and progress files.         | Tooling                 |
+| [`glossary.md`](glossary.md)     | Domain terms used across the docs.                                       | Reference               |
 
 Outside `docs/`:
 - [`../story-progress/`](../story-progress/): one temporary checklist per in-flight story; deleted when the story is accepted, before merge.

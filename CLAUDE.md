@@ -13,11 +13,11 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 
 ## Skills (in `.claude/skills/`)
 
-| Skill | Use | Style |
-|---|---|---|
-| `fw-plan` | Think through and record vision, ADRs, feature designs, stories. | Dialog-heavy |
+| Skill               | Use                                                               | Style                         |
+| ------------------- | ----------------------------------------------------------------- | ----------------------------- |
+| `fw-plan`           | Think through and record vision, ADRs, feature designs, stories.  | Dialog-heavy                  |
 | `fw-breakdown <ID>` | Turn a story into sub-tasks with checklists in `story-progress/`. | Checks assumptions, asks once |
-| `fw-execute <ID>` | Run the breakdown, one commit per sub-task. | Hands-off; user-invoked only |
+| `fw-execute <ID>`   | Run the breakdown, one commit per sub-task.                       | Hands-off; user-invoked only  |
 
 ## Workflow
 
@@ -32,13 +32,14 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 
 `main` only receives merges. Every change happens on a branch, named `<type>/<name>` in lowercase kebab-case (story branches keep the uppercase ID):
 
-| Branch | For | Example | Skill |
-|---|---|---|---|
-| `plan/<topic>` | Vision, ADRs, feature designs, stories, glossary. Docs only. | `plan/spaced-repetition`, `plan/f01-core-flashcards` | `fw-plan` |
-| `story/<ID>-<slug>` | Building one story: code, tests, module docs, the progress file. One story per branch. | `story/F01-S02-reveal-after-delay` | `fw-breakdown`, `fw-execute` |
-| `chore/<topic>` | Tooling, scaffolding, CI, skills, `CLAUDE.md`. | `chore/scaffold-vite` | none |
-| `fix/<topic>` | Bug fixes outside a story. | `fix/ledger-line-clip` | none |
+| Branch              | For                                                                                    | Example                                              | Skill                        |
+| ------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------- |
+| `plan/<topic>`      | Vision, ADRs, feature designs, stories, glossary. Docs only.                           | `plan/spaced-repetition`, `plan/f01-core-flashcards` | `fw-plan`                    |
+| `story/<ID>-<slug>` | Building one story: code, tests, module docs, the progress file. One story per branch. | `story/F01-S02-reveal-after-delay`                   | `fw-breakdown`, `fw-execute` |
+| `chore/<topic>`     | Tooling, scaffolding, CI, skills, `CLAUDE.md`.                                         | `chore/scaffold-vite`                                | none                         |
+| `fix/<topic>`       | Bug fixes outside a story.                                                             | `fix/ledger-line-clip`                               | none                         |
 
+- The initial project scaffold (Bun, Vite, Preact, Vitest, Biome, Makefile) was committed straight to `main`, a one-time exception made by the user. Everything after follows these rules.
 - A story's `<slug>` is the slug in its story file name, so `F01-S02-reveal-after-delay.md` gives `story/F01-S02-reveal-after-delay`.
 - Slugs are short (about five words or fewer).
 - Cut every branch from an up-to-date local `main`.
@@ -55,7 +56,9 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 - Respect the layer rule: the drill engine knows only pitch and instrument definitions, never clef, staff, audio or UI. Pitch is the single internal representation.
 - Instruments are data (JSON in `data/instruments/`), not code.
 - Never copy commercial fingering charts; use open sources only.
-- Do not install tools or dependencies without the user's agreement; toolchain choice is an open question in the vision.
+- The stack is Bun, Vite, Preact, Vitest and Biome (provisional until its ADR). Do not add dependencies or tools without the user's agreement.
+- `make verify` (lint, type-check, tests, build) must pass before any commit. Biome does not touch Markdown or `.claude/`; do not run formatters over them.
+- `src/core/` imports no framework or browser APIs, and `src/` never uses Bun-specific APIs.
 - Do not commit unless asked. Running `fw-execute` counts as asking: it commits locally on a `story/` branch, never on `main`, and never pushes.
 
 ## Conventions

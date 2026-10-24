@@ -15,15 +15,15 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 
 ## Index
 
-| # | Feature | Design status |
-|---|---|---|
-| 01 | Core flashcards | not started |
-| 02 | Spaced repetition | not started |
-| 03 | Play the note | not started |
-| 04 | Songs as note order | not started |
-| 05 | Record and judge a single note | not started |
-| 06 | Wait mode for songs | not started |
-| 07 | Timed play-along | not started |
-| 08 | Other instruments and clefs | not started |
+| #   | Feature                        | Design status |
+| --- | ------------------------------ | ------------- |
+| 01  | Core flashcards                | not started   |
+| 02  | Spaced repetition              | not started   |
+| 03  | Play the note                  | not started   |
+| 04  | Songs as note order            | not started   |
+| 05  | Record and judge a single note | not started   |
+| 06  | Wait mode for songs            | not started   |
+| 07  | Timed play-along               | not started   |
+| 08  | Other instruments and clefs    | not started   |
 
 Feature order and scope come from `../vision/vision.md#feature-order`. Folders are created when a feature is designed, not before.

@@ -9,9 +9,9 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 
 ## Index
 
-| # | Decision | Status |
-|---|---|---|
-| (none yet) | | |
+| #          | Decision | Status |
+| ---------- | -------- | ------ |
+| (none yet) |          |        |
 
 ## Likely first ADRs
 
