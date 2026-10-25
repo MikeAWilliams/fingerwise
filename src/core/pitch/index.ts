@@ -2,7 +2,7 @@
 export type Pitch = number & { readonly __brand: "Pitch" };
 
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-const NAME_PATTERN = /^([A-G])(♯?)([0-9])$/;
+const NAME_PATTERN = /^([A-G])([♯#]?)([0-9])$/;
 const SEMITONE_OF_LETTER: Record<string, number> = {
 	C: 0,
 	D: 2,
@@ -18,7 +18,7 @@ function isMidi(n: number): boolean {
 	return Number.isInteger(n) && n >= 0 && n <= MAX_MIDI;
 }
 
-/** Parse a name such as `A3` or `C♯5`. Returns null if it is not a canonical sharps-only name. */
+/** Parse a name such as `A3` or `C♯5`; an ASCII `#` is accepted for `♯`. Returns null if it is not a sharps-only name. */
 export function parsePitch(name: string): Pitch | null {
 	const match = NAME_PATTERN.exec(name);
 	if (!match) return null;
@@ -26,7 +26,8 @@ export function parsePitch(name: string): Pitch | null {
 	const natural = SEMITONE_OF_LETTER[letter as string] as number;
 	const semitone = natural + (sharp ? 1 : 0);
 	// B♯ and E♯ are not canonical sharps-only names.
-	if (semitone >= 12 || NAMES[semitone] !== `${letter}${sharp}`) return null;
+	if (semitone >= 12 || NAMES[semitone] !== `${letter}${sharp ? "♯" : ""}`)
+		return null;
 	const midi = (Number(octave) + 1) * 12 + semitone;
 	return isMidi(midi) ? (midi as Pitch) : null;
 }

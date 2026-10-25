@@ -30,6 +30,11 @@ describe("parsePitch / formatPitch", () => {
 		}
 	});
 
+	test("accepts ASCII # for ♯, and formats with ♯", () => {
+		expect(parsePitch("C#4")).toBe(parsePitch("C♯4"));
+		expect(formatPitch(pitch("F#4"))).toBe("F♯4");
+	});
+
 	test("known values", () => {
 		expect(parsePitch("C4")).toBe(60);
 		expect(parsePitch("A4")).toBe(69);
@@ -37,9 +42,10 @@ describe("parsePitch / formatPitch", () => {
 
 	test.each([
 		"H4",
-		"C#4",
 		"D♭4",
 		"E♯4",
+		"E#4",
+		"B#3",
 		"B♯3",
 		"C",
 		"C10",
