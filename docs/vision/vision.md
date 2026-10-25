@@ -8,13 +8,9 @@
 
 A flashcard drill for 12-hole ocarina. A note appears on the staff, the player fingers it from memory, then after a delay the app reveals the note letter and tablature. Self-graded, no microphone needed. Open source.
 
-### The gap
-
-Nothing found does this exact loop (see [Prior art](#prior-art)). The opening is a no-mic, self-graded, delayed-reveal drill with spaced repetition, on Android-friendly tech.
-
 ### Who it is for
 
-Ocarina players learning to read the staff and recall fingerings from memory.
+Ocarina players learning to read the staff and recall fingerings from memory. Also, extensible to other instuments later.
 
 ---
 
