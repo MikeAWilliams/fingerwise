@@ -18,7 +18,7 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 **Start and navigation**
 - The app has no start screen. Page load shows a card immediately, using the saved settings or the defaults.
 - A settings button is always visible. Opening settings stops the current card and its timer. Closing settings draws a new card with the new settings.
-- Until the settings UX story (S06) lands there is no settings button. From S05 the settings come from a bundled defaults file (full range, sharps included, 3-second delay) and cannot be changed in the app.
+- The settings come from a bundled defaults file (full range, sharps included, 3-second delay) and the player changes them in the settings view (S06), which saves them in `localStorage`.
 
 **Choosing cards**
 - Uniform random over the player's note range (sharps only if included), never the same pitch as the previous card. The settings never allow a one-note range, but if the drill engine is handed one it repeats that note.
