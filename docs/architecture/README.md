@@ -8,7 +8,7 @@ This folder describes what is **built**, not what is planned. Plans live in [`..
 | -------------------------- | --------------------------------------------------------------- |
 | `overview.md`              | Layers, dependency rules, data flow. (Not written yet.)         |
 | [`modules/`](modules/)     | One doc per module, mirroring the folders under `src/`.         |
-| `data-formats.md`          | Instrument JSON schema and storage schema. (Not written yet.)   |
+| [`data-formats.md`](data-formats.md) | Instrument JSON schema. Storage schema not written yet. |
 | [`decisions/`](decisions/) | ADRs: accepted decisions and why.                               |
 
 ## Layer rule

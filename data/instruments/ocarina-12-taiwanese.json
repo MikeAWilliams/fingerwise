@@ -1,0 +1,38 @@
+{
+	"name": "12-hole alto C ocarina",
+	"family": "ocarina",
+	"holes": 12,
+	"fingeringStyle": "taiwanese",
+	"defaultClef": "treble",
+	"writtenRange": {
+		"lowest": "A3",
+		"highest": "F5"
+	},
+	"transposition": 12,
+	"tablature": {
+		"font": "Open-12-Hole-Ocarina-1.ttf",
+		"glyphs": {
+			"A3": "A",
+			"A♯3": "B",
+			"B3": "C",
+			"C4": "D",
+			"C♯4": "E",
+			"D4": "F",
+			"D♯4": "G",
+			"E4": "H",
+			"F4": "I",
+			"F♯4": "J",
+			"G4": "K",
+			"G♯4": "L",
+			"A4": "M",
+			"A♯4": "N",
+			"B4": "O",
+			"C5": "P",
+			"C♯5": "Q",
+			"D5": "R",
+			"D♯5": "S",
+			"E5": "T",
+			"F5": "U"
+		}
+	}
+}
