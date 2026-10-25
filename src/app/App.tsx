@@ -1,3 +1,4 @@
+import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import { loadInstrument } from "../core/instrument";
 import { type Pitch, parsePitch } from "../core/pitch";
@@ -20,6 +21,10 @@ export function App() {
 		<main>
 			<h1>fingerwise</h1>
 			<Staff pitch={PITCH} options={STAFF_OPTIONS} />
+			<footer>
+				Fingering font: Open 12 Hole Ocarina 1 © 2016 Mathias Panzenböck,
+				licensed under the <a href={licenseUrl}>SIL Open Font License 1.1</a>.
+			</footer>
 		</main>
 	);
 }
