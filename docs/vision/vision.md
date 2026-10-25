@@ -46,15 +46,7 @@ Design these in from the start. Keep them as separate, swappable layers so nothi
 - **Pitch:** a single internal representation that every other layer converts to and from. Built: see [`modules/pitch.md`](../architecture/modules/pitch.md).
 - **Staff:** owns how a pitch is drawn. Inputs: pitch, clef, key signature, accidental handling. Outputs: a VexFlow rendering. Supports ledger lines and range limits. Adding a new staff style (e.g. grand staff, single-line) should not touch the drill logic.
 - **Clef:** a definition mapping pitch to staff position (treble, bass, alto, tenor, etc.), plus any octave transposition marking (e.g. treble 8vb). Selectable per user and per instrument default.
-- **Instrument:** a data-driven definition, not code. Contains:
-  - name and family (ocarina, tin whistle, recorder, ...)
-  - hole count and layout, and fingering style (Japanese/Taiwanese)
-  - key (C/F/G, etc.)
-  - playable range
-  - fingering table: pitch to hole pattern
-  - written-vs-sounding transposition (how the staff relates to actual pitch)
-  - default clef
-  - tablature renderer reference (font or SVG layout)
+- **Instrument:** a data-driven definition, not code. Built: see [`modules/instrument.md`](../architecture/modules/instrument.md) and [`data-formats.md`](../architecture/data-formats.md).
 - **Fingering/tab renderer:** takes an instrument's hole pattern and draws it; the instrument definition points to which renderer to use.
 - **Drill engine:** operates only on pitches and instrument definitions; knows nothing about clef, staff, or hole count.
 - **Audio and judging:** synth and pitch detection work in sounding pitch, with the instrument's transposition applied at the boundary.
