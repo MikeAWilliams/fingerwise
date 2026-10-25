@@ -23,3 +23,5 @@ Decides which pitch comes next. It knows only pitches and instrument definitions
 
 - `tests/core/drill.test.ts`: pool contents for the full range and sub-ranges, with and without sharps; bound and empty-pool errors; every candidate reachable under a stepping random; the previous pitch never drawn; the one-pitch pool; the module's imports are exactly `../pitch` and `../instrument` and it contains no `Math.random`.
 - `tests/core/core-imports.test.ts`: covers this folder too (relative imports, no browser globals).
+- `tests/extensibility/drill-layers.test.ts` (F01-S07): follows relative imports transitively from every drill file and fails if any reaches `src/render/`, `src/app/`, anything named clef or staff, `vexflow` or `preact`; in-memory source maps show the check fails for direct and transitive cases.
+- `tests/extensibility/fixture-instrument.test.ts` (F01-S07): the pool and `drawPitch` with a 6-hole fixture instrument (C5..C6).
