@@ -27,3 +27,9 @@ C major only, with no key signature, so sharps are drawn as accidentals on the n
 - `tests/render/staff-imports.test.ts`: the staff module does not import the app, and core does not import render.
 
 The rendered SVG is not unit tested; it is checked by hand with `make dev`.
+
+## Notes
+
+- `treble-8vb` is a best guess (8vb clef, note drawn an octave higher); F01-S07 tests it and may adjust.
+- `vexflow/bravura` makes the production bundle about 737 kB (394 kB gzip), and Vite warns about chunk size. Accepted for now.
+- `drawStaff` takes an `HTMLDivElement` because VexFlow's `Renderer` does not accept a plain `HTMLElement`.
