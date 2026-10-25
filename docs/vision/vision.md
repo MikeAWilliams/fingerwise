@@ -47,7 +47,7 @@ Design these in from the start. Keep them as separate, swappable layers so nothi
 - **Staff:** owns how a pitch is drawn. Built; see [staff.md](../architecture/modules/staff.md).
 - **Clef:** a definition mapping pitch to staff position (treble, bass, alto, tenor, etc.), plus any octave transposition marking (e.g. treble 8vb). Selectable per user and per instrument default.
 - **Instrument:** a data-driven definition, not code. Built: see [`modules/instrument.md`](../architecture/modules/instrument.md) and [`data-formats.md`](../architecture/data-formats.md).
-- **Fingering/tab renderer:** takes an instrument's hole pattern and draws it; the instrument definition points to which renderer to use.
+- **Fingering/tab renderer:** draws the glyph the instrument definition holds for a pitch. Built: see [`modules/tab.md`](../architecture/modules/tab.md) and [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
 - **Drill engine:** operates only on pitches and instrument definitions; knows nothing about clef, staff, or hole count.
 - **Audio and judging:** synth and pitch detection work in sounding pitch, with the instrument's transposition applied at the boundary.
 
