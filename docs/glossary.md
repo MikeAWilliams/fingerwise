@@ -16,7 +16,9 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Instrument definition**      | A JSON data file describing an instrument (range, fingering table, transposition, default clef). |
 | **Card**                       | One drill item: a pitch to be fingered.                                                          |
 | **Reveal**                     | The step after the delay where the note letter and tablature are shown.                          |
-| **Delay**                      | Seconds between a card appearing and its automatic reveal. Set in settings, 0.5 to 30, default 3. |
+| **Reveal delay**                  | Seconds between a card appearing and its automatic reveal. Set in settings, 0.5 to 30, default 3. Called "delay" in older docs. |
+| **Auto-advance**               | Showing the next card on its own after the advance delay, with no click or key press. A setting, default on. |
+| **Advance delay**              | Seconds between a reveal and the automatic next card when auto-advance is on. 0.5 to 30, default 3. |
 | **Pool**                       | The set of pitches a card can be drawn from: the naturals between the low and high bounds, plus the sharps between them if sharps are included. |
 | **Drill engine**               | The code that builds the pool and draws the next pitch. Knows only pitch and instrument definitions, never clef, staff, audio or UI. |
 | **Story**                      | A small, testable unit of work with acceptance criteria.                                         |

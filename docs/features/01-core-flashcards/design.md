@@ -1,6 +1,6 @@
 # F01: Core flashcards
 
-- **Status:** shipped
+- **Status:** in progress (bonus story F01-S08)
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
@@ -12,13 +12,13 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 **Card flow**
 1. A card shows one written pitch on the staff. The delay timer starts.
 2. When the delay ends, or the player clicks or presses a key before then, the card is revealed: the written note name (e.g. `C4`, `C♯5`) and the tablature glyph appear under the staff, in place.
-3. After the reveal, a click or key press shows the next card, and its timer starts from zero.
-4. There is no pause button and no grading. Grading arrives with feature 6.
+3. After the reveal, a click or key press shows the next card, and its timer starts from zero. With auto-advance on (S08), the next card also appears on its own once the advance delay has passed since the reveal; a click or key press during that wait advances at once.
+4. There is no pause button (turning auto-advance off is how to stop hands-free mode) and no grading. Grading arrives with feature 6.
 
 **Start and navigation**
 - The app has no start screen. Page load shows a card immediately, using the saved settings or the defaults.
 - A settings button is always visible. Opening settings stops the current card and its timer. Closing settings draws a new card with the new settings.
-- The settings come from a bundled defaults file (full range, sharps included, 3-second delay) and the player changes them in the settings view (S06), which saves them in `localStorage`.
+- The settings come from a bundled defaults file (full range, sharps included, 3-second reveal delay; from S08 also auto-advance on with a 3-second advance delay) and the player changes them in the settings view (S06), which saves them in `localStorage`.
 
 **Choosing cards**
 - Uniform random over the player's note range (sharps only if included), never the same pitch as the previous card. The settings never allow a one-note range, but if the drill engine is handed one it repeats that note.
@@ -28,7 +28,9 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 **Settings** (the bundled defaults file is the base; from S06 the player's choices are saved in `localStorage` over it, and missing or corrupt data falls back to the defaults file)
 - **Note range:** a lowest and highest written pitch, chosen within the instrument's written range (A3 to F5 for the alto C). The lowest is always below the highest. Every natural note between them is in the pool. Default: the full range.
 - **Include sharps:** a toggle. On, every semitone between low and high is in the pool. Off, sharps are left out and the pickers offer natural notes only. Default on.
-- **Delay:** seconds before the automatic reveal, from 0.5 to 30. Default 3.
+- **Delay** (the reveal delay): seconds before the automatic reveal, from 0.5 to 30. Default 3.
+- **Auto-advance** (S08): a toggle. On, the next card is shown after the advance delay. Default on.
+- **Advance delay** (S08): seconds from the reveal to the automatic next card, from 0.5 to 30. Default 3.
 - There is no fingering-style setting and no ocarina-key setting; there is one instrument.
 
 **Edge cases**
@@ -72,7 +74,7 @@ All new. Module docs are written when each is built.
 
 **Defaults file:** `data/settings/defaults.json`, imported at build time. It holds the settings listed under Settings above.
 
-**Stored state (S06):** one `localStorage` key for settings: low pitch, high pitch, include sharps, delay.
+**Stored state (S06):** one `localStorage` key for settings: low pitch, high pitch, include sharps, delay; from S08 also auto-advance and advance delay. Data saved before S08 keeps its values and gets the defaults for the new fields.
 
 ## Extensibility tests (shipped as tests, not features)
 
@@ -96,5 +98,6 @@ All new. Module docs are written when each is built.
 - F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI) — done
 - F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`) — done
 - F01-S07: Extensibility tests — done
+- F01-S08: Auto-advance after the reveal (toggle and advance delay; bonus story added after shipping) — not started
 
 Story files are in [`stories/`](stories/).
