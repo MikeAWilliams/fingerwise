@@ -11,7 +11,8 @@ import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
 import { type CardState, createCardFlow } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { browserStorage, loadSettings } from "./settings-store";
+import { Settings as SettingsView } from "./Settings";
+import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -42,11 +43,21 @@ export function App() {
 			fonts: document.fonts,
 		}).then(setFontStatus);
 	}, []);
-	const [settings] = useState<Settings>(() =>
+	const [settings, setSettings] = useState<Settings>(() =>
 		loadSettings(browserStorage(), instrument, DEFAULT_SETTINGS),
 	);
+	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
+	const changeSettings = (next: Settings) => {
+		setSettings(next);
+		saveSettings(browserStorage(), next);
+	};
+	const openSettings = () => {
+		setCard(null);
+		setOpen(true);
+	};
 	useEffect(() => {
+		if (open) return;
 		const flow = createCardFlow({
 			pool: poolFor(settings),
 			random: Math.random,
@@ -54,7 +65,11 @@ export function App() {
 			onChange: setCard,
 		});
 		const onClick = (event: MouseEvent) => {
-			if (event.target instanceof Element && event.target.closest("a")) return;
+			if (
+				event.target instanceof Element &&
+				event.target.closest("a, button, input, select, label")
+			)
+				return;
 			flow.step();
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -70,11 +85,23 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, [settings]);
+	}, [settings, open]);
 	return (
 		<main>
 			<h1>fingerwise</h1>
-			{card && (
+			{open ? (
+				<SettingsView
+					instrument={instrument}
+					settings={settings}
+					onChange={changeSettings}
+					onClose={() => setOpen(false)}
+				/>
+			) : (
+				<button type="button" class="settings-button" onClick={openSettings}>
+					Settings
+				</button>
+			)}
+			{!open && card && (
 				<Card
 					pitch={card.pitch}
 					revealed={card.revealed}
