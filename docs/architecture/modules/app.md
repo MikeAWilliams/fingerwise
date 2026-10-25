@@ -8,11 +8,11 @@ The Preact UI that wires the layers together: loads the instrument, shows a card
 
 ## Public interface
 
-- `App`: loads the alto C instrument, starts loading its font once on mount, and builds the pool once with `buildPool(instrument, { ...fullRange(instrument), includeSharps: true })` (fixed until F01-S05), and in one `useEffect` creates the card flow with `Math.random` and `REVEAL_DELAY_MS`, mirrors its state into `useState`, calls `start()` and calls `stop()` on cleanup. The same effect owns input: `click` on `document` and `keydown` on `window` each call `flow.step()` once. It ignores `keydown` with `event.repeat` or Ctrl/Meta/Alt held, and clicks inside an `<a>` (the license link). It renders a `Card` for the current state and the license footer.
+- `App`: loads the alto C instrument, starts loading its font once on mount, and reads `data/settings/defaults.json` at build time through `parseDefaults` ([settings](settings.md)), builds the pool once from its range and sharps flag, and in one `useEffect` creates the card flow with `Math.random` and its delay (`delaySeconds * 1000`), mirrors its state into `useState`, calls `start()` and calls `stop()` on cleanup. The same effect owns input: `click` on `document` and `keydown` on `window` each call `flow.step()` once. It ignores `keydown` with `event.repeat` or Ctrl/Meta/Alt held, and clicks inside an `<a>` (the license link). It renders a `Card` for the current state and the license footer.
 - `createCardFlow({ pool, random, delayMs, onChange })` (`card-flow.ts`, plain TypeScript): returns `{ start, step, stop }` over the state `{ pitch, revealed }`. `start()` draws the first pitch with `drawPitch` and starts the reveal timer. `step()` reveals an unrevealed card and cancels the timer, or, if revealed, draws a different pitch, hides it and restarts the timer from zero; never both. `stop()` cancels the timer.
 - `Card({ pitch, revealed, instrument, staffOptions, font })`: presentational. The staff above a fixed-height reveal area. Until revealed the area is empty. When revealed it shows `formatPitch(pitch)` and the [`tabView`](tab.md) of the instrument's glyph for that pitch: the glyph in its font family, or the placeholder message while the font loads or after it fails.
 - `Staff({ pitch, options })`: draws the staff with [`drawStaff`](staff.md).
-- `startRevealTimer(delayMs, onReveal): () => void` and `REVEAL_DELAY_MS` (3000, fixed until F01-S05): a `setTimeout` wrapper that returns a cancel function.
+- `startRevealTimer(delayMs, onReveal): () => void`: a `setTimeout` wrapper that returns a cancel function.
 - `fontUrl(fileName)`: the built URL of a font in `data/fonts/`, found by file name with `import.meta.glob`, so the instrument JSON's `tablature.font` picks the font. Throws if missing.
 - `loadFont(family, url, env): Promise<"loaded" | "failed">`: adds a `FontFace` to `env.fonts` and waits for it. `env` (`{ FontFace, fonts }`) is injected so it runs in Node tests. Never rejects.
 
@@ -30,9 +30,10 @@ The font loads on page load, not at reveal, so it is usually ready when the dela
 
 ## Tests
 
-- `tests/app/reveal.test.ts`: fake timers; no call at 2999 ms, one call at 3000 ms, cancel works.
+- `tests/app/reveal.test.ts`: fake timers; no call at 2999 ms, one call at 3000 ms (passed directly), cancel works.
 - `tests/app/card-flow.test.ts`: fake timers and a fake random; early reveal stops the timer, the next card starts a full delay, one step does exactly one thing, `stop()` cancels.
 - `tests/app/font.test.ts`: `loadFont` with a fake `FontFace` (loaded and failed), `fontUrl` lookup.
+- `tests/data/settings-defaults.test.ts`: the defaults file parses against the alto C and holds A3, F5, sharps on, 3 s.
 - `tests/data/fonts.test.ts`: the font file, its hash and the license text are in `data/fonts/`.
 
 `tests/node-modules.d.ts` declares only the `node:fs` and `node:crypto` functions the font test uses, so tests can read files without adding `@types/node`.

@@ -25,6 +25,19 @@ Every error is an `InstrumentError` whose message names the offending field (dot
 
 [`ocarina-12-taiwanese.json`](../../data/instruments/ocarina-12-taiwanese.json): the 12-hole alto C, written range A3 to F5, transposition +12, glyphs `A` (A3) to `U` (F5), one letter per semitone.
 
+## Settings defaults
+
+[`data/settings/defaults.json`](../../data/settings/defaults.json) holds the settings used when nothing else applies. The app imports it at build time and reads it with `parseDefaults` ([settings](modules/settings.md)).
+
+| Field           | Type    | Rule                                                      |
+| --------------- | ------- | --------------------------------------------------------- |
+| `lowest`        | string  | Note name (`A3`, `C♯5`) inside the instrument's written range, below `highest`. |
+| `highest`       | string  | Note name inside the written range.                       |
+| `includeSharps` | boolean | When false, `lowest` and `highest` must be naturals.      |
+| `delaySeconds`  | number  | Finite, 0.5 to 30 inclusive.                              |
+
+The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 seconds.
+
 ## Storage
 
 The storage schema is not written yet.

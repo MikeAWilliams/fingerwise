@@ -1,21 +1,23 @@
 import { useEffect, useState } from "preact/hooks";
 import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
-import { buildPool, fullRange } from "../core/drill";
+import defaultsJson from "../../data/settings/defaults.json";
+import { buildPool } from "../core/drill";
 import { loadInstrument } from "../core/instrument";
 import type { Pitch } from "../core/pitch";
+import { parseDefaults } from "../core/settings";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
 import { type CardState, createCardFlow } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { REVEAL_DELAY_MS } from "./reveal";
 
 const instrument = loadInstrument(ocarinaJson);
-// Full written range with sharps; fixed until F01-S05 adds settings.
+const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
 const POOL: Pitch[] = buildPool(instrument, {
-	...fullRange(instrument),
-	includeSharps: true,
+	lowest: DEFAULT_SETTINGS.lowest,
+	highest: DEFAULT_SETTINGS.highest,
+	includeSharps: DEFAULT_SETTINGS.includeSharps,
 });
 const STAFF_OPTIONS: StaffOptions = {
 	clef: instrument.defaultClef,
@@ -40,7 +42,7 @@ export function App() {
 		const flow = createCardFlow({
 			pool: POOL,
 			random: Math.random,
-			delayMs: REVEAL_DELAY_MS,
+			delayMs: DEFAULT_SETTINGS.delaySeconds * 1000,
 			onChange: setCard,
 		});
 		const onClick = (event: MouseEvent) => {
