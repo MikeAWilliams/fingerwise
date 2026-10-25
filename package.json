@@ -14,7 +14,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"preact": "^11.0.2"
+		"preact": "^11.0.2",
+		"vexflow": "5.0.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.3",
