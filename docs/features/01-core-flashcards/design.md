@@ -28,7 +28,7 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 **Settings** (the bundled defaults file is the base; from S06 the player's choices are saved in `localStorage` over it, and missing or corrupt data falls back to the defaults file)
 - **Note range:** a lowest and highest written pitch, chosen within the instrument's written range (A3 to F5 for the alto C). The lowest is always below the highest. Every natural note between them is in the pool. Default: the full range.
 - **Include sharps:** a toggle. On, every semitone between low and high is in the pool. Off, sharps are left out and the pickers offer natural notes only. Default on.
-- **Delay:** seconds before the automatic reveal. Default 3.
+- **Delay:** seconds before the automatic reveal, from 0.5 to 30. Default 3.
 - There is no fingering-style setting and no ocarina-key setting; there is one instrument.
 
 **Edge cases**
@@ -36,7 +36,8 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 - Turning sharps off while low or high is a sharp moves the low bound up and the high bound down to the nearest natural note inside the range. Turning them back on keeps the bounds as they are.
 - If that move would leave low equal to or above high, the sharps toggle is blocked and the settings view says why. The range is never left invalid.
 - The font has not loaded when the reveal happens: the note name still shows, and the glyph appears when the font arrives (the text must not be left blank without notice).
-- A stored setting outside the instrument's range, or with low not below high, or an invalid delay, is clamped or reset to default (exact rules in F01-S05).
+- A stored setting outside the instrument's range, or with low not below high, or a delay outside 0.5 to 30 seconds, is clamped or reset to default (exact rules in F01-S05).
+- Stored settings with sharps off and a sharp bound get the same snapping as turning sharps off. If that is blocked, the range and the sharps flag reset to the defaults. A hand-edited or stale value can therefore never leave a one-note pool.
 
 ## Out of scope
 
@@ -67,7 +68,7 @@ All new. Module docs are written when each is built.
 
 **Glyph table:** the 21 glyphs of font 1, A3 to F5 written ([research note](../../research/ocarina-fingering-data.md)).
 
-**Font:** `Open-12-Hole-Ocarina-1.ttf`, committed with its OFL 1.1 text, copyright line and source URL ([ADR 0002](../../architecture/decisions/0002-tablature-from-panzi-font.md)).
+**Font:** `Open-12-Hole-Ocarina-1.ttf`, committed in `data/fonts/` with its OFL 1.1 text, copyright line and source URL ([ADR 0002](../../architecture/decisions/0002-tablature-from-panzi-font.md)). The build must copy it into the output (F01-S03 AC7).
 
 **Defaults file:** `data/settings/defaults.json`, imported at build time. It holds the settings listed under Settings above.
 

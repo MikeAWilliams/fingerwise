@@ -16,12 +16,13 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - **AC3:** Given settings and an instrument, when they are validated, then valid settings come back unchanged.
 - **AC4:** Given a lowest or highest pitch outside the instrument's written range, when validated, then it is clamped to the nearest end of that range.
 - **AC5:** Given a lowest pitch not below the highest (after clamping), when validated, then both bounds reset to the defaults.
-- **AC6:** Given a delay that is not a finite number above zero, or any value of the wrong type or missing, when validated, then that setting resets to its default.
+- **AC6:** Given a delay that is not a finite number from 0.5 to 30 seconds inclusive, or any value of the wrong type or missing, when validated, then that setting resets to its default.
 - **AC7:** Given a range and include sharps turned off, when the sharps toggle is evaluated, then a sharp low bound moves up and a sharp high bound moves down to the nearest natural, and the result is returned.
 - **AC8:** Given turning sharps off would leave low equal to or above high, when evaluated, then the toggle is reported as blocked and the range is unchanged.
 - **AC9:** Given sharps turned back on, then the bounds stay as they are.
-- **AC10:** Given `src/core/settings`, then it imports no framework or browser API, and the defaults file and `localStorage` access are not in it.
-- **AC11:** Given the change, then `make verify` passes and the `modules/` doc for `settings` describes what was built.
+- **AC10:** Given settings with include sharps off and a sharp low or high bound, when validated, then the bounds are snapped as in AC7; if that is blocked as in AC8, the range and the sharps flag reset to the defaults.
+- **AC11:** Given `src/core/settings`, then it imports no framework or browser API, and the defaults file and `localStorage` access are not in it.
+- **AC12:** Given the change, then `make verify` passes and the `modules/` doc for `settings` describes what was built.
 
 ## Notes
 

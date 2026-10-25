@@ -14,7 +14,7 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - **AC1:** Given any card, then a settings button is visible.
 - **AC2:** Given a card is showing, when the player opens settings, then the timer stops and the card is no longer driven.
 - **AC3:** Given the settings view is open, when it is closed, then a new card is drawn with the current settings and its timer starts from zero.
-- **AC4:** Given the settings view, then it offers a lowest and a highest pitch picker limited to the instrument's written range, an include-sharps toggle and a delay in seconds.
+- **AC4:** Given the settings view, then it offers a lowest and a highest pitch picker limited to the instrument's written range, an include-sharps toggle and a delay in seconds, limited to 0.5 to 30 (the input's min, max and step enforce it; step 0.5).
 - **AC5:** Given the pickers, then the lowest cannot be set equal to or above the highest, and the highest cannot be set equal to or below the lowest.
 - **AC6:** Given sharps are off, then the pickers offer natural notes only.
 - **AC7:** Given turning sharps off is allowed, when the player turns it off, then the bounds move as in F01-S05 AC7.
