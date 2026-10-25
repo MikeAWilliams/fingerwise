@@ -40,4 +40,10 @@ The file must be valid as written: `parseDefaults` throws a `SettingsError` nami
 
 ## Storage
 
-The storage schema is not written yet.
+Settings are kept in `localStorage` under the single key `fingerwise.settings`, as JSON in the same shape as the defaults file:
+
+```json
+{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3 }
+```
+
+On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet.

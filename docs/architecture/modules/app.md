@@ -13,6 +13,7 @@ The Preact UI that wires the layers together: loads the instrument, shows a card
 - `Card({ pitch, revealed, instrument, staffOptions, font })`: presentational. The staff above a fixed-height reveal area. Until revealed the area is empty. When revealed it shows `formatPitch(pitch)` and the [`tabView`](tab.md) of the instrument's glyph for that pitch: the glyph in its font family, or the placeholder message while the font loads or after it fails.
 - `Staff({ pitch, options })`: draws the staff with [`drawStaff`](staff.md).
 - `startRevealTimer(delayMs, onReveal): () => void`: a `setTimeout` wrapper that returns a cancel function.
+- `settings-store.ts`: `SETTINGS_KEY` (`fingerwise.settings`), `browserStorage()` (`window.localStorage` or null when absent or blocked), `loadSettings(storage, instrument, defaults)` (defaults on null storage, missing key, throwing `getItem` or bad JSON, otherwise `validateSettings`; never throws) and `saveSettings(storage, settings)` (one `setItem` of `toSettingsJson`; no-op on null, swallows a throwing `setItem`). Storage is injected as `Pick<Storage, "getItem" | "setItem">`. `App` loads the initial settings once into `useState` and builds the pool and delay from them. See [data-formats](../data-formats.md#storage).
 - `fontUrl(fileName)`: the built URL of a font in `data/fonts/`, found by file name with `import.meta.glob`, so the instrument JSON's `tablature.font` picks the font. Throws if missing.
 - `loadFont(family, url, env): Promise<"loaded" | "failed">`: adds a `FontFace` to `env.fonts` and waits for it. `env` (`{ FontFace, fonts }`) is injected so it runs in Node tests. Never rejects.
 
@@ -33,6 +34,7 @@ The font loads on page load, not at reveal, so it is usually ready when the dela
 - `tests/app/reveal.test.ts`: fake timers; no call at 2999 ms, one call at 3000 ms (passed directly), cancel works.
 - `tests/app/card-flow.test.ts`: fake timers and a fake random; early reveal stops the timer, the next card starts a full delay, one step does exactly one thing, `stop()` cancels.
 - `tests/app/font.test.ts`: `loadFont` with a fake `FontFace` (loaded and failed), `fontUrl` lookup.
+- `tests/app/settings-store.test.ts`: fake in-memory storage; round trip, missing key, bad JSON, invalid fields, throwing `getItem` and `setItem`, null storage.
 - `tests/data/settings-defaults.test.ts`: the defaults file parses against the alto C and holds A3, F5, sharps on, 3 s.
 - `tests/data/fonts.test.ts`: the font file, its hash and the license text are in `data/fonts/`.
 

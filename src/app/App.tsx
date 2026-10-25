@@ -5,20 +5,25 @@ import defaultsJson from "../../data/settings/defaults.json";
 import { buildPool } from "../core/drill";
 import { loadInstrument } from "../core/instrument";
 import type { Pitch } from "../core/pitch";
-import { parseDefaults } from "../core/settings";
+import { parseDefaults, type Settings } from "../core/settings";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
 import { type CardState, createCardFlow } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
+import { browserStorage, loadSettings } from "./settings-store";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
-const POOL: Pitch[] = buildPool(instrument, {
-	lowest: DEFAULT_SETTINGS.lowest,
-	highest: DEFAULT_SETTINGS.highest,
-	includeSharps: DEFAULT_SETTINGS.includeSharps,
-});
+
+function poolFor(settings: Settings): Pitch[] {
+	return buildPool(instrument, {
+		lowest: settings.lowest,
+		highest: settings.highest,
+		includeSharps: settings.includeSharps,
+	});
+}
+
 const STAFF_OPTIONS: StaffOptions = {
 	clef: instrument.defaultClef,
 	accidentals: "sharps",
@@ -37,12 +42,15 @@ export function App() {
 			fonts: document.fonts,
 		}).then(setFontStatus);
 	}, []);
+	const [settings] = useState<Settings>(() =>
+		loadSettings(browserStorage(), instrument, DEFAULT_SETTINGS),
+	);
 	const [card, setCard] = useState<CardState | null>(null);
 	useEffect(() => {
 		const flow = createCardFlow({
-			pool: POOL,
+			pool: poolFor(settings),
 			random: Math.random,
-			delayMs: DEFAULT_SETTINGS.delaySeconds * 1000,
+			delayMs: settings.delaySeconds * 1000,
 			onChange: setCard,
 		});
 		const onClick = (event: MouseEvent) => {
@@ -62,7 +70,7 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, []);
+	}, [settings]);
 	return (
 		<main>
 			<h1>fingerwise</h1>
