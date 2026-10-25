@@ -25,11 +25,12 @@ C major only, with no key signature, so sharps are drawn as accidentals on the n
 
 - `tests/render/staff.test.ts`: inspects VexFlow's `StaveNote` model in Node (staff line, accidental modifiers, ledger lines, range errors).
 - `tests/render/staff-imports.test.ts`: the staff module does not import the app, and core does not import render.
+- `tests/extensibility/staff-clefs.test.ts` (F01-S07): the same pitch in treble, treble 8vb and bass; ledger lines at range limits in each clef; sharps in each clef and at range limits.
 
 The rendered SVG is not unit tested; it is checked by hand with `make dev`.
 
 ## Notes
 
-- `treble-8vb` is a best guess (8vb clef, note drawn an octave higher); F01-S07 tests it and may adjust.
+- `treble-8vb` draws a treble clef with an `8vb` annotation and writes the note an octave above its pitch (C4 on the third space, G3 on the second line). F01-S07 tests confirm the staff lines, ledger lines and sharps match that reading.
 - `vexflow/bravura` makes the production bundle about 737 kB (394 kB gzip), and Vite warns about chunk size. Accepted for now.
 - `drawStaff` takes an `HTMLDivElement` because VexFlow's `Renderer` does not accept a plain `HTMLElement`.
