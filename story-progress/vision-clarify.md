@@ -5,9 +5,9 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 ## Housekeeping (no decision needed)
 
 - [x] Transposition: moved to feature 1 open items in the vision (no ADR here; decide in feature 1 planning)
-- [ ] Stack section: trim lines already covered by ADR 0001 to pointers
-- [ ] Note that PWA support is deferred to its own story (ADR 0001)
-- [ ] Add a touch/phone UI line to the vision (tap to reveal, portrait layout)
+- [x] Stack section: trimmed lines covered by ADR 0001 to a pointer
+- [x] Noted that PWA support is deferred to its own story (feature 2)
+- [x] Touch/phone UI line added as a detail under feature 2
 
 ## Decisions for the user
 

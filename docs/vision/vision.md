@@ -28,11 +28,10 @@ As of Oct 2026. Nothing found does this exact loop.
 
 ### Stack
 
-- **Platform:** Progressive Web App (installable on Android, works offline).
-- **Language:** TypeScript with Preact (TSX) and plain CSS. Decided in [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
-- **Build:** Vite, with `base` set to the repo path for GitHub Pages ([ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md)).
+- **Platform:** Progressive Web App (installable on Android, works offline). PWA support is deferred to its own story (feature 2); see [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
+- **Toolchain and UI:** decided in [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
 - **Staff rendering:** VexFlow (MIT).
-- **Tablature:** panzi's open-source ocarina fonts.
+- **Tablature:** open question, see the feature 1 open items in [Feature order](#feature-order).
 - **Audio:** Web Audio API (sine-wave synth, optional samples).
 - **Pitch detection:** Pitchy / YIN (MIT), in JS.
 - **Storage:** localStorage (progress, spaced-repetition state); export/import button for sync.
@@ -71,6 +70,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
    - **Written vs sounding pitch:** each instrument JSON must specify its transposition, with no default; the loader rejects a file that omits it. Leaning: the 12-hole alto C writes its lowest C as C4 (middle C, the ledger line below the staff), sounding an octave higher, so sounding = written + 12 semitones. If the standard range is A4 to F6 sounding (to be confirmed by the data research), the written range is A3 to F5.
    - **Transposition, still open:** can a player override an instrument's offset? Is the fingering table keyed by written pitch, so C, F and G ocarinas share one table and the "ocarina key" setting is just the offset?
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
+   - **Touch and phone UI:** the layout works in portrait on a phone, and tapping the card reveals early.
 3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
 4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
 5. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.
