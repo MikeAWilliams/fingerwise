@@ -4,7 +4,7 @@ A flashcard drill for learning ocarina fingerings. A note appears on the staff, 
 
 The first target is the 12-hole ocarina. The design keeps instruments, clefs and staff styles as swappable data and layers so other instruments can be added later.
 
-**Status:** early development. Feature 1 (core flashcards) is partly built: a fixed note (C5) is drawn on the staff, and after 3 seconds its name and fingering appear. The drill loop, settings and the other features are not built yet.
+**Status:** early development. Feature 1 (core flashcards) is partly built: a random note is drawn on the staff, its name and fingering appear after 3 seconds or on a click or key press, and the next click or key shows another note. Settings and the other features are not built yet.
 
 ## Documentation
 
@@ -81,7 +81,7 @@ data/         instrument definitions (JSON) and the tablature font
 
 ## Using
 
-Not yet available: the app currently shows one fixed card. This section will explain how to run a drill and change the settings (ocarina key, fingering style, note range, delay length) once the first feature exists.
+Not yet available: the app drills the full range with sharps, with no settings. This section will explain how to run a drill and change the settings (ocarina key, fingering style, note range, delay length) once the first feature exists.
 
 ## License
 
