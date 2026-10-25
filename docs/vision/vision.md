@@ -65,13 +65,15 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 ### Feature order
 
 1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length.
-2. **Spaced repetition:** Leitner boxes or SM-2; self-rating (got it / missed it) feeds scheduling.
-3. **Play the note:** synthesized tone; "hear it, then finger it" drill.
-4. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
-5. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.
-6. **Wait mode for songs:** song advances when the correct note is played; no timing judgment.
-7. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.
-8. **Other instruments and clefs (optional):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
+2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
+3. **Spaced repetition:** Leitner boxes or SM-2; self-rating (got it / missed it) feeds scheduling.
+4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
+5. **Second instrument as a layer test:** add one more instrument file (e.g. a G ocarina beside the C one). If it needs only JSON and no code changes, the abstractions hold; if not, fix them while the codebase is small.
+6. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
+7. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.
+8. **Wait mode for songs:** song advances when the correct note is played; no timing judgment.
+9. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.
+10. **Other instruments and clefs (optional):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
 
 ### Technical gotchas
 

@@ -11,7 +11,7 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 
 ## Decisions for the user
 
-- [ ] Feature order: 1 -> deploy/PWA -> 2 (spaced repetition) -> 3 (hear it) -> second-key layer test -> songs and mic?
+- [x] Feature order decided: 1 core, 2 deploy/PWA, 3 spaced repetition, 4 hear it, 5 second-instrument layer test, then songs and mic (now in the vision)
 - [ ] Mic judging: add a research spike before it gets a slot?
 - [ ] Feature 7 (timed play-along): keep, or park as "maybe never"?
 - [ ] Tablature: SVG drawn from the JSON (recommended) or panzi's fonts?
@@ -28,7 +28,7 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 
 ## Then edit the vision
 
-- [ ] Rewrite Feature order with the agreed order and dependencies
-- [ ] Add deploy/PWA to the order
+- [x] Rewrite Feature order with the agreed order (dependencies between songs/mic features still to note)
+- [x] Add deploy/PWA to the order
 - [ ] Note that feature 1 will split into several stories
 - [ ] Update Open questions: remove settled, add new ones
