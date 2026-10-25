@@ -1,5 +1,5 @@
 import { Accidental } from "vexflow/bravura";
-import { describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
 import {
 	buildNote,
@@ -8,6 +8,17 @@ import {
 	type StaffOptions,
 	StaffRangeError,
 } from "../../src/render/staff/layout";
+
+// Notes are built without a rendering context, so VexFlow warns that it cannot
+// measure text. The tests only read the note model; drop that one message.
+beforeAll(() => {
+	const warn = console.warn.bind(console);
+	vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+		if (String(args[0]).includes("No context for txtCanvas")) return;
+		warn(...args);
+	});
+});
+afterAll(() => vi.restoreAllMocks());
 
 function p(name: string): Pitch {
 	const pitch = parsePitch(name);
