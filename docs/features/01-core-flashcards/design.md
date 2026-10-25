@@ -21,22 +21,22 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 - Until the settings UX story (S06) lands there is no settings button. From S05 the settings come from a bundled defaults file (full range, sharps included, 3-second delay) and cannot be changed in the app.
 
 **Choosing cards**
-- Uniform random over the player's note range (sharps only if included), never the same pitch as the previous card. If the range holds one note, it repeats.
+- Uniform random over the player's note range (sharps only if included), never the same pitch as the previous card. The settings never allow a one-note range, but if the drill engine is handed one it repeats that note.
 - Chromatic notes are drawn as sharps with an accidental on the note, in C major (no key signature). The name shows the sharp.
 - The staff is treble clef only.
 
 **Settings** (the bundled defaults file is the base; from S06 the player's choices are saved in `localStorage` over it, and missing or corrupt data falls back to the defaults file)
-- **Note range:** a lowest and highest written pitch, chosen within the instrument's written range (A3 to F5 for the alto C). Every natural note between them is in the pool. Default: the full range.
+- **Note range:** a lowest and highest written pitch, chosen within the instrument's written range (A3 to F5 for the alto C). The lowest is always below the highest. Every natural note between them is in the pool. Default: the full range.
 - **Include sharps:** a toggle. On, every semitone between low and high is in the pool. Off, sharps are left out and the pickers offer natural notes only. Default on.
 - **Delay:** seconds before the automatic reveal. Default 3.
 - There is no fingering-style setting and no ocarina-key setting; there is one instrument.
 
 **Edge cases**
-- Lowest note above the highest is not allowed; the pickers keep low <= high.
-- Turning sharps off while low or high is a sharp moves that bound to the nearest natural note inside the range. Turning them back on keeps the bounds as they are.
-- With sharps off, the range can be a single natural note; the drill then repeats it (see Choosing cards).
+- The pickers enforce low < high: the lowest cannot equal or exceed the highest.
+- Turning sharps off while low or high is a sharp moves the low bound up and the high bound down to the nearest natural note inside the range. Turning them back on keeps the bounds as they are.
+- If that move would leave low equal to or above high, the sharps toggle is blocked and the settings view says why. The range is never left invalid.
 - The font has not loaded when the reveal happens: the note name still shows, and the glyph appears when the font arrives (the text must not be left blank without notice).
-- A stored setting outside the instrument's range is clamped or reset to default.
+- A stored setting outside the instrument's range, or with low not below high, or an invalid delay, is clamped or reset to default (exact rules in F01-S05).
 
 ## Out of scope
 
@@ -96,4 +96,4 @@ All new. Module docs are written when each is built.
 - F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`)
 - F01-S07: Extensibility tests
 
-Stories are written in a later planning pass.
+Story files are in [`stories/`](stories/).
