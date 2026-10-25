@@ -18,14 +18,14 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 **Start and navigation**
 - The app has no start screen. Page load shows a card immediately, using the saved settings or the defaults.
 - A settings button is always visible. Opening settings stops the current card and its timer. Closing settings draws a new card with the new settings.
-- Until the settings story lands, the app runs on the defaults alone (full range, sharps included, 3-second delay) with no settings button.
+- Until the settings UX story (S06) lands there is no settings button. From S05 the settings come from a bundled defaults file (full range, sharps included, 3-second delay) and cannot be changed in the app.
 
 **Choosing cards**
 - Uniform random over the player's note range (sharps only if included), never the same pitch as the previous card. If the range holds one note, it repeats.
 - Chromatic notes are drawn as sharps with an accidental on the note, in C major (no key signature). The name shows the sharp.
 - The staff is treble clef only.
 
-**Settings** (persisted in `localStorage`; missing or corrupt data falls back to defaults)
+**Settings** (the bundled defaults file is the base; from S06 the player's choices are saved in `localStorage` over it, and missing or corrupt data falls back to the defaults file)
 - **Note range:** a lowest and highest written pitch, chosen within the instrument's written range (A3 to F5 for the alto C). Every natural note between them is in the pool. Default: the full range.
 - **Include sharps:** a toggle. On, every semitone between low and high is in the pool. Off, sharps are left out and the pickers offer natural notes only. Default on.
 - **Delay:** seconds before the automatic reveal. Default 3.
@@ -54,7 +54,7 @@ All new. Module docs are written when each is built.
 - `src/core/pitch`: the pitch representation, transposition arithmetic, note names.
 - `src/core/instrument`: instrument definition types, loader and validation (required transposition, glyph for every pitch in range, ranges consistent).
 - `src/core/drill`: picks the next pitch from a range and an instrument, avoiding the previous pitch. Knows only pitch and instrument definitions.
-- `src/core/settings`: setting types, defaults, validation and clamping. The `localStorage` access itself lives in `src/app`.
+- `src/core/settings`: setting types, defaults, validation and clamping. The bundled defaults file and the `localStorage` access itself live in `src/app`.
 - `src/render/staff`: draws a written pitch on a treble staff with VexFlow. Clef, accidental handling and range limits are parameters.
 - `src/render/tab`: shows a glyph string in the bundled font.
 - `src/app`: the card view, settings view, timer, `localStorage`, font loading.
@@ -69,7 +69,9 @@ All new. Module docs are written when each is built.
 
 **Font:** `Open-12-Hole-Ocarina-1.ttf`, committed with its OFL 1.1 text, copyright line and source URL ([ADR 0002](../../architecture/decisions/0002-tablature-from-panzi-font.md)).
 
-**Stored state:** one `localStorage` key for settings: low pitch, high pitch, include sharps, delay.
+**Defaults file:** `data/settings/defaults.json`, imported at build time. It holds the settings listed under Settings above.
+
+**Stored state (S06):** one `localStorage` key for settings: low pitch, high pitch, include sharps, delay.
 
 ## Extensibility tests (shipped as tests, not features)
 
@@ -90,7 +92,8 @@ All new. Module docs are written when each is built.
 - F01-S02: Show a note on the staff
 - F01-S03: Reveal name and tablature after the delay
 - F01-S04: Next card and drill rules (random pick, no immediate repeat, early reveal)
-- F01-S05: Settings with persistence (range, include sharps, delay)
-- F01-S06: Extensibility tests
+- F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI)
+- F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`)
+- F01-S07: Extensibility tests
 
 Stories are written in a later planning pass.
