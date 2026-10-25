@@ -1,6 +1,6 @@
 # F01: Core flashcards
 
-- **Status:** in progress
+- **Status:** shipped
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
@@ -95,6 +95,6 @@ All new. Module docs are written when each is built.
 - F01-S04: Next card and drill rules (random pick, no immediate repeat, early reveal) — done
 - F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI) — done
 - F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`) — done
-- F01-S07: Extensibility tests
+- F01-S07: Extensibility tests — done
 
 Story files are in [`stories/`](stories/).

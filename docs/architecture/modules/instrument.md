@@ -21,4 +21,4 @@ Turns parsed instrument JSON into a validated `Instrument`. Instruments are data
 
 ## Tests
 
-`tests/core/instrument.test.ts` loads `data/instruments/ocarina-12-taiwanese.json` and checks every field and all 21 glyphs against a table written from the research note. Invalid instruments are deep copies of that JSON with one field changed. `tests/core/core-imports.test.ts` guards the import rule.
+`tests/core/instrument.test.ts` loads `data/instruments/ocarina-12-taiwanese.json` and checks every field and all 21 glyphs against a table written from the research note. Invalid instruments are deep copies of that JSON with one field changed. `tests/core/core-imports.test.ts` guards the import rule. `tests/extensibility/fixture-instrument.test.ts` loads a 6-hole fixture (`tests/fixtures/instruments/fixture-6-hole.json`: range C5 to C6, transposition 0, bass clef) through the loader, the drill and the tab view with no change to `src/` (F01-S07).

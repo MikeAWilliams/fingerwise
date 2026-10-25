@@ -21,3 +21,4 @@ None. It must not import `src/app/`. Loading the font is the app's job ([app](ap
 
 - `tests/render/tab.test.ts`: each status gives the right view, glyphs pass through untouched, `fontFamilyFor` strips the extension.
 - `tests/render/staff-imports.test.ts`: the tab module does not import the app.
+- `tests/extensibility/fixture-instrument.test.ts`: the fixture instrument's font family and every glyph through `tabView`.
