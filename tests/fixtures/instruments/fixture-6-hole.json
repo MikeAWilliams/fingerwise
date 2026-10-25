@@ -1,0 +1,30 @@
+{
+	"name": "6-hole fixture instrument",
+	"family": "fixture",
+	"holes": 6,
+	"fingeringStyle": "japanese",
+	"defaultClef": "bass",
+	"writtenRange": {
+		"lowest": "C5",
+		"highest": "C6"
+	},
+	"transposition": 0,
+	"tablature": {
+		"font": "Fixture-Font.ttf",
+		"glyphs": {
+			"C5": "c5",
+			"C♯5": "c#5",
+			"D5": "d5",
+			"D♯5": "d#5",
+			"E5": "e5",
+			"F5": "f5",
+			"F♯5": "f#5",
+			"G5": "g5",
+			"G♯5": "g#5",
+			"A5": "a5",
+			"A♯5": "a#5",
+			"B5": "b5",
+			"C6": "c6"
+		}
+	}
+}
