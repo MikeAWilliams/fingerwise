@@ -26,3 +26,29 @@
 	font-size: 1rem;
 	opacity: 0.6;
 }
+
+.settings-button {
+	position: fixed;
+	top: 0.5rem;
+	right: 0.5rem;
+}
+
+.settings {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	max-width: 20rem;
+	margin: 0 auto;
+}
+
+.settings label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.settings-note {
+	margin: 0;
+	opacity: 0.7;
+}

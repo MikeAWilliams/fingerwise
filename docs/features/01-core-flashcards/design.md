@@ -93,8 +93,8 @@ All new. Module docs are written when each is built.
 - F01-S02: Show a note on the staff — done
 - F01-S03: Reveal name and tablature after the delay — done
 - F01-S04: Next card and drill rules (random pick, no immediate repeat, early reveal) — done
-- F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI)
-- F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`)
+- F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI) — done
+- F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`) — done
 - F01-S07: Extensibility tests
 
 Story files are in [`stories/`](stories/).

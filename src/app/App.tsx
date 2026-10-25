@@ -1,22 +1,30 @@
 import { useEffect, useState } from "preact/hooks";
 import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
-import { buildPool, fullRange } from "../core/drill";
+import defaultsJson from "../../data/settings/defaults.json";
+import { buildPool } from "../core/drill";
 import { loadInstrument } from "../core/instrument";
 import type { Pitch } from "../core/pitch";
+import { parseDefaults, type Settings } from "../core/settings";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
 import { type CardState, createCardFlow } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { REVEAL_DELAY_MS } from "./reveal";
+import { Settings as SettingsView } from "./Settings";
+import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 
 const instrument = loadInstrument(ocarinaJson);
-// Full written range with sharps; fixed until F01-S05 adds settings.
-const POOL: Pitch[] = buildPool(instrument, {
-	...fullRange(instrument),
-	includeSharps: true,
-});
+const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
+
+function poolFor(settings: Settings): Pitch[] {
+	return buildPool(instrument, {
+		lowest: settings.lowest,
+		highest: settings.highest,
+		includeSharps: settings.includeSharps,
+	});
+}
+
 const STAFF_OPTIONS: StaffOptions = {
 	clef: instrument.defaultClef,
 	accidentals: "sharps",
@@ -35,16 +43,33 @@ export function App() {
 			fonts: document.fonts,
 		}).then(setFontStatus);
 	}, []);
+	const [settings, setSettings] = useState<Settings>(() =>
+		loadSettings(browserStorage(), instrument, DEFAULT_SETTINGS),
+	);
+	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
+	const changeSettings = (next: Settings) => {
+		setSettings(next);
+		saveSettings(browserStorage(), next);
+	};
+	const openSettings = () => {
+		setCard(null);
+		setOpen(true);
+	};
 	useEffect(() => {
+		if (open) return;
 		const flow = createCardFlow({
-			pool: POOL,
+			pool: poolFor(settings),
 			random: Math.random,
-			delayMs: REVEAL_DELAY_MS,
+			delayMs: settings.delaySeconds * 1000,
 			onChange: setCard,
 		});
 		const onClick = (event: MouseEvent) => {
-			if (event.target instanceof Element && event.target.closest("a")) return;
+			if (
+				event.target instanceof Element &&
+				event.target.closest("a, button, input, select, label")
+			)
+				return;
 			flow.step();
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -60,11 +85,23 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, []);
+	}, [settings, open]);
 	return (
 		<main>
 			<h1>fingerwise</h1>
-			{card && (
+			{open ? (
+				<SettingsView
+					instrument={instrument}
+					settings={settings}
+					onChange={changeSettings}
+					onClose={() => setOpen(false)}
+				/>
+			) : (
+				<button type="button" class="settings-button" onClick={openSettings}>
+					Settings
+				</button>
+			)}
+			{!open && card && (
 				<Card
 					pitch={card.pitch}
 					revealed={card.revealed}
