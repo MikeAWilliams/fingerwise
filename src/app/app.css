@@ -1,5 +1,7 @@
 .card-staff {
 	height: 150px;
+	display: flex;
+	justify-content: center;
 }
 
 .card-reveal {
