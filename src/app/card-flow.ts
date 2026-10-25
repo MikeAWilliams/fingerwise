@@ -11,6 +11,8 @@ export interface CardFlowOptions {
 	pool: readonly Pitch[];
 	random: RandomSource;
 	delayMs: number;
+	/** How long a revealed card waits before the next one; null turns auto-advance off. */
+	advanceDelayMs: number | null;
 	onChange: (state: CardState) => void;
 }
 
@@ -19,7 +21,7 @@ export interface CardFlow {
 	start(): void;
 	/** Reveal the card if hidden, otherwise show the next one. Exactly one per call. */
 	step(): void;
-	/** Cancel any pending reveal. */
+	/** Cancel any pending reveal or advance. */
 	stop(): void;
 }
 
@@ -27,6 +29,7 @@ export function createCardFlow({
 	pool,
 	random,
 	delayMs,
+	advanceDelayMs,
 	onChange,
 }: CardFlowOptions): CardFlow {
 	let state: CardState | null = null;
@@ -46,6 +49,10 @@ export function createCardFlow({
 		cancel();
 		if (state === null || state.revealed) return;
 		show({ pitch: state.pitch, revealed: true });
+		if (advanceDelayMs !== null) {
+			const shown = state.pitch;
+			cancelTimer = startRevealTimer(advanceDelayMs, () => deal(shown));
+		}
 	}
 
 	function deal(previous: Pitch | null) {

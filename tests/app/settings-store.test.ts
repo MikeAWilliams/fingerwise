@@ -21,6 +21,8 @@ const DEFAULTS: Settings = {
 	highest: pitch("F5"),
 	includeSharps: true,
 	delaySeconds: 3,
+	autoAdvance: true,
+	advanceDelaySeconds: 3,
 };
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -41,6 +43,8 @@ test("saved settings load back unchanged", () => {
 		highest: pitch("E5"),
 		includeSharps: false,
 		delaySeconds: 1.3,
+		autoAdvance: false,
+		advanceDelaySeconds: 5,
 	};
 	saveSettings(storage, settings);
 	expect([...data.keys()]).toEqual([SETTINGS_KEY]);
@@ -49,6 +53,8 @@ test("saved settings load back unchanged", () => {
 		highest: "E5",
 		includeSharps: false,
 		delaySeconds: 1.3,
+		autoAdvance: false,
+		advanceDelaySeconds: 5,
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -77,6 +83,25 @@ test("valid JSON with invalid fields is validated per field", () => {
 	expect(result.lowest).toBe(pitch("C4"));
 	expect(result.highest).toBe(DEFAULTS.highest);
 	expect(result.delaySeconds).toBe(3);
+});
+
+test("settings saved before auto-advance load with its defaults", () => {
+	const { storage } = fakeStorage({
+		[SETTINGS_KEY]: JSON.stringify({
+			lowest: "C4",
+			highest: "E5",
+			includeSharps: false,
+			delaySeconds: 1.3,
+		}),
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		lowest: pitch("C4"),
+		highest: pitch("E5"),
+		includeSharps: false,
+		delaySeconds: 1.3,
+		autoAdvance: true,
+		advanceDelaySeconds: 3,
+	});
 });
 
 test("a throwing getItem gives the defaults", () => {

@@ -1,6 +1,6 @@
 # F01: Core flashcards
 
-- **Status:** in progress (bonus story F01-S08)
+- **Status:** done
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
@@ -98,6 +98,6 @@ All new. Module docs are written when each is built.
 - F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI) — done
 - F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`) — done
 - F01-S07: Extensibility tests — done
-- F01-S08: Auto-advance after the reveal (toggle and advance delay; bonus story added after shipping) — not started
+- F01-S08: Auto-advance after the reveal (toggle and advance delay; bonus story added after shipping) — done
 
 Story files are in [`stories/`](stories/).

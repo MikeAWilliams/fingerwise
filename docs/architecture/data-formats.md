@@ -34,16 +34,18 @@ Every error is an `InstrumentError` whose message names the offending field (dot
 | `lowest`        | string  | Note name (`A3`, `C♯5`) inside the instrument's written range, below `highest`. |
 | `highest`       | string  | Note name inside the written range.                       |
 | `includeSharps` | boolean | When false, `lowest` and `highest` must be naturals.      |
-| `delaySeconds`  | number  | Finite, 0.5 to 30 inclusive.                              |
+| `delaySeconds`  | number  | Reveal delay. Finite, 0.5 to 30 inclusive.                |
+| `autoAdvance`   | boolean | Whether the next card appears on its own after the reveal. |
+| `advanceDelaySeconds` | number | Advance delay, counted from the reveal. Finite, 0.5 to 30 inclusive. |
 
-The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 seconds.
+The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 second reveal delay, auto-advance on, 3 second advance delay.
 
 ## Storage
 
 Settings are kept in `localStorage` under the single key `fingerwise.settings`, as JSON in the same shape as the defaults file:
 
 ```json
-{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3 }
+{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3, "autoAdvance": true, "advanceDelaySeconds": 3 }
 ```
 
-On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet.
+On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. Data saved before auto-advance existed lacks `autoAdvance` and `advanceDelaySeconds`, so it keeps its other fields and gets the defaults for those two. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet.

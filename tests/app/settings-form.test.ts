@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
+	applyAdvanceDelayInput,
 	applyDelayInput,
 	highestOptions,
 	lowestOptions,
@@ -26,6 +27,8 @@ function settings(
 		highest: parsePitch(highest) as Pitch,
 		includeSharps,
 		delaySeconds: 3,
+		autoAdvance: true,
+		advanceDelaySeconds: 3,
 	};
 }
 
@@ -78,6 +81,22 @@ describe("applyDelayInput", () => {
 	test("rejects 0.4, 30.5 and NaN by returning the settings unchanged", () => {
 		for (const v of [0.4, 30.5, Number.NaN]) {
 			expect(applyDelayInput(start, v)).toBe(start);
+		}
+	});
+});
+
+describe("applyAdvanceDelayInput", () => {
+	const start = settings("A3", "F5");
+	test("accepts 0.5 and 30 and leaves the reveal delay alone", () => {
+		for (const v of [0.5, 30]) {
+			const result = applyAdvanceDelayInput(start, v);
+			expect(result.advanceDelaySeconds).toBe(v);
+			expect(result.delaySeconds).toBe(start.delaySeconds);
+		}
+	});
+	test("rejects 0.4, 30.5 and NaN by returning the settings unchanged", () => {
+		for (const v of [0.4, 30.5, Number.NaN]) {
+			expect(applyAdvanceDelayInput(start, v)).toBe(start);
 		}
 	});
 });

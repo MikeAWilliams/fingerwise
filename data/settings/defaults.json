@@ -2,5 +2,7 @@
 	"lowest": "A3",
 	"highest": "F5",
 	"includeSharps": true,
-	"delaySeconds": 3
+	"delaySeconds": 3,
+	"autoAdvance": true,
+	"advanceDelaySeconds": 3
 }
