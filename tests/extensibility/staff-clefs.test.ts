@@ -65,6 +65,7 @@ describe("same pitch in each clef (AC2)", () => {
 			accidental: null,
 			clef: "treble",
 			annotation: undefined,
+			keySignature: "C",
 		});
 		expect(line("C4", opts)).toBe(0);
 		expect(ledgerLines(noteFor("C4", opts))).toBe(1);
@@ -77,6 +78,7 @@ describe("same pitch in each clef (AC2)", () => {
 			accidental: null,
 			clef: "treble",
 			annotation: "8vb",
+			keySignature: "C",
 		});
 		expect(line("C4", opts)).toBe(3.5);
 		expect(ledgerLines(noteFor("C4", opts))).toBe(0);
@@ -89,6 +91,7 @@ describe("same pitch in each clef (AC2)", () => {
 			accidental: null,
 			clef: "bass",
 			annotation: undefined,
+			keySignature: "C",
 		});
 		expect(line("C4", opts)).toBe(6);
 		expect(ledgerLines(noteFor("C4", opts))).toBe(1);

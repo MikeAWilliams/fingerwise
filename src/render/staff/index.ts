@@ -1,9 +1,11 @@
-import { Formatter, Renderer, Stave } from "vexflow/bravura";
+import { Formatter, Renderer } from "vexflow/bravura";
 import type { Pitch } from "../../core/pitch";
-import { buildNote, noteLayout, type StaffOptions } from "./layout";
+import { buildNote, buildStave, noteLayout, type StaffOptions } from "./layout";
 
 export {
 	buildNote,
+	buildStave,
+	type KeySignature,
 	ledgerLines,
 	type NoteLayout,
 	noteLayout,
@@ -26,8 +28,7 @@ export function drawStaff(
 	renderer.resize(WIDTH, HEIGHT);
 	const ctx = renderer.getContext();
 
-	const stave = new Stave(10, 30, WIDTH - 20);
-	stave.addClef(layout.clef, "default", layout.annotation);
+	const stave = buildStave(layout, 10, 30, WIDTH - 20);
 	stave.setContext(ctx).draw();
 
 	Formatter.FormatAndDraw(ctx, stave, [buildNote(layout)]);
