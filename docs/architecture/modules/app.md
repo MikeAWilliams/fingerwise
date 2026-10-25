@@ -33,4 +33,6 @@ The font loads on page load, not at reveal, so it is usually ready when the dela
 - `tests/app/font.test.ts`: `loadFont` with a fake `FontFace` (loaded and failed), `fontUrl` lookup.
 - `tests/data/fonts.test.ts`: the font file, its hash and the license text are in `data/fonts/`.
 
+`tests/node-modules.d.ts` declares only the `node:fs` and `node:crypto` functions the font test uses, so tests can read files without adding `@types/node`.
+
 Components are not unit tested (no DOM in the test setup). Checked by hand with `make dev` and `make preview`: reveal after 3 s, the staff does not shift, the glyph appears in the ocarina font, the placeholder shows with the `.ttf` request blocked, the font is served from the same origin, the footer link opens the license.
