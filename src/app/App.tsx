@@ -62,6 +62,9 @@ export function App() {
 			pool: poolFor(settings),
 			random: Math.random,
 			delayMs: settings.delaySeconds * 1000,
+			advanceDelayMs: settings.autoAdvance
+				? settings.advanceDelaySeconds * 1000
+				: null,
 			onChange: setCard,
 		});
 		const onClick = (event: MouseEvent) => {
