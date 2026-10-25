@@ -15,4 +15,4 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 
 ## Likely next ADRs
 
-Open questions in `../../vision/vision.md#open-questions`: first fingering style.
+Open questions are tracked in `../../vision/vision.md#open-questions` and in the feature 1 open items under `../../vision/vision.md#feature-order`: first fingering style, written vs sounding pitch, tablature rendering.

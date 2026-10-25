@@ -10,7 +10,7 @@ A flashcard drill for 12-hole ocarina. A note appears on the staff, the player f
 
 ### Who it is for
 
-Ocarina players learning to read the staff and recall fingerings from memory. Also, extensible to other instuments later.
+Ocarina players learning to read the staff and recall fingerings from memory. Also, extensible to other instruments later.
 
 ---
 
@@ -34,7 +34,7 @@ As of Oct 2026. Nothing found does this exact loop.
 - **Tablature:** open question, see the feature 1 open items in [Feature order](#feature-order).
 - **Audio:** Web Audio API (sine-wave synth, optional samples).
 - **Pitch detection:** Pitchy / YIN (MIT), in JS.
-- **Storage:** localStorage (progress, spaced-repetition state); export/import button for sync.
+- **Storage:** localStorage (progress, sampling state); export/import button for sync.
 - **Hosting:** GitHub Pages (free, HTTPS included, which the mic requires) via GitHub Actions.
 - **WASM (C++/Rust):** not needed; the workloads are tiny and DOM/Web Audio access goes through JS anyway. Keep only as an optional escape hatch for the pitch detector.
 - **Native later (optional):** Tauri wrapper for Linux/Mac/Windows. Same web code. Mac needs signing/notarization ($99/yr); Windows shows SmartScreen warnings unless signed.
