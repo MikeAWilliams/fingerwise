@@ -14,6 +14,7 @@ A `Pitch` is a branded MIDI note number (C4 = 60, A4 = 69). MIDI makes transposi
 - `parsePitch(name): Pitch | null`: accepts `^[A-G][♯#]?[0-9]$`; ASCII `#` is an alias for `♯` and parses to the same pitch. Rejects flats, `B♯`/`B#`, `E♯`/`E#` and anything outside MIDI 0-127 (`C0` to `G9`).
 - `formatPitch(p): string`: inverse of `parsePitch`, e.g. `C♯5`. Always writes `♯`, never `#`.
 - `transpose(p, semitones): Pitch`.
+- `isNatural(p): boolean`: true when the name has no sharp.
 - `pitchesInRange(lowest, highest): Pitch[]`: every semitone, inclusive, ascending.
 
 ## Dependencies

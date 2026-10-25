@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	formatPitch,
+	isNatural,
 	type Pitch,
 	parsePitch,
 	pitchesInRange,
@@ -74,5 +75,17 @@ describe("pitchesInRange", () => {
 		expect(range).toHaveLength(21);
 		expect(formatPitch(range[0] as Pitch)).toBe("A3");
 		expect(formatPitch(range[20] as Pitch)).toBe("F5");
+	});
+});
+
+describe("isNatural", () => {
+	test("naturals are natural", () => {
+		expect(isNatural(pitch("C4"))).toBe(true);
+		expect(isNatural(pitch("B4"))).toBe(true);
+	});
+
+	test("sharps are not natural", () => {
+		expect(isNatural(pitch("C♯4"))).toBe(false);
+		expect(isNatural(pitch("A♯3"))).toBe(false);
 	});
 });

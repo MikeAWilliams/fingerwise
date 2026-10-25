@@ -41,6 +41,11 @@ export function transpose(p: Pitch, semitones: number): Pitch {
 	return (p + semitones) as Pitch;
 }
 
+/** True for a pitch whose name has no sharp. */
+export function isNatural(p: Pitch): boolean {
+	return !(NAMES[p % 12] as string).includes("♯");
+}
+
 /** Every semitone from `lowest` to `highest`, inclusive, ascending. */
 export function pitchesInRange(lowest: Pitch, highest: Pitch): Pitch[] {
 	const result: Pitch[] = [];
