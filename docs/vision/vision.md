@@ -47,7 +47,7 @@ Design these in from the start. Keep them as separate, swappable layers so nothi
 - **Staff:** owns how a pitch is drawn. Built; see [staff.md](../architecture/modules/staff.md).
 - **Clef:** a definition mapping pitch to staff position (treble, bass, alto, tenor, etc.), plus any octave transposition marking (e.g. treble 8vb). Selectable per user and per instrument default.
 - **Instrument:** a data-driven definition, not code. Built: see [`modules/instrument.md`](../architecture/modules/instrument.md) and [`data-formats.md`](../architecture/data-formats.md).
-- **Fingering/tab renderer:** takes an instrument's hole pattern and draws it; the instrument definition points to which renderer to use.
+- **Fingering/tab renderer:** draws the glyph the instrument definition holds for a pitch. Built: see [`modules/tab.md`](../architecture/modules/tab.md) and [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
 - **Drill engine:** operates only on pitches and instrument definitions; knows nothing about clef, staff, or hole count.
 - **Audio and judging:** synth and pitch detection work in sounding pitch, with the instrument's transposition applied at the boundary.
 
@@ -57,7 +57,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 
 1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for note range (with or without sharps) and delay length; the alto C only, F and G ocarinas come later. Designed in [`features/01-core-flashcards`](../features/01-core-flashcards/design.md). Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports. Open items for the feature 1 design:
    - **Delay:** fixed length chosen in settings. An adaptive delay is a possible later idea, tied to feature 6 (sampling), since it needs grade history. The default is 3 seconds.
-   - **Reveal placement:** the note letter and tablature appear under the staff, in place, when revealed. There is no reverse card (fingering shown, note named).
+   - **Reveal placement:** built; see [`modules/app.md`](../architecture/modules/app.md). There is no reverse card (fingering shown, note named).
    - **Fingering data, style, hole pattern shape, tablature rendering:** decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md); findings in [research](../research/ocarina-fingering-data.md). First instrument: 12-hole alto C, Taiwanese-style, font range A to F².
    - **Written vs sounding pitch, transposition, override:** decided in [ADR 0003](../architecture/decisions/0003-written-pitch-and-transposition.md).
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.

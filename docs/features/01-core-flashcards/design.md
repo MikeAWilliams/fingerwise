@@ -1,6 +1,6 @@
 # F01: Core flashcards
 
-- **Status:** designed
+- **Status:** in progress
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
@@ -89,9 +89,9 @@ All new. Module docs are written when each is built.
 
 ## Stories
 
-- F01-S01: Pitch and instrument definition (pitch type, note names, transposition, JSON loader, the alto C file)
-- F01-S02: Show a note on the staff
-- F01-S03: Reveal name and tablature after the delay
+- F01-S01: Pitch and instrument definition (pitch type, note names, transposition, JSON loader, the alto C file) — done
+- F01-S02: Show a note on the staff — done
+- F01-S03: Reveal name and tablature after the delay — done
 - F01-S04: Next card and drill rules (random pick, no immediate repeat, early reveal)
 - F01-S05: Settings read from a bundled defaults file (range, include sharps, delay; read only, no UI)
 - F01-S06: Settings UX (settings button and view, range pickers, sharps toggle, delay, persistence in `localStorage`)

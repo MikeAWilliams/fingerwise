@@ -5,6 +5,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
 	base: "/fingerwise/",
 	plugins: [preact()],
+	build: {
+		// Emit the font and its license as files, never as data URIs.
+		assetsInlineLimit: (file) =>
+			file.includes("/data/fonts/") ? false : undefined,
+	},
 	test: {
 		include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
 	},

@@ -4,7 +4,7 @@ A flashcard drill for learning ocarina fingerings. A note appears on the staff, 
 
 The first target is the 12-hole ocarina. The design keeps instruments, clefs and staff styles as swappable data and layers so other instruments can be added later.
 
-**Status:** planning. The project is scaffolded (hello-world app, passing build and tests), but no features exist yet.
+**Status:** early development. Feature 1 (core flashcards) is partly built: a fixed note (C5) is drawn on the staff, and after 3 seconds its name and fingering appear. The drill loop, settings and the other features are not built yet.
 
 ## Documentation
 
@@ -20,6 +20,7 @@ Planning comes first in this project. The docs are organized by what they are fo
 | [`docs/glossary.md`](docs/glossary.md)     | Domain terms.                                                                                    |
 | [`story-progress/`](story-progress/)       | A checklist per story currently being built. Deleted when the story is accepted.                 |
 | [`data/instruments/`](data/instruments/)   | Instrument definitions as JSON files.                                                            |
+| [`data/fonts/`](data/fonts/)               | The bundled tablature font and its OFL license.                                                  |
 | [`CLAUDE.md`](CLAUDE.md)                   | Working rules for Claude, which writes most of the code.                                         |
 
 The flow is: vision, then feature designs and stories, then progress tracking and code, then architecture docs updated to describe what was built. See [`docs/README.md`](docs/README.md) for the details.
@@ -75,14 +76,12 @@ src/render/   staff and tablature rendering
 src/audio/    synth and pitch detection
 src/app/      Preact UI and entry point (main.tsx)
 tests/        Vitest tests
-data/         instrument definitions (JSON)
+data/         instrument definitions (JSON) and the tablature font
 ```
-
-`src/core/hello.ts` and its test are placeholders and will be removed when the first real code lands.
 
 ## Using
 
-Not yet available. This section will explain how to run a drill and change the settings (ocarina key, fingering style, note range, delay length) once the first feature exists.
+Not yet available: the app currently shows one fixed card. This section will explain how to run a drill and change the settings (ocarina key, fingering style, note range, delay length) once the first feature exists.
 
 ## License
 

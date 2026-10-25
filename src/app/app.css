@@ -1,0 +1,28 @@
+.card-staff {
+	height: 150px;
+	display: flex;
+	justify-content: center;
+}
+
+.card-reveal {
+	height: 12rem;
+	text-align: center;
+}
+
+.card-name {
+	font-size: 1.5rem;
+}
+
+.card-glyph {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 8rem;
+	font-size: 6rem;
+	line-height: 1;
+}
+
+.card-placeholder {
+	font-size: 1rem;
+	opacity: 0.6;
+}

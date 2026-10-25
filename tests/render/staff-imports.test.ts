@@ -6,6 +6,12 @@ const renderSources = import.meta.glob("/src/render/staff/**/*.ts", {
 	eager: true,
 }) as Record<string, string>;
 
+const tabSources = import.meta.glob("/src/render/tab/**/*.ts", {
+	query: "?raw",
+	import: "default",
+	eager: true,
+}) as Record<string, string>;
+
 const coreSources = import.meta.glob("/src/core/**/*.ts", {
 	query: "?raw",
 	import: "default",
@@ -21,11 +27,20 @@ function specifiers(text: string): string[] {
 
 test("the globs find files", () => {
 	expect(Object.keys(renderSources).length).toBeGreaterThan(0);
+	expect(Object.keys(tabSources).length).toBeGreaterThan(0);
 	expect(Object.keys(coreSources).length).toBeGreaterThan(0);
 });
 
 test("the staff module does not import the app", () => {
 	for (const [file, text] of Object.entries(renderSources)) {
+		for (const spec of specifiers(text)) {
+			expect(/app\/|\/app/.test(spec), `${file} imports ${spec}`).toBe(false);
+		}
+	}
+});
+
+test("the tab module does not import the app", () => {
+	for (const [file, text] of Object.entries(tabSources)) {
 		for (const spec of specifiers(text)) {
 			expect(/app\/|\/app/.test(spec), `${file} imports ${spec}`).toBe(false);
 		}
