@@ -14,7 +14,6 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 - [x] Feature order decided: 1 core, 2 deploy/PWA, 3 songs, 4 hear it, 5 judge a single note, 6 smarter sampling, 7 wait mode, 8 timed play-along, 9 other instruments (maybe eventually). Second-instrument layer test folded into feature 1 as test-only requirements (now in the vision)
 - [ ] Mic judging: add a research spike before it gets a slot?
 - [ ] Feature 8 (timed play-along): keep, or park as "maybe never"?
-- [ ] Tablature: SVG drawn from the JSON (recommended) or panzi's fonts?
 - [ ] "Ocarina key" setting (C/F/G): what does it change, the staff note or only the sounding pitch?
 - [ ] Reverse card (show fingering, name the note): in feature 1 or later?
 - [ ] First fingering style: Japanese or Taiwanese? (can wait for the data research)
@@ -23,12 +22,9 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 
 ## Research
 
-- [ ] Fingering data source: does panzi's `ocarina_tabs` have a pitch-to-pattern table or only fonts? Write `docs/research/` note
-- [ ] Hole pattern shape: open / covered / half, for chromatic notes
 
 ## Then edit the vision
 
 - [x] Rewrite Feature order with the agreed order (dependencies between songs/mic features still to note)
 - [x] Add deploy/PWA to the order
-- [ ] Note that feature 1 will split into several stories
 - [ ] Update Open questions: remove settled, add new ones

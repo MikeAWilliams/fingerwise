@@ -64,7 +64,10 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 
 ### Feature order
 
-1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length. Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports.
+1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length. Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports. Open items for the feature 1 design:
+   - **Fingering data source:** does panzi's `ocarina_tabs` have a pitch-to-pattern table, or only fonts? Research note goes in `docs/research/`.
+   - **Hole pattern shape:** open and covered may not be enough; chromatic notes may need half-covered holes.
+   - **Tablature rendering:** SVG drawn from the hole pattern in the instrument JSON (leaning this way, since the data stays the single source) or panzi's fonts.
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
 3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
 4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
