@@ -43,7 +43,7 @@ As of Oct 2026. Nothing found does this exact loop.
 
 Design these in from the start. Keep them as separate, swappable layers so nothing is hardcoded to treble clef or 12-hole ocarina.
 
-- **Pitch:** a single internal representation (e.g. MIDI number or note name + octave). Every other layer converts to and from this.
+- **Pitch:** a single internal representation that every other layer converts to and from. Built: see [`modules/pitch.md`](../architecture/modules/pitch.md).
 - **Staff:** owns how a pitch is drawn. Inputs: pitch, clef, key signature, accidental handling. Outputs: a VexFlow rendering. Supports ledger lines and range limits. Adding a new staff style (e.g. grand staff, single-line) should not touch the drill logic.
 - **Clef:** a definition mapping pitch to staff position (treble, bass, alto, tenor, etc.), plus any octave transposition marking (e.g. treble 8vb). Selectable per user and per instrument default.
 - **Instrument:** a data-driven definition, not code. Contains:
