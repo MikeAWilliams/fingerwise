@@ -4,7 +4,7 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 
 ## Housekeeping (no decision needed)
 
-- [ ] Close the transposition open question: it is a per-instrument setting (glossary has written vs sounding)
+- [x] Transposition: moved to feature 1 open items in the vision (no ADR here; decide in feature 1 planning)
 - [ ] Stack section: trim lines already covered by ADR 0001 to pointers
 - [ ] Note that PWA support is deferred to its own story (ADR 0001)
 - [ ] Add a touch/phone UI line to the vision (tap to reveal, portrait layout)

@@ -68,6 +68,8 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
    - **Fingering data source:** does panzi's `ocarina_tabs` have a pitch-to-pattern table, or only fonts? Research note goes in `docs/research/`.
    - **Hole pattern shape:** open and covered may not be enough; chromatic notes may need half-covered holes.
    - **Tablature rendering:** SVG drawn from the hole pattern in the instrument JSON (leaning this way, since the data stays the single source) or panzi's fonts.
+   - **Written vs sounding pitch:** each instrument JSON must specify its transposition, with no default; the loader rejects a file that omits it. Leaning: the 12-hole alto C writes its lowest C as C4 (middle C, the ledger line below the staff), sounding an octave higher, so sounding = written + 12 semitones. If the standard range is A4 to F6 sounding (to be confirmed by the data research), the written range is A3 to F5.
+   - **Transposition, still open:** can a player override an instrument's offset? Is the fingering table keyed by written pitch, so C, F and G ocarinas share one table and the "ocarina key" setting is just the offset?
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
 3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
 4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
@@ -108,5 +110,5 @@ Main value is to ocarina players using the app.
 ### Open questions
 
 - Which fingering style(s) to support first (Japanese vs Taiwanese)?
-- Default staff convention for sounding vs written pitch? (Now a per-instrument setting in the instrument definition.)
+- Written vs sounding pitch: decided in the feature 1 design (see [Feature order](#feature-order), item 1).
 - Delay length default and whether it adapts to the user's speed?
