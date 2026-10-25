@@ -31,7 +31,7 @@ As of Oct 2026. Nothing found does this exact loop.
 - **Platform:** Progressive Web App (installable on Android, works offline). PWA support is deferred to its own story (feature 2); see [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
 - **Toolchain and UI:** decided in [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
 - **Staff rendering:** VexFlow (MIT).
-- **Tablature:** open question, see the feature 1 open items in [Feature order](#feature-order).
+- **Tablature:** panzi's font 1, decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
 - **Audio:** Web Audio API (sine-wave synth, optional samples).
 - **Pitch detection:** Pitchy / YIN (MIT), in JS.
 - **Storage:** localStorage (progress, sampling state); export/import button for sync.
@@ -66,10 +66,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length. Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports. Open items for the feature 1 design:
    - **Delay:** fixed length chosen in settings. An adaptive delay is a possible later idea, tied to feature 6 (sampling), since it needs grade history. The default length is still to be chosen.
    - **Reveal placement:** the note letter and tablature appear under the staff, in place, when revealed. There is no reverse card (fingering shown, note named).
-   - **Fingering data source:** does panzi's `ocarina_tabs` have a pitch-to-pattern table, or only fonts? Research note goes in `docs/research/`.
-   - **First fingering style:** Japanese or Taiwanese for the first instrument file. Decide once the data research shows what open data exists.
-   - **Hole pattern shape:** open and covered may not be enough; chromatic notes may need half-covered holes.
-   - **Tablature rendering:** SVG drawn from the hole pattern in the instrument JSON (leaning this way, since the data stays the single source) or panzi's fonts.
+   - **Fingering data, style, hole pattern shape, tablature rendering:** decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md); findings in [research](../research/ocarina-fingering-data.md). First instrument: 12-hole alto C, Taiwanese-style, font range A to F².
    - **Written vs sounding pitch:** each instrument JSON must specify its transposition, with no default; the loader rejects a file that omits it. Leaning: the 12-hole alto C writes its lowest C as C4 (middle C, the ledger line below the staff), sounding an octave higher, so sounding = written + 12 semitones. If the standard range is A4 to F6 sounding (to be confirmed by the data research), the written range is A3 to F5.
    - **Transposition, still open:** can a player override an instrument's offset? Is the fingering table keyed by written pitch, so C, F and G ocarinas share one table and the "ocarina key" setting is just the offset?
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
@@ -119,5 +116,4 @@ Main value is to ocarina players using the app.
 
 ### Open questions
 
-- Which fingering style(s) to support first (Japanese vs Taiwanese)? Decided in the feature 1 design (see [Feature order](#feature-order), item 1).
 - Written vs sounding pitch: decided in the feature 1 design (see [Feature order](#feature-order), item 1).
