@@ -14,7 +14,7 @@ One file per instrument in [`data/instruments/`](../../data/instruments/). Valid
 | `writtenRange.lowest` | string  | yes      | Note name. Strictly below `highest`.                                                |
 | `writtenRange.highest`| string  | yes      | Note name.                                                                          |
 | `transposition`       | integer | yes      | Semitones from written to sounding pitch. No default ([ADR 0003](decisions/0003-written-pitch-and-transposition.md)). |
-| `tablature.font`      | string  | yes      | Non-empty font file name. The file itself is not part of the instrument file.       |
+| `tablature.font`      | string  | yes      | Non-empty font file name. The file lives in [`data/fonts/`](../../data/fonts/), not in the instrument file. |
 | `tablature.glyphs`    | object  | yes      | Written pitch name to glyph string. One entry per semitone in the range, no others. |
 
 Glyph keys must be in canonical form (`C♯4`, not `C#4`) and inside the written range. A missing or extra glyph is rejected, naming the pitch. Glyph strings are opaque: only checked to be non-empty ([ADR 0002](decisions/0002-tablature-from-panzi-font.md)).
