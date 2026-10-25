@@ -64,7 +64,10 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 ### Feature order
 
 1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length. Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports. Open items for the feature 1 design:
+   - **Delay:** fixed length chosen in settings. An adaptive delay is a possible later idea, tied to feature 6 (sampling), since it needs grade history. The default length is still to be chosen.
+   - **Reveal placement:** the note letter and tablature appear under the staff, in place, when revealed. There is no reverse card (fingering shown, note named).
    - **Fingering data source:** does panzi's `ocarina_tabs` have a pitch-to-pattern table, or only fonts? Research note goes in `docs/research/`.
+   - **First fingering style:** Japanese or Taiwanese for the first instrument file. Decide once the data research shows what open data exists.
    - **Hole pattern shape:** open and covered may not be enough; chromatic notes may need half-covered holes.
    - **Tablature rendering:** SVG drawn from the hole pattern in the instrument JSON (leaning this way, since the data stays the single source) or panzi's fonts.
    - **Written vs sounding pitch:** each instrument JSON must specify its transposition, with no default; the loader rejects a file that omits it. Leaning: the 12-hole alto C writes its lowest C as C4 (middle C, the ledger line below the staff), sounding an octave higher, so sounding = written + 12 semitones. If the standard range is A4 to F6 sounding (to be confirmed by the data research), the written range is A3 to F5.
@@ -74,13 +77,20 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
 4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
 5. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.
+   - **Open question for later:** should this get a research spike (pitch-detection accuracy on ocarina, Android mic latency) before it is designed?
 6. **Smarter flashcard sampling:** replace feature 1's uniform pick with a scheduler that chooses which card comes next, based on how the player did before. Grades are self-reported only until the mic judge exists (feature 5). Two candidate approaches:
    - **Leitner boxes:** cards sit in numbered boxes. A correct answer moves a card up a box, a miss drops it to box 1, and higher boxes are reviewed less often. State per card is just a box and a due date.
    - **SM-2:** each card carries its own ease value, and the next interval is computed from its grade history. Adapts better but has more parameters to tune.
 
-   The sampling behavior is not yet specified. It needs to be described by the user before this feature can be designed.
+   Open questions (the sampling behavior must be described by the user before this feature can be designed):
+   - **Card unit:** is a card one pitch on one instrument, so each instrument has its own progress?
+   - **Grades:** two buttons (got it / missed it) or three? Speed cannot be measured, so any extra grade is self-reported.
+   - **New cards:** start with a few notes and add more as they settle, or draw from the whole note-range setting from the start?
+   - **Misses:** does a missed card come back later in the same session?
+   - **Grade source:** the scheduler takes grades from any source, so the mic judge can feed it later.
 7. **Wait mode for songs:** song advances when the correct note is played; no timing judgment.
 8. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.
+   - **Scope:** kept for now as the last real feature. It is the hardest and depends on the mic judge being reliable, so revisit whether to keep it once feature 5 shows how well judging works.
 9. **Other instruments and clefs (maybe eventually):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
 
 ### Technical gotchas
@@ -109,6 +119,5 @@ Main value is to ocarina players using the app.
 
 ### Open questions
 
-- Which fingering style(s) to support first (Japanese vs Taiwanese)?
+- Which fingering style(s) to support first (Japanese vs Taiwanese)? Decided in the feature 1 design (see [Feature order](#feature-order), item 1).
 - Written vs sounding pitch: decided in the feature 1 design (see [Feature order](#feature-order), item 1).
-- Delay length default and whether it adapts to the user's speed?

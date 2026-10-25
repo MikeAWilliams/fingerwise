@@ -12,13 +12,12 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 ## Decisions for the user
 
 - [x] Feature order decided: 1 core, 2 deploy/PWA, 3 songs, 4 hear it, 5 judge a single note, 6 smarter sampling, 7 wait mode, 8 timed play-along, 9 other instruments (maybe eventually). Second-instrument layer test folded into feature 1 as test-only requirements (now in the vision)
-- [ ] Mic judging: add a research spike before it gets a slot?
-- [ ] Feature 8 (timed play-along): keep, or park as "maybe never"?
-- [ ] "Ocarina key" setting (C/F/G): what does it change, the staff note or only the sounding pitch?
-- [ ] Reverse card (show fingering, name the note): in feature 1 or later?
-- [ ] First fingering style: Japanese or Taiwanese? (can wait for the data research)
-- [ ] Feature 6 (sampling): user to describe the sampling behavior wanted (Leitner, SM-2, or other). Open points: card unit (pitch per instrument?), grade levels, gradual introduction of new cards, within-session requeue of misses, scheduler takes grades from any source
-- [ ] Delay: fixed or adaptive, and can the player reveal early?
+- [x] Mic judging: spike question noted under feature 5 for later
+- [x] Feature 8 (timed play-along): kept; scope note added under the feature, revisit after feature 5
+- [x] Reverse card: dropped; the reveal appears under the staff (detail under feature 1)
+- [x] First fingering style: moved to feature 1 open items
+- [x] Feature 6 (sampling): open questions listed under the feature in the vision
+- [x] Delay: fixed in settings for feature 1; adaptive noted as a later idea; reveal early covered under feature 2
 
 ## Research
 
@@ -27,4 +26,4 @@ Not a story. A working checklist for smoothing out `docs/vision/vision.md` and s
 
 - [x] Rewrite Feature order with the agreed order (dependencies between songs/mic features still to note)
 - [x] Add deploy/PWA to the order
-- [ ] Update Open questions: remove settled, add new ones
+- [x] Update Open questions: delay removed, the other two point to feature 1
