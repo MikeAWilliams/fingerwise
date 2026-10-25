@@ -8,6 +8,7 @@ import {
 	setIncludeSharps,
 } from "../core/settings";
 import {
+	applyAdvanceDelayInput,
 	applyDelayInput,
 	highestOptions,
 	lowestOptions,
@@ -83,7 +84,7 @@ export function Settings({
 			</label>
 			{!blocked.ok && <p class="settings-note">{blocked.reason}</p>}
 			<label>
-				Delay (seconds)
+				Reveal delay (seconds)
 				<input
 					type="number"
 					min={MIN_DELAY_SECONDS}
@@ -92,6 +93,31 @@ export function Settings({
 					value={settings.delaySeconds}
 					onInput={(e) =>
 						onChange(applyDelayInput(settings, e.currentTarget.valueAsNumber))
+					}
+				/>
+			</label>
+			<label>
+				<input
+					type="checkbox"
+					checked={settings.autoAdvance}
+					onChange={(e) =>
+						onChange({ ...settings, autoAdvance: e.currentTarget.checked })
+					}
+				/>
+				Auto-advance
+			</label>
+			<label>
+				Advance delay (seconds)
+				<input
+					type="number"
+					min={MIN_DELAY_SECONDS}
+					max={MAX_DELAY_SECONDS}
+					step="0.5"
+					value={settings.advanceDelaySeconds}
+					onInput={(e) =>
+						onChange(
+							applyAdvanceDelayInput(settings, e.currentTarget.valueAsNumber),
+						)
 					}
 				/>
 			</label>

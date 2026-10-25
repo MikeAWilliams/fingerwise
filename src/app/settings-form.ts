@@ -29,14 +29,25 @@ export function highestOptions(
 	return offered(settings, (settings.lowest + 1) as Pitch, instrument.highest);
 }
 
-/** The settings with `value` as the delay, or unchanged when it is not a finite number from 0.5 to 30. */
+function isDelayInput(value: number): boolean {
+	return (
+		Number.isFinite(value) &&
+		value >= MIN_DELAY_SECONDS &&
+		value <= MAX_DELAY_SECONDS
+	);
+}
+
+/** The settings with `value` as the reveal delay, or unchanged when it is not a finite number from 0.5 to 30. */
 export function applyDelayInput(settings: Settings, value: number): Settings {
-	if (
-		!Number.isFinite(value) ||
-		value < MIN_DELAY_SECONDS ||
-		value > MAX_DELAY_SECONDS
-	) {
-		return settings;
-	}
+	if (!isDelayInput(value)) return settings;
 	return { ...settings, delaySeconds: value };
+}
+
+/** The settings with `value` as the advance delay, or unchanged when it is not a finite number from 0.5 to 30. */
+export function applyAdvanceDelayInput(
+	settings: Settings,
+	value: number,
+): Settings {
+	if (!isDelayInput(value)) return settings;
+	return { ...settings, advanceDelaySeconds: value };
 }
