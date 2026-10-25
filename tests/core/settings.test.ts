@@ -27,12 +27,16 @@ function settings(
 	highest: string,
 	includeSharps = true,
 	delaySeconds = 3,
+	autoAdvance = true,
+	advanceDelaySeconds = 3,
 ): Settings {
 	return {
 		lowest: pitch(lowest),
 		highest: pitch(highest),
 		includeSharps,
 		delaySeconds,
+		autoAdvance,
+		advanceDelaySeconds,
 	};
 }
 
@@ -44,6 +48,8 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		highest: "F5",
 		includeSharps: true,
 		delaySeconds: 3,
+		autoAdvance: true,
+		advanceDelaySeconds: 3,
 		...over,
 	};
 }
@@ -102,6 +108,48 @@ describe("validateSettings", () => {
 		expect(delay(undefined)).toBe(3);
 	});
 
+	test("advance delay edges", () => {
+		const delay = (d: unknown) =>
+			validateSettings(json({ advanceDelaySeconds: d }), instrument, DEFAULTS)
+				.advanceDelaySeconds;
+		expect(delay(0.4)).toBe(3);
+		expect(delay(0.5)).toBe(0.5);
+		expect(delay(30)).toBe(30);
+		expect(delay(30.5)).toBe(3);
+		expect(delay(Number.NaN)).toBe(3);
+		expect(delay(Number.POSITIVE_INFINITY)).toBe(3);
+		expect(delay("5")).toBe(3);
+		expect(delay(undefined)).toBe(3);
+	});
+
+	test("an invalid autoAdvance or advance delay resets alone", () => {
+		const defaults = { ...DEFAULTS, autoAdvance: true, advanceDelaySeconds: 3 };
+		for (const bad of [undefined, "yes", 1]) {
+			const result = validateSettings(
+				json({
+					lowest: "C4",
+					delaySeconds: 1.5,
+					autoAdvance: bad,
+					advanceDelaySeconds: 7,
+				}),
+				instrument,
+				defaults,
+			);
+			expect(result.autoAdvance).toBe(true);
+			expect(result.advanceDelaySeconds).toBe(7);
+			expect(result.lowest).toBe(pitch("C4"));
+			expect(result.delaySeconds).toBe(1.5);
+		}
+		const off = validateSettings(
+			json({ autoAdvance: false, advanceDelaySeconds: "x", delaySeconds: 2 }),
+			instrument,
+			defaults,
+		);
+		expect(off.autoAdvance).toBe(false);
+		expect(off.advanceDelaySeconds).toBe(3);
+		expect(off.delaySeconds).toBe(2);
+	});
+
 	test("missing fields reset one at a time", () => {
 		const result = validateSettings(
 			{ lowest: "C4", includeSharps: false },
@@ -112,6 +160,8 @@ describe("validateSettings", () => {
 		expect(formatPitch(result.highest)).toBe("F5");
 		expect(result.includeSharps).toBe(false);
 		expect(result.delaySeconds).toBe(3);
+		expect(result.autoAdvance).toBe(true);
+		expect(result.advanceDelaySeconds).toBe(3);
 	});
 
 	test("non-object input gives the defaults", () => {
@@ -201,6 +251,12 @@ describe("parseDefaults", () => {
 			[json({ includeSharps: 1 }), "includeSharps"],
 			[json({ delaySeconds: 0.4 }), "delaySeconds"],
 			[json({ delaySeconds: "3" }), "delaySeconds"],
+			[json({ autoAdvance: undefined }), "autoAdvance"],
+			[json({ autoAdvance: "true" }), "autoAdvance"],
+			[json({ advanceDelaySeconds: undefined }), "advanceDelaySeconds"],
+			[json({ advanceDelaySeconds: 0.4 }), "advanceDelaySeconds"],
+			[json({ advanceDelaySeconds: 31 }), "advanceDelaySeconds"],
+			[json({ advanceDelaySeconds: "3" }), "advanceDelaySeconds"],
 			[json({ lowest: "C3" }), "lowest"],
 			[json({ highest: "A5" }), "highest"],
 			[json({ lowest: "E5", highest: "C4" }), "below"],

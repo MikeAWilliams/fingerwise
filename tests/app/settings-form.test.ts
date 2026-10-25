@@ -26,6 +26,8 @@ function settings(
 		highest: parsePitch(highest) as Pitch,
 		includeSharps,
 		delaySeconds: 3,
+		autoAdvance: true,
+		advanceDelaySeconds: 3,
 	};
 }
 

@@ -6,6 +6,8 @@ export interface Settings {
 	highest: Pitch;
 	includeSharps: boolean;
 	delaySeconds: number;
+	autoAdvance: boolean;
+	advanceDelaySeconds: number;
 }
 
 /** Serialized form shared by the defaults file and storage; pitches are note names. */
@@ -14,6 +16,8 @@ export interface SettingsJson {
 	highest: string;
 	includeSharps: boolean;
 	delaySeconds: number;
+	autoAdvance: boolean;
+	advanceDelaySeconds: number;
 }
 
 export const MIN_DELAY_SECONDS = 0.5;
@@ -36,6 +40,8 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		highest: formatPitch(settings.highest),
 		includeSharps: settings.includeSharps,
 		delaySeconds: settings.delaySeconds,
+		autoAdvance: settings.autoAdvance,
+		advanceDelaySeconds: settings.advanceDelaySeconds,
 	};
 }
 
@@ -108,6 +114,13 @@ export function validateSettings(
 	const delaySeconds = isValidDelay(obj.delaySeconds)
 		? obj.delaySeconds
 		: defaults.delaySeconds;
+	const autoAdvance =
+		typeof obj.autoAdvance === "boolean"
+			? obj.autoAdvance
+			: defaults.autoAdvance;
+	const advanceDelaySeconds = isValidDelay(obj.advanceDelaySeconds)
+		? obj.advanceDelaySeconds
+		: defaults.advanceDelaySeconds;
 
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
@@ -123,7 +136,14 @@ export function validateSettings(
 			({ lowest, highest } = snapped);
 		}
 	}
-	return { lowest, highest, includeSharps, delaySeconds };
+	return {
+		lowest,
+		highest,
+		includeSharps,
+		delaySeconds,
+		autoAdvance,
+		advanceDelaySeconds,
+	};
 }
 
 /** Strict parse of the defaults file: throws `SettingsError` unless the file is valid as written. */
@@ -145,6 +165,14 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (!isValidDelay(obj.delaySeconds)) {
 		throw new SettingsError(
 			`delaySeconds must be a number from ${MIN_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}`,
+		);
+	}
+	if (typeof obj.autoAdvance !== "boolean") {
+		throw new SettingsError("autoAdvance must be true or false");
+	}
+	if (!isValidDelay(obj.advanceDelaySeconds)) {
+		throw new SettingsError(
+			`advanceDelaySeconds must be a number from ${MIN_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}`,
 		);
 	}
 
@@ -171,5 +199,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		highest,
 		includeSharps: obj.includeSharps,
 		delaySeconds: obj.delaySeconds,
+		autoAdvance: obj.autoAdvance,
+		advanceDelaySeconds: obj.advanceDelaySeconds,
 	};
 }
