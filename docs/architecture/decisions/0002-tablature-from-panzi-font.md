@@ -9,7 +9,9 @@ Feature 1 reveals a fingering diagram after the delay. The vision leaned toward 
 ## Decision
 - Tablature is rendered as text in `Open-12-Hole-Ocarina-1.ttf` from [panzi/ocarina_tabs](https://github.com/panzi/ocarina_tabs), used unmodified.
 - The instrument definition stores, for each pitch, the glyph character to show. It does not store hole patterns.
-- The font file ships with the app together with its OFL 1.1 license notice, kept separate from the MIT code license.
+- The font is downloaded once and committed to the repo (no runtime or build-time fetch), so the app works offline and the build is reproducible.
+- Committed with it: the full OFL 1.1 license text, the upstream copyright line, and the source URL (https://github.com/panzi/ocarina_tabs) with the upstream commit or release it came from, so we can find it again later. The folder is set in the feature design.
+- The font and its license notice ship with the app, kept separate from the MIT code license.
 - The first instrument is the 12-hole alto C ocarina, Taiwanese-style fingering, with the font's A to F² range.
 
 ## Alternatives considered
@@ -21,4 +23,4 @@ Feature 1 reveals a fingering diagram after the delay. The vision leaned toward 
 - Half-covered holes are not representable. An instrument needing them would need another renderer.
 - The instrument definition needs a renderer reference (font family) plus per-pitch glyph characters. Another hole count needs its own font or a new renderer; that is feature 9's problem.
 - Loading the font is a UI concern (`src/render/`); `src/core/` only passes the glyph string through.
-- The OFL notice must be included in the repo and the shipped build.
+- The OFL notice, copyright line and source URL must be in the repo and the shipped build. The story that adds the font must obtain the license text from upstream, not write it from memory.

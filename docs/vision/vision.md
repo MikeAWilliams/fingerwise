@@ -63,12 +63,11 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 
 ### Feature order
 
-1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for ocarina key (C/F/G), style (Japanese/Taiwanese), note range, and delay length. Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports. Open items for the feature 1 design:
-   - **Delay:** fixed length chosen in settings. An adaptive delay is a possible later idea, tied to feature 6 (sampling), since it needs grade history. The default length is still to be chosen.
+1. **Core flashcards:** staff note, delay, reveal letter + tablature. Settings for note range (with or without sharps) and delay length; the alto C only, F and G ocarinas come later. Designed in [`features/01-core-flashcards`](../features/01-core-flashcards/design.md). Also carries extensibility tests (no shipped features): a fixture instrument under `tests/` with a different hole count, range and transposition, which the drill engine, tab renderer and loader must handle with no code changes; the same pitch rendered in treble, treble 8vb and bass clef; staff edge cases (ledger lines at range limits, accidentals, key signature); and a check that the drill engine runs with no clef, staff or UI imports. Open items for the feature 1 design:
+   - **Delay:** fixed length chosen in settings. An adaptive delay is a possible later idea, tied to feature 6 (sampling), since it needs grade history. The default is 3 seconds.
    - **Reveal placement:** the note letter and tablature appear under the staff, in place, when revealed. There is no reverse card (fingering shown, note named).
    - **Fingering data, style, hole pattern shape, tablature rendering:** decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md); findings in [research](../research/ocarina-fingering-data.md). First instrument: 12-hole alto C, Taiwanese-style, font range A to F².
-   - **Written vs sounding pitch:** each instrument JSON must specify its transposition, with no default; the loader rejects a file that omits it. Leaning: the 12-hole alto C writes its lowest C as C4 (middle C, the ledger line below the staff), sounding an octave higher, so sounding = written + 12 semitones. If the standard range is A4 to F6 sounding (to be confirmed by the data research), the written range is A3 to F5.
-   - **Transposition, still open:** can a player override an instrument's offset? Is the fingering table keyed by written pitch, so C, F and G ocarinas share one table and the "ocarina key" setting is just the offset?
+   - **Written vs sounding pitch, transposition, override:** decided in [ADR 0003](../architecture/decisions/0003-written-pitch-and-transposition.md).
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
    - **Touch and phone UI:** the layout works in portrait on a phone, and tapping the card reveals early.
 3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
@@ -116,4 +115,4 @@ Main value is to ocarina players using the app.
 
 ### Open questions
 
-- Written vs sounding pitch: decided in the feature 1 design (see [Feature order](#feature-order), item 1).
+- None for feature 1. Open questions for later features sit under their entries in [Feature order](#feature-order).
