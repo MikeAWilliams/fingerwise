@@ -1,0 +1,56 @@
+name: Verify and deploy
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: make install
+      - run: make check
+      - run: make typecheck
+      - run: make test
+      - run: make build
+      # Upload only on refs that may deploy. Keep this condition identical to
+      # the `if:` on the `deploy` job below.
+      - uses: actions/upload-pages-artifact@v3
+        if: >-
+          github.ref == 'refs/heads/main'
+          ||
+          github.ref == 'refs/heads/story/F02-S01-deploy-github-pages'
+        with:
+          path: dist
+
+  deploy:
+    needs: verify
+    # Only main deploys (pushes and manual runs from main). The story-branch
+    # clause below is temporary, so the live site can be accepted before the
+    # merge; it is removed before the story is accepted (sub-task 3).
+    if: >-
+      github.ref == 'refs/heads/main'
+      ||
+      github.ref == 'refs/heads/story/F02-S01-deploy-github-pages'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # Deploys never overlap; scoped to this job so `verify` runs stay parallel.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
