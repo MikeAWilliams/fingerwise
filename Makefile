@@ -1,4 +1,4 @@
-.PHONY: help install dev build preview test test-watch check fix typecheck verify clean
+.PHONY: help install dev build preview test test-watch check fix typecheck verify clean icons
 
 .DEFAULT_GOAL := help
 
@@ -33,6 +33,9 @@ typecheck: ## Type-check with tsc
 	bun run typecheck
 
 verify: check typecheck test build ## Everything that must pass before a commit
+
+icons: ## Regenerate PNG icons from public/icons/icon.svg (needs ImageMagick)
+	scripts/make-icons.sh
 
 clean: ## Remove build output
 	rm -rf dist coverage
