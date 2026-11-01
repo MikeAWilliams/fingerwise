@@ -91,18 +91,21 @@ export function App() {
 	}, [settings, open]);
 	return (
 		<main>
-			<h1>fingerwise</h1>
-			{open ? (
+			<header class="app-header">
+				<h1>fingerwise</h1>
+				{!open && (
+					<button type="button" onClick={openSettings}>
+						Settings
+					</button>
+				)}
+			</header>
+			{open && (
 				<SettingsView
 					instrument={instrument}
 					settings={settings}
 					onChange={changeSettings}
 					onClose={() => setOpen(false)}
 				/>
-			) : (
-				<button type="button" class="settings-button" onClick={openSettings}>
-					Settings
-				</button>
 			)}
 			{!open && card && (
 				<Card
