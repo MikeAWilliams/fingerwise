@@ -1,4 +1,4 @@
-import { Formatter, Renderer } from "vexflow/bravura";
+import { Formatter, Renderer, type SVGContext } from "vexflow/bravura";
 import type { Pitch } from "../../core/pitch";
 import { buildNote, buildStave, noteLayout, type StaffOptions } from "./layout";
 
@@ -26,7 +26,8 @@ export function drawStaff(
 	element.replaceChildren();
 	const renderer = new Renderer(element, Renderer.Backends.SVG);
 	renderer.resize(WIDTH, HEIGHT);
-	const ctx = renderer.getContext();
+	const ctx = renderer.getContext() as SVGContext;
+	ctx.setViewBox(0, 0, WIDTH, HEIGHT);
 
 	const stave = buildStave(layout, 10, 30, WIDTH - 20);
 	stave.setContext(ctx).draw();

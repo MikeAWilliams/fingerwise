@@ -26,10 +26,26 @@ main {
 	margin: 0;
 }
 
+.card {
+	max-width: 28rem;
+	margin: 0 auto;
+}
+
 .card-staff {
-	height: 150px;
 	display: flex;
 	justify-content: center;
+}
+
+.staff {
+	width: 100%;
+	max-width: 220px;
+	aspect-ratio: 220 / 150;
+}
+
+.staff svg {
+	display: block;
+	width: 100%;
+	height: auto;
 }
 
 .card-reveal {
@@ -73,4 +89,38 @@ main {
 .settings-note {
 	margin: 0;
 	opacity: 0.7;
+}
+
+footer {
+	overflow-wrap: anywhere;
+}
+
+@media (min-width: 600px) {
+	.staff {
+		max-width: 440px;
+	}
+
+	.card-reveal {
+		height: 15rem;
+	}
+
+	.card-name {
+		font-size: 2rem;
+	}
+
+	.card-glyph {
+		height: 10rem;
+		font-size: 8rem;
+	}
+}
+
+@media (max-height: 480px) {
+	.card-reveal {
+		height: 9rem;
+	}
+
+	.card-glyph {
+		height: 6rem;
+		font-size: 4.5rem;
+	}
 }

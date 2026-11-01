@@ -14,7 +14,7 @@ Owns how a pitch is drawn on a staff. Given a pitch and staff options it works o
 - `buildNote(layout): StaveNote`: a whole note, with an accidental modifier when the layout has one.
 - `buildStave(layout, x, y, width): Stave`: a stave with the layout's clef (and annotation) and, unless the key is `"C"`, its key signature. `drawStaff` uses it.
 - `ledgerLines(note): number`: ledger lines the note needs, from VexFlow's staff line number.
-- `drawStaff(element: HTMLDivElement, pitch, options): void`: clears `element` and draws a one-note SVG staff in it.
+- `drawStaff(element: HTMLDivElement, pitch, options): void`: clears `element` and draws a one-note SVG staff in it. It sets a view box (220 by 150) on the SVG context, so CSS sizes the SVG and the drawing scales with it.
 - `StaffRangeError`.
 
 The app passes C major; sharp-key signatures are supported for tests (F01-S07). In C there is no signature, so sharps are drawn as accidentals on the note.
