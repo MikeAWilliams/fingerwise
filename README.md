@@ -2,9 +2,11 @@
 
 A flashcard drill for learning ocarina fingerings. A note appears on the staff, you finger it from memory, and after a delay the app reveals the note name and the fingering chart. You grade yourself, so no microphone is needed. It runs in the browser as an installable, offline-capable web app, and it is open source.
 
+**Live site:** <https://mikeawilliams.github.io/fingerwise/>
+
 The first target is the 12-hole ocarina. The design keeps instruments, clefs and staff styles as swappable data and layers so other instruments can be added later.
 
-**Status:** early development. Feature 1 (core flashcards) is built: a random note is drawn on the staff, its name and fingering appear after the delay or on a click or key press, and the next click or key shows another note. The next note also appears on its own after an advance delay. Settings set the note range, sharps, reveal delay, auto-advance and its delay. The other features are not built yet.
+**Status:** early development. Feature 1 (core flashcards) is built: a random note is drawn on the staff, its name and fingering appear after the delay or on a click or key press, and the next click or key shows another note. The next note also appears on its own after an advance delay. Settings set the note range, sharps, reveal delay, auto-advance and its delay. Feature 2's deploy is in place: every push is verified and `main` is published to GitHub Pages (see [`deployment.md`](docs/architecture/deployment.md)). The rest of the features are not built yet.
 
 ## Documentation
 
