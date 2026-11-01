@@ -10,10 +10,11 @@
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
 		"verbatimModuleSyntax": true,
+		"allowImportingTsExtensions": true,
 		"isolatedModules": true,
 		"skipLibCheck": true,
 		"noEmit": true,
 		"types": ["vite/client"]
 	},
-	"include": ["src", "tests", "vite.config.ts"]
+	"include": ["src", "tests", "vite.config.ts", "pwa-manifest.ts"]
 }

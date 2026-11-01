@@ -1,7 +1,51 @@
+html,
+body {
+	touch-action: manipulation;
+}
+
+body {
+	margin: 0;
+}
+
+main {
+	box-sizing: border-box;
+	min-height: 100dvh;
+	padding-top: max(1rem, env(safe-area-inset-top));
+	padding-right: max(1rem, env(safe-area-inset-right));
+	padding-bottom: max(1rem, env(safe-area-inset-bottom));
+	padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.app-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.app-header h1 {
+	margin: 0;
+}
+
+.card {
+	max-width: 28rem;
+	margin: 0 auto;
+}
+
 .card-staff {
-	height: 150px;
 	display: flex;
 	justify-content: center;
+}
+
+.staff {
+	width: 100%;
+	max-width: 220px;
+	aspect-ratio: 220 / 150;
+}
+
+.staff svg {
+	display: block;
+	width: 100%;
+	height: auto;
 }
 
 .card-reveal {
@@ -27,17 +71,38 @@
 	opacity: 0.6;
 }
 
-.settings-button {
-	position: fixed;
-	top: 0.5rem;
-	right: 0.5rem;
+button,
+select,
+input[type="number"] {
+	box-sizing: border-box;
+	min-height: 44px;
+	min-width: 44px;
+	font-size: 16px;
+}
+
+button {
+	padding: 0 1rem;
+}
+
+select,
+input[type="number"] {
+	min-width: 0;
+	max-width: 10rem;
+}
+
+input[type="checkbox"] {
+	flex: none;
+	width: 1.5rem;
+	height: 1.5rem;
+	margin: 0;
 }
 
 .settings {
 	display: flex;
 	flex-direction: column;
 	gap: 0.75rem;
-	max-width: 20rem;
+	width: 100%;
+	max-width: 24rem;
 	margin: 0 auto;
 }
 
@@ -46,9 +111,44 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.5rem;
+	min-height: 44px;
 }
 
 .settings-note {
 	margin: 0;
 	opacity: 0.7;
+}
+
+footer {
+	overflow-wrap: anywhere;
+}
+
+@media (min-width: 600px) {
+	.staff {
+		max-width: 440px;
+	}
+
+	.card-reveal {
+		height: 15rem;
+	}
+
+	.card-name {
+		font-size: 2rem;
+	}
+
+	.card-glyph {
+		height: 10rem;
+		font-size: 8rem;
+	}
+}
+
+@media (max-height: 480px) {
+	.card-reveal {
+		height: 9rem;
+	}
+
+	.card-glyph {
+		height: 6rem;
+		font-size: 4.5rem;
+	}
 }

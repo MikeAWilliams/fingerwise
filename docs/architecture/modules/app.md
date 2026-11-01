@@ -19,13 +19,25 @@ The Preact UI that wires the layers together: loads the instrument, shows a card
 - `fontUrl(fileName)`: the built URL of a font in `data/fonts/`, found by file name with `import.meta.glob`, so the instrument JSON's `tablature.font` picks the font. Throws if missing.
 - `loadFont(family, url, env): Promise<"loaded" | "failed">`: adds a `FontFace` to `env.fonts` and waits for it. `env` (`{ FontFace, fonts }`) is injected so it runs in Node tests. Never rejects.
 
+- `registerServiceWorker({ navigator, isProd, baseUrl })` (`register-sw.ts`, plain TypeScript): in production and when `navigator.serviceWorker` exists, calls `register(`${baseUrl}sw.js`, { scope: baseUrl })`. A rejected or throwing call is swallowed, so the app runs without a worker. It never skips waiting, shows UI or reloads. `main.tsx` calls it after `render` with `navigator`, `import.meta.env.PROD` and `import.meta.env.BASE_URL`. See [deployment](../deployment.md#service-worker-and-updates).
+
 ## Settings view
 
-`App` holds `settings` and `open` in state. A Settings button is shown on every card (fixed to the top right, so it does not move the staff). Opening clears the card and sets `open`; the card is not rendered while the view is open. The card-flow effect runs only while `open` is false and is keyed on `[settings, open]`: opening runs its cleanup (`flow.stop()`, listeners removed), so the timer stops and clicks and keys no longer drive the card. Closing re-runs it with a pool, reveal delay and advance delay (`settings.autoAdvance ? settings.advanceDelaySeconds * 1000 : null`) built from the current settings, so `start()` draws a new card with a fresh timer. Each change goes through `changeSettings`, which sets the state and calls `saveSettings(browserStorage(), next)`. A stored value is only written when the player changes something.
+`App` holds `settings` and `open` in state. A Settings button is shown on every card (in the in-flow header beside the title, so it never covers the staff and does not move it; the header holds only the title while the view is open). Opening clears the card and sets `open`; the card is not rendered while the view is open. The card-flow effect runs only while `open` is false and is keyed on `[settings, open]`: opening runs its cleanup (`flow.stop()`, listeners removed), so the timer stops and clicks and keys no longer drive the card. Closing re-runs it with a pool, reveal delay and advance delay (`settings.autoAdvance ? settings.advanceDelaySeconds * 1000 : null`) built from the current settings, so `start()` draws a new card with a fresh timer. Each change goes through `changeSettings`, which sets the state and calls `saveSettings(browserStorage(), next)`. A stored value is only written when the player changes something.
 
 ## Layout
 
-`app.css` gives the staff box and the reveal area fixed heights, so revealing does not move or resize the staff. The placeholder uses the same box as the glyph.
+All layout is CSS in `app.css`; no JS sizing.
+
+- **Viewport and touch:** `index.html` uses `viewport-fit=cover` and does not disable zoom. `html, body` set `touch-action: manipulation` (no double-tap zoom, pinch kept). `body` has no margin.
+- **Safe areas:** `main` pads `max(1rem, env(safe-area-inset-*))` on all four sides, with `box-sizing: border-box` and `min-height: 100dvh`. Nothing hides `overflow-x`.
+- **Header:** `.app-header` is a flex row (title left, Settings button right) in normal flow, so the button cannot overlap the card.
+- **Card and staff:** `.card` is centered with `max-width: 28rem`. [`drawStaff`](staff.md) sets a view box, so the `.staff` wrapper sizes the SVG: 100% wide up to 220 px, up to 440 px from 600 px wide, with `aspect-ratio: 220 / 150` so the box depends only on viewport width, never on `revealed`.
+- **Reveal area:** fixed height per breakpoint (12rem, 15rem from 600 px, 9rem when the viewport is 480 px high or less), so revealing never moves the staff. The placeholder uses the same box as the glyph.
+- **Scrolling:** vertical only. No `100vh` heights; a short landscape phone scrolls if it must.
+- **Touch targets:** buttons, `<select>`s and number inputs have `min-height` and `min-width` of 44 px and a 16 px font (no focus zoom on mobile). Checkboxes are 1.5rem inside a label row at least 44 px tall.
+- **Settings view:** `.settings` is 100% wide up to 24rem; selects and number inputs are capped at 10rem with `min-width: 0` so label text wraps instead of overflowing at 360 px.
+- **Footer:** wraps (`overflow-wrap: anywhere`) inside the page width.
 
 ## Font and license
 
@@ -42,9 +54,15 @@ The font loads on page load, not at reveal, so it is usually ready when the dela
 - `tests/app/font.test.ts`: `loadFont` with a fake `FontFace` (loaded and failed), `fontUrl` lookup.
 - `tests/app/settings-form.test.ts`: option lists (excluded bounds, naturals only with sharps off, full range) and delay input edges.
 - `tests/app/settings-store.test.ts`: fake in-memory storage; round trip, missing key, bad JSON, invalid fields, throwing `getItem` and `setItem`, null storage.
+- `tests/app/register-sw.test.ts`: fake `navigator`; no call outside production or without `serviceWorker`, one call with the `/fingerwise/sw.js` URL and scope, rejecting and throwing `register` never escape.
+- `tests/pwa/precache.test.ts` (see [deployment](../deployment.md#service-worker-and-updates)): builds into a temp directory and checks the generated `sw.js`.
 - `tests/data/settings-defaults.test.ts`: the defaults file parses against the alto C and holds A3, F5, sharps on, 3 s.
 - `tests/data/fonts.test.ts`: the font file, its hash and the license text are in `data/fonts/`.
 
-`tests/node-modules.d.ts` declares only the `node:fs` and `node:crypto` functions the font test uses, so tests can read files without adding `@types/node`.
+`tests/node-modules.d.ts` declares only the `node:fs`, `node:crypto`, `node:os` and `node:path` functions the tests use, so tests can read files without adding `@types/node`.
 
 Components are not unit tested (no DOM in the test setup). Checked by hand with `make dev` and `make preview`: the first card varies across reloads, a click or key reveals early and the 3 s timer does not fire later, the next click or key shows a new hidden card that auto-reveals 3 s later, one press never reveals and advances together, a held key does not run through cards, with auto-advance on a revealed card is replaced by a hidden one after the advance delay with no input (hands-free), an early click or key during that wait skips at once and no second advance follows, with auto-advance off a revealed card stays until input, opening Settings during the advance wait stops it and shows nothing until closed, a sharp shows an accidental and `♯` in the name, reveal after 3 s, the staff does not shift, the glyph appears in the ocarina font, the placeholder shows with the `.ttf` request blocked, the font is served from the same origin, the footer link opens the license. Settings: the button is on every card; opening stops the timer and keys and clicks do nothing; closing shows a new hidden card that reveals after the set delay; the pickers never allow low at or above high; sharps off shows naturals only and moves a sharp bound; a blocked toggle is disabled and explained; the auto-advance checkbox and advance delay input change and save like the rest, a reload keeps them, a stored key without the new fields loads with auto-advance on and 3 s; a reload keeps the changes and `fingerwise.settings` is in DevTools; a corrupted key falls back to the defaults; with storage blocked the app still runs.
+
+Layout (F02-S02), by hand in responsive mode: at 360x640, 640x360, 768x1024 and 1024x768 the whole staff shows, there is no sideways scroll, the card is centered, the staff is larger on tablet but capped, the Settings button never covers the card, and clicking to reveal does not move the staff. Settings at 360x640: every control reachable, the page scrolls, tap targets measure 44 px in DevTools, and clicks on labels, inputs and buttons do not step a card. Safe-area insets and double-tap/pinch behaviour need a real device.
+
+Service worker (F02-S03/S04), by hand after `make build` and `make preview`: DevTools shows `sw.js` registered with scope `/fingerwise/`; `make dev` registers none; offline, a reload still shows a card, both reveals work and the font glyph shows; settings load and save offline; after a rebuild the change shows by the second launch with no prompt and the old cache gone; with service workers blocked (Firefox private window) the app still runs.

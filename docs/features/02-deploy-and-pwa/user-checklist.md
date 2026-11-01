@@ -4,8 +4,8 @@ For the human, not the implementing agent. Follow it in story order. Each story 
 
 ## Before you start
 
-- [ ] The `plan/f02-publish` branch is merged to `main`, and each story branch is cut from the updated `main`.
-- [ ] You can push branches to `MikeAWilliams/fingerwise` and open its Settings page on GitHub.
+- [x] The `plan/f02-publish` branch is merged to `main`, and each story branch is cut from the updated `main`.
+- [x] You can push branches to `MikeAWilliams/fingerwise` and open its Settings page on GitHub.
 - [ ] Browsers ready: Firefox and Brave on Linux; Firefox and Chrome on the Android phone and tablet.
 - [ ] For S03 and S04 phone checks: `adb` installed on the computer (`brew install android-platform-tools`, or the distro package), USB debugging enabled on the Android device, a USB cable. Check with `adb devices` that the phone is listed and authorized.
 
@@ -14,21 +14,21 @@ For the human, not the implementing agent. Follow it in story order. Each story 
 Branch: `story/F02-S01-deploy-github-pages`
 
 One-time setup, before the first push of the workflow:
-- [ ] Repo Settings, Pages, Source: set to **GitHub Actions**.
-- [ ] After the first workflow run creates the `github-pages` environment (or create it yourself under Settings, Environments): open it, under **Deployment branches and tags** add the story branch `story/F02-S01-deploy-github-pages`. (Needed for AC4; remove it in the last step.)
+- [x] Repo Settings, Pages, Source: set to **GitHub Actions**.
+- [x] After the first workflow run creates the `github-pages` environment (or create it yourself under Settings, Environments): open it, under **Deployment branches and tags** add the story branch `story/F02-S01-deploy-github-pages`. (Needed for AC4; remove it in the last step.)
 
 Verify:
-- [ ] Push the branch. In the Actions tab, the `verify` job runs and passes (AC1).
-- [ ] The `deploy` job runs on the branch and succeeds (AC3, AC4). If `verify` is broken on purpose in a throwaway commit, `deploy` is skipped (AC2; optional).
-- [ ] Open `https://mikeawilliams.github.io/fingerwise/` on the Linux browsers: a card shows. DevTools, Network: no red or 404 requests, all files under `/fingerwise/` (AC7).
-- [ ] Reveal a card: the name and the ocarina glyph show; the `.ttf` request goes to the same host; the footer license link opens (AC8).
-- [ ] Open Settings, change the range, reload: the change is kept (AC9).
+- [x] Push the branch. In the Actions tab, the `verify` job runs and passes (AC1).
+- [x] The `deploy` job runs on the branch and succeeds (AC3, AC4). If `verify` is broken on purpose in a throwaway commit, `deploy` is skipped (AC2; optional).
+- [x] Open `https://mikeawilliams.github.io/fingerwise/` on the Linux browsers: a card shows. DevTools, Network: no red or 404 requests, all files under `/fingerwise/` (AC7).
+- [x] Reveal a card: the name and the ocarina glyph show; the `.ttf` request goes to the same host; the footer license link opens (AC8).
+- [x] Open Settings, change the range, reload: the change is kept (AC9).
 - [ ] Repeat the above on the Android phone in Firefox and Chrome.
 
 Accept and finish:
-- [ ] Ask for the exception to be removed (AC5), then remove the story branch from the `github-pages` environment's allowed branches (and, if you like, confirm `main` is the only entry).
-- [ ] README has the live URL; `docs/architecture/deployment.md` exists (AC10).
-- [ ] Accept; the progress file is deleted; merge to `main`.
+- [x] Ask for the exception to be removed (AC5), then remove the story branch from the `github-pages` environment's allowed branches (and, if you like, confirm `main` is the only entry).
+- [x] README has the live URL; `docs/architecture/deployment.md` exists (AC10).
+- [x] Accept; the progress file is deleted; merge to `main`.
 - [ ] **After the merge:** the Actions run on `main` succeeds and the site still loads. Try **Run workflow** from the Actions tab: it appears now and succeeds (final proof of AC3 and AC5). If it fails, open a `fix/` branch.
 
 ## S02: Phone and tablet layout

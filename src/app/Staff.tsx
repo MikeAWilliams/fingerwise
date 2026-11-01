@@ -12,5 +12,5 @@ export function Staff({ pitch, options }: StaffProps) {
 	useEffect(() => {
 		if (ref.current) drawStaff(ref.current, pitch, options);
 	}, [pitch, options]);
-	return <div ref={ref} />;
+	return <div class="staff" ref={ref} />;
 }

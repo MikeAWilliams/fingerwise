@@ -35,3 +35,20 @@ Done by hand in the GitHub UI; the workflow cannot set them:
 
 - Settings > Pages > Source: "GitHub Actions".
 - Settings > Environments > `github-pages`: deployment branches limited to `main`.
+
+## Manifest and icons
+
+- **Manifest:** the fields live in `pwa-manifest.ts` at the repo root (name and short name `fingerwise`, `start_url` and `scope` `/fingerwise/`, `display` `standalone`, theme and background `#2b2b2b`, no `orientation`, three icons). `vite.config.ts` passes it to `vite-plugin-pwa`, which emits `dist/manifest.webmanifest` and adds the `<link rel="manifest">` to `index.html`. The `/fingerwise/` paths must match `base`.
+- **Icons:** `public/icons/` holds the source `icon.svg` (an original placeholder: a whole note on a staff, full bleed, artwork inside the central 80% so it also serves as the maskable icon) and the committed PNGs `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and `apple-touch-icon.png` (180 px). Vite copies them to `dist/icons/`.
+- **Regenerating:** `make icons` runs `scripts/make-icons.sh`, which renders the PNGs from `icon.svg` with the system ImageMagick (`magick`). It is not part of `make verify` and CI never needs it. The maskable icon is the SVG at about 80% size centered on a solid `#2b2b2b` canvas.
+- **iOS:** `index.html` has `theme-color`, a 180 px `apple-touch-icon` link and the `apple-mobile-web-app-capable`, `-title` and `-status-bar-style` (`black-translucent`) tags. They are untested on iOS.
+- **Replacing the placeholder:** edit `public/icons/icon.svg` (keep the artwork within the central 80%), run `make icons` and commit the SVG and the PNGs.
+- **Tests:** `tests/pwa/manifest.test.ts` checks the manifest fields, that each icon file exists in `public/`, and the `index.html` tags.
+
+## Service worker and updates
+
+- **Generation:** `vite-plugin-pwa` (`generateSW`, configured in `vite.config.ts`) emits `dist/sw.js` and a Workbox runtime. It precaches every built file matching `**/*.{js,css,html,ttf,txt,png,svg,webmanifest}`: the app bundle, the tablature font, its license text, the icons and the manifest. Navigations fall back to `/fingerwise/index.html`.
+- **Registration:** `registerServiceWorker` in `src/app/register-sw.ts` ([app](modules/app.md)) registers `${BASE_URL}sw.js` with scope `/fingerwise/`, in production builds only. `make dev` has no worker (`devOptions.enabled` is false). Without service worker support, or when registration fails (for example a Firefox private window), the app runs online as before.
+- **Silent updates:** `skipWaiting` and `clientsClaim` are both false. A new build's worker installs in the background and waits; it takes over once the old copy's windows are closed, so the new version runs on a later launch. No prompt, banner or reload button is shown. `cleanupOutdatedCaches` removes the old precache when the new worker activates ([ADR 0004](decisions/0004-pwa-with-vite-plugin-pwa.md)).
+- **Testing updates locally:** build version A, serve it with `make preview`, load it, change something visible, rebuild, serve again on the same port, close every window of the app and reopen it. The change shows by the second launch. Use `make preview` or the deployed site, never `make dev`.
+- **Tests:** `tests/pwa/precache.test.ts` runs a real build into a temp directory and checks that `sw.js` precaches the font, the license, the icons and the manifest, and that nothing skips waiting or claims clients on its own. Offline behavior, updates and registration are checked by hand.
