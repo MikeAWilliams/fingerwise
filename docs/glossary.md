@@ -21,5 +21,8 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Advance delay**              | Seconds between a reveal and the automatic next card when auto-advance is on. 0.5 to 30, default 3. |
 | **Pool**                       | The set of pitches a card can be drawn from: the naturals between the low and high bounds, plus the sharps between them if sharps are included. |
 | **Drill engine**               | The code that builds the pool and draws the next pitch. Knows only pitch and instrument definitions, never clef, staff, audio or UI. |
+| **PWA**                        | Progressive Web App: a website that can be installed to the home screen and run offline ([ADR 0004](architecture/decisions/0004-pwa-with-vite-plugin-pwa.md)). |
+| **Service worker**             | A script the browser keeps that serves cached files when there is no network. Exists only in the production build. |
+| **Precache**                   | Storing every built file in the service worker's cache on first load so the app runs offline.   |
 | **Story**                      | A small, testable unit of work with acceptance criteria.                                         |
 | **ADR**                        | Architecture decision record: a short note recording a decision and why.                         |
