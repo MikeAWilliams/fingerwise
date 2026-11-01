@@ -12,7 +12,7 @@ Many ocarina charts write notes an octave below the sounding pitch. The app need
 - The 12-hole alto C writes its lowest note as A3 and its highest as F5, and sounds 12 semitones higher: sounding = written + 12, so A4 to F6.
 - The ocarina key (C, F, G) would change only the transposition; the fingering table is the same for all three. Feature 1 ships the alto C only.
 - A player cannot override an instrument's transposition. Choosing a key is the only way to change it.
-- Sounding pitch is derived from written pitch at the boundary where audio or judging needs it (features 4 and 5).
+- Sounding pitch is derived from written pitch at the boundary where audio or judging needs it (features 3 and 4).
 
 ## Alternatives considered
 - **Table keyed by sounding pitch:** each ocarina key would need its own table, tripling the data and hiding that the fingerings are the same.

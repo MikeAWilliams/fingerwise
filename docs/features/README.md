@@ -19,9 +19,9 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | --- | ------------------------------ | ------------- |
 | 01  | Core flashcards                | done          |
 | 02  | Deploy and PWA                 | done          |
-| 03  | Songs as note order            | not started   |
-| 04  | Play the note                  | not started   |
-| 05  | Record and judge a single note | not started   |
+| 03  | Play the note                  | not started   |
+| 04  | Record and judge a single note | not started   |
+| 05  | Songs as note order            | not started   |
 | 06  | Smarter flashcard sampling     | not started   |
 | 07  | Wait mode for songs            | not started   |
 | 08  | Timed play-along               | not started   |
