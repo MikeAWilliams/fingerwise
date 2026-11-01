@@ -17,7 +17,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 
 | #   | Feature                        | Design status |
 | --- | ------------------------------ | ------------- |
-| 01  | Core flashcards                | in progress   |
+| 01  | Core flashcards                | done          |
 | 02  | Deploy and PWA                 | done          |
 | 03  | Songs as note order            | not started   |
 | 04  | Play the note                  | not started   |
