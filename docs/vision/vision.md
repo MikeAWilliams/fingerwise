@@ -61,11 +61,11 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
    - **Fingering data, style, hole pattern shape, tablature rendering:** decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md); findings in [research](../research/ocarina-fingering-data.md). First instrument: 12-hole alto C, Taiwanese-style, font range A to F².
    - **Written vs sounding pitch, transposition, override:** decided in [ADR 0003](../architecture/decisions/0003-written-pitch-and-transposition.md).
 2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible. Designed in [`features/02-deploy-and-pwa`](../features/02-deploy-and-pwa/design.md); includes the phone and tablet layout. Tested on Firefox and Chromium; iOS built for but untested.
-3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
-4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
-5. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.
+3. **Play the note:** synthesized tone; "hear it, then finger it" drill.
+4. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.
    - **Open question for later:** should this get a research spike (pitch-detection accuracy on ocarina, Android mic latency) before it is designed?
-6. **Smarter flashcard sampling:** replace feature 1's uniform pick with a scheduler that chooses which card comes next, based on how the player did before. Grades are self-reported only until the mic judge exists (feature 5). Two candidate approaches:
+5. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later. Ordered after play and judge so those exist before the player enters their own notes.
+6. **Smarter flashcard sampling:** replace feature 1's uniform pick with a scheduler that chooses which card comes next, based on how the player did before. Grades are self-reported only until the mic judge exists (feature 4). Two candidate approaches:
    - **Leitner boxes:** cards sit in numbered boxes. A correct answer moves a card up a box, a miss drops it to box 1, and higher boxes are reviewed less often. State per card is just a box and a due date.
    - **SM-2:** each card carries its own ease value, and the next interval is computed from its grade history. Adapts better but has more parameters to tune.
 
@@ -77,7 +77,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
    - **Grade source:** the scheduler takes grades from any source, so the mic judge can feed it later.
 7. **Wait mode for songs:** song advances when the correct note is played; no timing judgment.
 8. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.
-   - **Scope:** kept for now as the last real feature. It is the hardest and depends on the mic judge being reliable, so revisit whether to keep it once feature 5 shows how well judging works.
+   - **Scope:** kept for now as the last real feature. It is the hardest and depends on the mic judge being reliable, so revisit whether to keep it once feature 4 shows how well judging works.
 9. **Other instruments and clefs (maybe eventually):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
 
 ### Technical gotchas
