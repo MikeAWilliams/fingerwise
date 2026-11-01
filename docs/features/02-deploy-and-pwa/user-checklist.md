@@ -80,5 +80,5 @@ Setup: dev dependency `vite-plugin-pwa` is agreed; the agent adds it.
 
 ## After feature 2
 
-- [ ] Set the feature 2 row in `docs/features/README.md` to `done`, and update the target matrix in the design if anything differs from the plan (on a `plan/` branch).
+- [x] Set the feature 2 row in `docs/features/README.md` to `done`, and update the target matrix in the design if anything differs from the plan (on a `plan/` branch).
 - [ ] When you have an iPhone or iPad: add a follow-up plan item to test Safari, the touch icon, standalone display and storage behavior, and record the result in the architecture docs.
