@@ -13,6 +13,15 @@ export default defineConfig({
 			manifestFilename: "manifest.webmanifest",
 			injectRegister: false,
 			includeAssets: ["favicon.svg", "icons/apple-touch-icon.png"],
+			// A new worker waits and takes over on a later launch: no prompt, no reload (ADR 0004).
+			workbox: {
+				globPatterns: ["**/*.{js,css,html,ttf,txt,png,svg,webmanifest}"],
+				cleanupOutdatedCaches: true,
+				skipWaiting: false,
+				clientsClaim: false,
+				navigateFallback: "/fingerwise/index.html",
+			},
+			devOptions: { enabled: false },
 		}),
 	],
 	build: {

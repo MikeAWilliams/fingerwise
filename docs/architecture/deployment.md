@@ -44,3 +44,11 @@ Done by hand in the GitHub UI; the workflow cannot set them:
 - **iOS:** `index.html` has `theme-color`, a 180 px `apple-touch-icon` link and the `apple-mobile-web-app-capable`, `-title` and `-status-bar-style` (`black-translucent`) tags. They are untested on iOS.
 - **Replacing the placeholder:** edit `public/icons/icon.svg` (keep the artwork within the central 80%), run `make icons` and commit the SVG and the PNGs.
 - **Tests:** `tests/pwa/manifest.test.ts` checks the manifest fields, that each icon file exists in `public/`, and the `index.html` tags.
+
+## Service worker and updates
+
+- **Generation:** `vite-plugin-pwa` (`generateSW`, configured in `vite.config.ts`) emits `dist/sw.js` and a Workbox runtime. It precaches every built file matching `**/*.{js,css,html,ttf,txt,png,svg,webmanifest}`: the app bundle, the tablature font, its license text, the icons and the manifest. Navigations fall back to `/fingerwise/index.html`.
+- **Registration:** `registerServiceWorker` in `src/app/register-sw.ts` ([app](modules/app.md)) registers `${BASE_URL}sw.js` with scope `/fingerwise/`, in production builds only. `make dev` has no worker (`devOptions.enabled` is false). Without service worker support, or when registration fails (for example a Firefox private window), the app runs online as before.
+- **Silent updates:** `skipWaiting` and `clientsClaim` are both false. A new build's worker installs in the background and waits; it takes over once the old copy's windows are closed, so the new version runs on a later launch. No prompt, banner or reload button is shown. `cleanupOutdatedCaches` removes the old precache when the new worker activates ([ADR 0004](decisions/0004-pwa-with-vite-plugin-pwa.md)).
+- **Testing updates locally:** build version A, serve it with `make preview`, load it, change something visible, rebuild, serve again on the same port, close every window of the app and reopen it. The change shows by the second launch. Use `make preview` or the deployed site, never `make dev`.
+- **Tests:** `tests/pwa/precache.test.ts` runs a real build into a temp directory and checks that `sw.js` precaches the font, the license, the icons and the manifest, and that nothing skips waiting or claims clients on its own. Offline behavior, updates and registration are checked by hand.
