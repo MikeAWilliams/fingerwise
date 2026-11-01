@@ -28,7 +28,7 @@ As of Oct 2026. Nothing found does this exact loop.
 
 ### Stack
 
-- **Platform:** Progressive Web App (installable on Android, works offline). PWA support is deferred to its own story (feature 2); see [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
+- **Platform:** Progressive Web App (installable on Android and, by hand, on iOS; works offline). Designed in [feature 2](../features/02-deploy-and-pwa/design.md); decided in [ADR 0004](../architecture/decisions/0004-pwa-with-vite-plugin-pwa.md).
 - **Toolchain and UI:** decided in [ADR 0001](../architecture/decisions/0001-toolchain-and-ui.md).
 - **Staff rendering:** VexFlow (MIT).
 - **Tablature:** panzi's font 1, decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
@@ -60,8 +60,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
    - **Reveal placement:** built; see [`modules/app.md`](../architecture/modules/app.md). There is no reverse card (fingering shown, note named).
    - **Fingering data, style, hole pattern shape, tablature rendering:** decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md); findings in [research](../research/ocarina-fingering-data.md). First instrument: 12-hole alto C, Taiwanese-style, font range A to F².
    - **Written vs sounding pitch, transposition, override:** decided in [ADR 0003](../architecture/decisions/0003-written-pitch-and-transposition.md).
-2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible.
-   - **Touch and phone UI:** the layout works in portrait on a phone, and tapping the card reveals early.
+2. **Deploy and PWA:** publish to GitHub Pages via GitHub Actions and make the app installable and offline-capable, so the drill is usable on a phone as early as possible. Designed in [`features/02-deploy-and-pwa`](../features/02-deploy-and-pwa/design.md); includes the phone and tablet layout. Tested on Firefox and Chromium; iOS built for but untested.
 3. **Songs as note order:** accept ABC notation and plain note lists (`C4 D4 E4 G4`); use ABC libraries (thesession.org, abcnotation.com) as a song source. Parse with abcjs, draw with VexFlow. MusicXML import later.
 4. **Play the note:** synthesized tone; "hear it, then finger it" drill.
 5. **Record and judge a single note:** mic pitch detection, forgiving window (about ±30-50 cents), onset/settling handling.

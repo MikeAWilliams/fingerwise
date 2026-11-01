@@ -14,6 +14,7 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 | [0001](0001-toolchain-and-ui.md) | Toolchain and UI layer: Bun, Vite, Vitest, Biome, Preact | accepted |
 | [0002](0002-tablature-from-panzi-font.md) | Tablature drawn with panzi's font 1; glyph per pitch in the JSON | accepted |
 | [0003](0003-written-pitch-and-transposition.md) | Written pitch on the staff; required per-instrument transposition | accepted |
+| [0004](0004-pwa-with-vite-plugin-pwa.md) | PWA with vite-plugin-pwa; silent updates; tested targets | accepted |
 
 ## Likely next ADRs
 
