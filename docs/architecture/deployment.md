@@ -35,3 +35,12 @@ Done by hand in the GitHub UI; the workflow cannot set them:
 
 - Settings > Pages > Source: "GitHub Actions".
 - Settings > Environments > `github-pages`: deployment branches limited to `main`.
+
+## Manifest and icons
+
+- **Manifest:** the fields live in `pwa-manifest.ts` at the repo root (name and short name `fingerwise`, `start_url` and `scope` `/fingerwise/`, `display` `standalone`, theme and background `#2b2b2b`, no `orientation`, three icons). `vite.config.ts` passes it to `vite-plugin-pwa`, which emits `dist/manifest.webmanifest` and adds the `<link rel="manifest">` to `index.html`. The `/fingerwise/` paths must match `base`.
+- **Icons:** `public/icons/` holds the source `icon.svg` (an original placeholder: a whole note on a staff, full bleed, artwork inside the central 80% so it also serves as the maskable icon) and the committed PNGs `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and `apple-touch-icon.png` (180 px). Vite copies them to `dist/icons/`.
+- **Regenerating:** `make icons` runs `scripts/make-icons.sh`, which renders the PNGs from `icon.svg` with the system ImageMagick (`magick`). It is not part of `make verify` and CI never needs it. The maskable icon is the SVG at about 80% size centered on a solid `#2b2b2b` canvas.
+- **iOS:** `index.html` has `theme-color`, a 180 px `apple-touch-icon` link and the `apple-mobile-web-app-capable`, `-title` and `-status-bar-style` (`black-translucent`) tags. They are untested on iOS.
+- **Replacing the placeholder:** edit `public/icons/icon.svg` (keep the artwork within the central 80%), run `make icons` and commit the SVG and the PNGs.
+- **Tests:** `tests/pwa/manifest.test.ts` checks the manifest fields, that each icon file exists in `public/`, and the `index.html` tags.
