@@ -43,7 +43,7 @@ The player sees a note on a treble staff, fingers it from memory, and after a de
 
 ## Out of scope
 
-- Grading and scheduling (feature 6), sound (4, 5), songs (3), PWA and touch layout (2).
+- Grading and scheduling (feature 6), sound (3, 4), songs (5), PWA and touch layout (2).
 - Clef, sharps-or-flats and key-signature settings. Treble 8vb, bass, ledger lines, accidentals and key signatures are covered by tests only.
 - A reverse card (fingering shown, note named).
 - Player override of transposition.
