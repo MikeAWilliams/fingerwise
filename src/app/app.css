@@ -3,6 +3,10 @@ body {
 	touch-action: manipulation;
 }
 
+html {
+	scroll-padding-bottom: 4rem;
+}
+
 body {
 	margin: 0;
 }
@@ -112,6 +116,39 @@ input[type="checkbox"] {
 	justify-content: space-between;
 	gap: 0.5rem;
 	min-height: 44px;
+}
+
+.settings-section > summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25rem 0.75rem;
+	box-sizing: border-box;
+	min-height: 44px;
+	padding-block: 0.5rem;
+	cursor: pointer;
+}
+
+.settings-section-title {
+	font-size: 1.17rem;
+	font-weight: bold;
+}
+
+.settings-section-summary {
+	opacity: 0.7;
+}
+
+.settings-section[open] {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.settings-footer {
+	position: sticky;
+	bottom: 0;
+	padding-block: 0.5rem;
+	background: Canvas;
 }
 
 .settings-note {

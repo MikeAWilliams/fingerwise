@@ -13,6 +13,8 @@ const SEMITONE_OF_LETTER: Record<string, number> = {
 	B: 11,
 };
 const MAX_MIDI = 127;
+const A4 = 69;
+const A4_HZ = 440;
 
 function isMidi(n: number): boolean {
 	return Number.isInteger(n) && n >= 0 && n <= MAX_MIDI;
@@ -51,4 +53,9 @@ export function pitchesInRange(lowest: Pitch, highest: Pitch): Pitch[] {
 	const result: Pitch[] = [];
 	for (let p = lowest; p <= highest; p++) result.push(p as Pitch);
 	return result;
+}
+
+/** Frequency in hertz in equal temperament with A4 = 440 Hz. */
+export function toFrequency(p: Pitch): number {
+	return A4_HZ * 2 ** ((p - A4) / 12);
 }

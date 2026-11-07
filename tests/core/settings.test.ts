@@ -3,12 +3,20 @@ import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import { loadInstrument } from "../../src/core/instrument";
 import { formatPitch, type Pitch, parsePitch } from "../../src/core/pitch";
 import {
+	breaksSoundRule,
+	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
+	canTurnSoundOn,
 	parseDefaults,
 	type Settings,
 	SettingsError,
+	setAutoAdvance,
 	setIncludeSharps,
+	setSoundEnabled,
+	setTimings,
 	snapToNaturals,
+	soundFits,
+	soundTooLongReason,
 	toSettingsJson,
 	validateSettings,
 } from "../../src/core/settings";
@@ -37,6 +45,9 @@ function settings(
 		delaySeconds,
 		autoAdvance,
 		advanceDelaySeconds,
+		soundEnabled: false,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
 	};
 }
 
@@ -50,6 +61,9 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		delaySeconds: 3,
 		autoAdvance: true,
 		advanceDelaySeconds: 3,
+		soundEnabled: false,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
 		...over,
 	};
 }
@@ -266,6 +280,263 @@ describe("parseDefaults", () => {
 			expect(() => parseDefaults(raw, instrument)).toThrow(SettingsError);
 			expect(() => parseDefaults(raw, instrument)).toThrow(fragment);
 		}
+	});
+});
+
+/** Sound on, 0.5 s delay, 1.5 s long, inside a 3 s advance delay. */
+function withSound(over: Partial<Settings> = {}): Settings {
+	return { ...DEFAULTS, soundEnabled: true, ...over };
+}
+
+function soundJson(over: Record<string, unknown> = {}) {
+	return json({ soundEnabled: true, ...over });
+}
+
+describe("sound fields", () => {
+	const SOUND_DEFAULTS = withSound();
+
+	test("each field resets alone", () => {
+		const check = (over: Record<string, unknown>, field: keyof Settings) => {
+			const result = validateSettings(
+				soundJson({ lowest: "C4", delaySeconds: 1.5, ...over }),
+				instrument,
+				SOUND_DEFAULTS,
+			);
+			expect(result[field]).toBe(SOUND_DEFAULTS[field]);
+			expect(result.lowest).toBe(pitch("C4"));
+			expect(result.delaySeconds).toBe(1.5);
+		};
+		for (const bad of [undefined, "yes", 1]) {
+			check({ soundEnabled: bad }, "soundEnabled");
+		}
+		for (const bad of [-0.1, 30.5, Number.NaN, Number.POSITIVE_INFINITY, "1"]) {
+			check({ soundDelaySeconds: bad }, "soundDelaySeconds");
+		}
+		for (const bad of [0.4, 30.5, Number.NaN, Number.POSITIVE_INFINITY, "1"]) {
+			check({ soundDurationSeconds: bad }, "soundDurationSeconds");
+		}
+	});
+
+	test("bounds: delay 0 to 30, duration 0.5 to 30", () => {
+		const read = (over: Record<string, unknown>) =>
+			validateSettings(
+				soundJson({ soundEnabled: false, ...over }),
+				instrument,
+				SOUND_DEFAULTS,
+			);
+		expect(read({ soundDelaySeconds: 0 }).soundDelaySeconds).toBe(0);
+		expect(read({ soundDelaySeconds: 30 }).soundDelaySeconds).toBe(30);
+		expect(read({ soundDurationSeconds: 0.5 }).soundDurationSeconds).toBe(0.5);
+		expect(read({ soundDurationSeconds: 30 }).soundDurationSeconds).toBe(30);
+	});
+
+	test("a sum equal to the advance delay is kept", () => {
+		const input = soundJson({
+			soundDelaySeconds: 0.5,
+			soundDurationSeconds: 1.5,
+			advanceDelaySeconds: 2,
+		});
+		const result = validateSettings(input, instrument, SOUND_DEFAULTS);
+		expect(result.advanceDelaySeconds).toBe(2);
+		expect(result.soundDurationSeconds).toBe(1.5);
+	});
+
+	test("one half second over resets the three timings and keeps the rest", () => {
+		const result = validateSettings(
+			soundJson({
+				lowest: "C4",
+				delaySeconds: 1.5,
+				soundDelaySeconds: 1,
+				soundDurationSeconds: 1.5,
+				advanceDelaySeconds: 2,
+			}),
+			instrument,
+			SOUND_DEFAULTS,
+		);
+		expect(result.soundDelaySeconds).toBe(0.5);
+		expect(result.soundDurationSeconds).toBe(1.5);
+		expect(result.advanceDelaySeconds).toBe(3);
+		expect(result.lowest).toBe(pitch("C4"));
+		expect(result.delaySeconds).toBe(1.5);
+		expect(result.soundEnabled).toBe(true);
+	});
+
+	test("no reset with play note off or auto-advance off", () => {
+		const long = {
+			soundDelaySeconds: 5,
+			soundDurationSeconds: 5,
+			advanceDelaySeconds: 1,
+		};
+		for (const off of [{ soundEnabled: false }, { autoAdvance: false }]) {
+			const result = validateSettings(
+				soundJson({ ...long, ...off }),
+				instrument,
+				SOUND_DEFAULTS,
+			);
+			expect(result).toMatchObject({ ...long, ...off });
+		}
+	});
+});
+
+describe("sound rule helpers", () => {
+	test("soundFits tolerates half seconds and rejects one step over", () => {
+		expect(soundFits(withSound({ advanceDelaySeconds: 2 }))).toBe(true);
+		expect(soundFits(withSound({ advanceDelaySeconds: 1.5 }))).toBe(false);
+	});
+
+	test("breaksSoundRule needs both sound and auto-advance", () => {
+		const long = withSound({ advanceDelaySeconds: 1 });
+		expect(breaksSoundRule(long)).toBe(true);
+		expect(breaksSoundRule({ ...long, soundEnabled: false })).toBe(false);
+		expect(breaksSoundRule({ ...long, autoAdvance: false })).toBe(false);
+	});
+
+	test("the reason names the values", () => {
+		expect(soundTooLongReason(withSound({ advanceDelaySeconds: 1 }))).toBe(
+			"Sound delay plus duration (2 s) is longer than the advance delay (1 s)",
+		);
+	});
+});
+
+describe("sound toggles", () => {
+	const longSoundOff = withSound({
+		soundEnabled: false,
+		advanceDelaySeconds: 1,
+	});
+	const longAdvanceOff = withSound({
+		autoAdvance: false,
+		advanceDelaySeconds: 1,
+	});
+
+	test("play note is blocked when it would break the rule", () => {
+		expect(canTurnSoundOn(longSoundOff)).toBe(false);
+		expect(setSoundEnabled(longSoundOff, true)).toEqual({
+			ok: false,
+			reason:
+				"Sound delay plus duration (2 s) is longer than the advance delay (1 s)",
+		});
+	});
+
+	test("play note is allowed when the values fit, and off always works", () => {
+		const fits = withSound({ soundEnabled: false });
+		expect(canTurnSoundOn(fits)).toBe(true);
+		expect(setSoundEnabled(fits, true)).toEqual({
+			ok: true,
+			settings: { ...fits, soundEnabled: true },
+		});
+		expect(setSoundEnabled(withSound(), false)).toMatchObject({ ok: true });
+	});
+
+	test("play note is allowed with auto-advance off, whatever the values", () => {
+		const s = withSound({
+			soundEnabled: false,
+			autoAdvance: false,
+			advanceDelaySeconds: 1,
+		});
+		expect(canTurnSoundOn(s)).toBe(true);
+	});
+
+	test("auto-advance is blocked when it would break the rule", () => {
+		expect(canTurnAutoAdvanceOn(longAdvanceOff)).toBe(false);
+		const result = setAutoAdvance(longAdvanceOff, true);
+		expect(result).toMatchObject({ ok: false });
+		expect(result.ok === false && result.reason).toContain("(2 s)");
+	});
+
+	test("auto-advance is allowed when it fits, and off always works", () => {
+		const fits = withSound({ autoAdvance: false });
+		expect(setAutoAdvance(fits, true)).toMatchObject({ ok: true });
+		expect(setAutoAdvance(longSoundOff, false)).toMatchObject({ ok: true });
+		expect(
+			setAutoAdvance(
+				withSound({ soundEnabled: false, advanceDelaySeconds: 1 }),
+				true,
+			),
+		).toMatchObject({ ok: true });
+	});
+});
+
+describe("setTimings", () => {
+	const reason =
+		"The sound delay plus the sound duration must not exceed the advance delay.";
+
+	test("accepts an edit that fits, including a sum equal to the advance delay", () => {
+		const s = withSound();
+		expect(setTimings(s, { advanceDelaySeconds: 2 })).toEqual({
+			ok: true,
+			settings: { ...s, advanceDelaySeconds: 2 },
+		});
+	});
+
+	test("rejects an edit of each field that goes over", () => {
+		const s = withSound({ advanceDelaySeconds: 2 });
+		expect(setTimings(s, { advanceDelaySeconds: 1.5 })).toEqual({
+			ok: false,
+			reason,
+		});
+		expect(setTimings(s, { soundDurationSeconds: 2 })).toEqual({
+			ok: false,
+			reason,
+		});
+		expect(setTimings(s, { soundDelaySeconds: 1 })).toEqual({
+			ok: false,
+			reason,
+		});
+	});
+
+	test("is free with play note off or auto-advance off", () => {
+		for (const off of [{ soundEnabled: false }, { autoAdvance: false }]) {
+			const s = withSound({ advanceDelaySeconds: 2, ...off });
+			expect(setTimings(s, { advanceDelaySeconds: 0.5 })).toMatchObject({
+				ok: true,
+			});
+			expect(setTimings(s, { soundDurationSeconds: 30 })).toMatchObject({
+				ok: true,
+			});
+		}
+	});
+});
+
+describe("sound in the defaults file", () => {
+	test("accepts a valid sound block", () => {
+		expect(parseDefaults(soundJson(), instrument)).toEqual(withSound());
+	});
+
+	test("rejects each bad field", () => {
+		const bad: [Record<string, unknown>, string][] = [
+			[{ soundEnabled: undefined }, "soundEnabled"],
+			[{ soundEnabled: "true" }, "soundEnabled"],
+			[{ soundDelaySeconds: undefined }, "soundDelaySeconds"],
+			[{ soundDelaySeconds: -0.5 }, "soundDelaySeconds"],
+			[{ soundDelaySeconds: 31 }, "soundDelaySeconds"],
+			[{ soundDurationSeconds: 0.4 }, "soundDurationSeconds"],
+			[{ soundDurationSeconds: 31 }, "soundDurationSeconds"],
+			[{ soundDurationSeconds: "1" }, "soundDurationSeconds"],
+		];
+		for (const [over, fragment] of bad) {
+			expect(() => parseDefaults(soundJson(over), instrument)).toThrow(
+				SettingsError,
+			);
+			expect(() => parseDefaults(soundJson(over), instrument)).toThrow(
+				fragment,
+			);
+		}
+	});
+
+	test("rejects a file that breaks the sum rule", () => {
+		const over = { advanceDelaySeconds: 1 };
+		expect(() => parseDefaults(soundJson(over), instrument)).toThrow(
+			SettingsError,
+		);
+		expect(() => parseDefaults(soundJson(over), instrument)).toThrow("(2 s)");
+	});
+
+	test("toSettingsJson includes the sound fields", () => {
+		expect(toSettingsJson(withSound())).toMatchObject({
+			soundEnabled: true,
+			soundDelaySeconds: 0.5,
+			soundDurationSeconds: 1.5,
+		});
 	});
 });
 

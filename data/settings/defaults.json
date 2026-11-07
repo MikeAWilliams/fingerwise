@@ -4,5 +4,8 @@
 	"includeSharps": true,
 	"delaySeconds": 3,
 	"autoAdvance": true,
-	"advanceDelaySeconds": 3
+	"advanceDelaySeconds": 3,
+	"soundEnabled": true,
+	"soundDelaySeconds": 0.5,
+	"soundDurationSeconds": 1.5
 }

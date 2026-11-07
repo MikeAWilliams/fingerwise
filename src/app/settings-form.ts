@@ -1,10 +1,37 @@
 import type { Instrument } from "../core/instrument";
-import { isNatural, type Pitch, pitchesInRange } from "../core/pitch";
+import {
+	formatPitch,
+	isNatural,
+	type Pitch,
+	pitchesInRange,
+} from "../core/pitch";
 import {
 	MAX_DELAY_SECONDS,
 	MIN_DELAY_SECONDS,
+	MIN_SOUND_DELAY_SECONDS,
+	MIN_SOUND_DURATION_SECONDS,
 	type Settings,
+	setTimings,
 } from "../core/settings";
+import { formatSeconds } from "./section";
+
+/** One line of the Cards section's values, shown while it is closed. */
+export function cardsSummary(settings: Settings): string {
+	return [
+		`${formatPitch(settings.lowest)} to ${formatPitch(settings.highest)}`,
+		settings.includeSharps ? "sharps" : "naturals",
+		`reveal ${formatSeconds(settings.delaySeconds)}`,
+		settings.autoAdvance
+			? `advance ${formatSeconds(settings.advanceDelaySeconds)}`
+			: "advance off",
+	].join(", ");
+}
+
+/** One line of the Sound section's values, shown while it is closed. */
+export function soundSummary(settings: Settings): string {
+	if (!settings.soundEnabled) return "off";
+	return `on, after ${formatSeconds(settings.soundDelaySeconds)}, for ${formatSeconds(settings.soundDurationSeconds)}`;
+}
 
 function offered(settings: Settings, lowest: Pitch, highest: Pitch): Pitch[] {
 	if (lowest > highest) return [];
@@ -50,4 +77,37 @@ export function applyAdvanceDelayInput(
 ): Settings {
 	if (!isDelayInput(value)) return settings;
 	return { ...settings, advanceDelaySeconds: value };
+}
+
+export type TimingField =
+	| "soundDelaySeconds"
+	| "soundDurationSeconds"
+	| "advanceDelaySeconds";
+
+const TIMING_MIN: Record<TimingField, number> = {
+	soundDelaySeconds: MIN_SOUND_DELAY_SECONDS,
+	soundDurationSeconds: MIN_SOUND_DURATION_SECONDS,
+	advanceDelaySeconds: MIN_DELAY_SECONDS,
+};
+
+/**
+ * A timing edit from an input. Out of bounds or not finite: unchanged, no message,
+ * like the delay inputs. In bounds: the new settings, or unchanged with the reason
+ * when the sound would outlast the advance delay.
+ */
+export function editTiming(
+	settings: Settings,
+	field: TimingField,
+	value: number,
+): { settings: Settings; rejected: string | null } {
+	if (
+		!Number.isFinite(value) ||
+		value < TIMING_MIN[field] ||
+		value > MAX_DELAY_SECONDS
+	) {
+		return { settings, rejected: null };
+	}
+	const result = setTimings(settings, { [field]: value });
+	if (!result.ok) return { settings, rejected: result.reason };
+	return { settings: result.settings, rejected: null };
 }
