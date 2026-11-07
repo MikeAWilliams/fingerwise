@@ -22,6 +22,10 @@ Plays a sine tone for a pitch through Web Audio. It takes a pitch and a number o
 
 `play` does nothing when there is no context, or when the context is not `"running"` and `unlock()` has not been called, and nothing is queued for later. After `unlock()`, a context that is still resuming gets the tone scheduled on its frozen clock, so a tone requested on the unlocking gesture sounds once the context runs.
 
+## Autoplay
+
+Browsers keep an audio context suspended until a user gesture. The app calls `unlock()` on the first `click`, `keydown` or `touchend`, in the capture phase on `window`, so it runs before the card flow handles the same gesture; a tone that gesture starts is scheduled on the resuming context and is heard. Until then the context is locked: a tone that falls due before any gesture is skipped, not queued, and later cards play normally. Nothing prompts the player or shows a message, and when audio is unavailable the drill is unchanged.
+
 ## Dependencies
 
 `../core/pitch` only (`Pitch`, `toFrequency`). `src/core/` never imports `src/audio`.

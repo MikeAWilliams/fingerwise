@@ -2,8 +2,10 @@ import { useEffect, useState } from "preact/hooks";
 import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
+import { browserAudioFactory, createAudio } from "../audio/context";
+import { createTonePlayer } from "../audio/tone";
 import { buildPool } from "../core/drill";
-import { loadInstrument } from "../core/instrument";
+import { loadInstrument, soundingPitch } from "../core/instrument";
 import type { Pitch } from "../core/pitch";
 import { parseDefaults, type Settings } from "../core/settings";
 import type { StaffOptions } from "../render/staff";
@@ -33,6 +35,9 @@ const STAFF_OPTIONS: StaffOptions = {
 	highest: instrument.highest,
 };
 
+const audio = createAudio(browserAudioFactory());
+const player = createTonePlayer(audio);
+
 const FONT_FAMILY = fontFamilyFor(instrument.tablatureFont);
 
 export function App() {
@@ -57,6 +62,18 @@ export function App() {
 		setOpen(true);
 	};
 	useEffect(() => {
+		// Capture on window, so the unlock runs before the flow's own handlers on
+		// the same gesture and a tone started by that gesture is heard.
+		const unlock = () => player.unlock();
+		const events = ["click", "keydown", "touchend"] as const;
+		for (const type of events)
+			window.addEventListener(type, unlock, { capture: true });
+		return () => {
+			for (const type of events)
+				window.removeEventListener(type, unlock, { capture: true });
+		};
+	}, []);
+	useEffect(() => {
 		if (open) return;
 		const flow = createCardFlow({
 			pool: poolFor(settings),
@@ -64,6 +81,17 @@ export function App() {
 			delayMs: settings.delaySeconds * 1000,
 			advanceDelayMs: settings.autoAdvance
 				? settings.advanceDelaySeconds * 1000
+				: null,
+			tone: settings.soundEnabled
+				? {
+						delayMs: settings.soundDelaySeconds * 1000,
+						play: (p) =>
+							player.play(
+								soundingPitch(instrument, p),
+								settings.soundDurationSeconds,
+							),
+						stop: () => player.stop(),
+					}
 				: null,
 			onChange: setCard,
 		});
