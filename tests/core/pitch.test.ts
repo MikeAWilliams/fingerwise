@@ -5,6 +5,7 @@ import {
 	type Pitch,
 	parsePitch,
 	pitchesInRange,
+	toFrequency,
 	transpose,
 } from "../../src/core/pitch";
 
@@ -87,5 +88,32 @@ describe("isNatural", () => {
 	test("sharps are not natural", () => {
 		expect(isNatural(pitch("C♯4"))).toBe(false);
 		expect(isNatural(pitch("A♯3"))).toBe(false);
+	});
+});
+
+describe("toFrequency", () => {
+	test("A4 is exactly 440", () => {
+		expect(toFrequency(pitch("A4"))).toBe(440);
+	});
+
+	test("known values", () => {
+		expect(toFrequency(pitch("C4"))).toBeCloseTo(261.6256, 4);
+		expect(toFrequency(pitch("A5"))).toBeCloseTo(880, 10);
+		expect(toFrequency(pitch("A3"))).toBeCloseTo(220, 10);
+	});
+
+	test("an octave doubles the frequency", () => {
+		for (let p = 0; p <= 115; p++) {
+			const ratio = toFrequency((p + 12) as Pitch) / toFrequency(p as Pitch);
+			expect(ratio).toBeCloseTo(2, 10);
+		}
+	});
+
+	test("A4 to F6 is finite, positive and strictly increasing", () => {
+		const freqs = pitchesInRange(pitch("A4"), pitch("F6")).map(toFrequency);
+		for (const [i, f] of freqs.entries()) {
+			expect(Number.isFinite(f) && f > 0).toBe(true);
+			if (i > 0) expect(f).toBeGreaterThan(freqs[i - 1] as number);
+		}
 	});
 });

@@ -41,3 +41,11 @@ test("core does not reference browser globals", () => {
 		}
 	}
 });
+
+test("pitch has no import at all", () => {
+	const text = sources["/src/core/pitch/index.ts"] as string;
+	expect(text).toBeDefined();
+	expect(/^\s*import\b/m.test(text)).toBe(false);
+	expect(/\bfrom\s+["']/.test(text)).toBe(false);
+	expect(/\bimport\s*\(/.test(text)).toBe(false);
+});
