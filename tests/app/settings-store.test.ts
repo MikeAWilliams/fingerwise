@@ -23,6 +23,9 @@ const DEFAULTS: Settings = {
 	delaySeconds: 3,
 	autoAdvance: true,
 	advanceDelaySeconds: 3,
+	soundEnabled: true,
+	soundDelaySeconds: 0.5,
+	soundDurationSeconds: 1.5,
 };
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -45,6 +48,9 @@ test("saved settings load back unchanged", () => {
 		delaySeconds: 1.3,
 		autoAdvance: false,
 		advanceDelaySeconds: 5,
+		soundEnabled: false,
+		soundDelaySeconds: 2,
+		soundDurationSeconds: 4,
 	};
 	saveSettings(storage, settings);
 	expect([...data.keys()]).toEqual([SETTINGS_KEY]);
@@ -55,6 +61,9 @@ test("saved settings load back unchanged", () => {
 		delaySeconds: 1.3,
 		autoAdvance: false,
 		advanceDelaySeconds: 5,
+		soundEnabled: false,
+		soundDelaySeconds: 2,
+		soundDurationSeconds: 4,
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -101,6 +110,57 @@ test("settings saved before auto-advance load with its defaults", () => {
 		delaySeconds: 1.3,
 		autoAdvance: true,
 		advanceDelaySeconds: 3,
+		soundEnabled: true,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
+	});
+});
+
+test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5 s", () => {
+	const { storage } = fakeStorage({
+		[SETTINGS_KEY]: JSON.stringify({
+			lowest: "C4",
+			highest: "E5",
+			includeSharps: false,
+			delaySeconds: 1.3,
+			autoAdvance: true,
+			advanceDelaySeconds: 6,
+		}),
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		lowest: pitch("C4"),
+		highest: pitch("E5"),
+		includeSharps: false,
+		delaySeconds: 1.3,
+		autoAdvance: true,
+		advanceDelaySeconds: 6,
+		soundEnabled: true,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
+	});
+});
+
+test("settings saved before sound with a 1 s advance delay reset the three timings", () => {
+	const { storage } = fakeStorage({
+		[SETTINGS_KEY]: JSON.stringify({
+			lowest: "C4",
+			highest: "E5",
+			includeSharps: false,
+			delaySeconds: 1.3,
+			autoAdvance: true,
+			advanceDelaySeconds: 1,
+		}),
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		lowest: pitch("C4"),
+		highest: pitch("E5"),
+		includeSharps: false,
+		delaySeconds: 1.3,
+		autoAdvance: true,
+		advanceDelaySeconds: 3,
+		soundEnabled: true,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
 	});
 });
 

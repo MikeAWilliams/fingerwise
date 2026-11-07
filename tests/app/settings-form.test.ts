@@ -30,6 +30,9 @@ function settings(
 		delaySeconds: 3,
 		autoAdvance: true,
 		advanceDelaySeconds: 3,
+		soundEnabled: false,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
 	};
 }
 

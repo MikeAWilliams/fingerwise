@@ -8,6 +8,9 @@ export interface Settings {
 	delaySeconds: number;
 	autoAdvance: boolean;
 	advanceDelaySeconds: number;
+	soundEnabled: boolean;
+	soundDelaySeconds: number;
+	soundDurationSeconds: number;
 }
 
 /** Serialized form shared by the defaults file and storage; pitches are note names. */
@@ -18,10 +21,15 @@ export interface SettingsJson {
 	delaySeconds: number;
 	autoAdvance: boolean;
 	advanceDelaySeconds: number;
+	soundEnabled: boolean;
+	soundDelaySeconds: number;
+	soundDurationSeconds: number;
 }
 
 export const MIN_DELAY_SECONDS = 0.5;
 export const MAX_DELAY_SECONDS = 30;
+export const MIN_SOUND_DELAY_SECONDS = 0;
+export const MIN_SOUND_DURATION_SECONDS = 0.5;
 
 export class SettingsError extends Error {
 	constructor(message: string) {
@@ -30,9 +38,11 @@ export class SettingsError extends Error {
 	}
 }
 
-export type SharpsResult =
+export type SettingsResult =
 	| { ok: true; settings: Settings }
 	| { ok: false; reason: string };
+
+export type SharpsResult = SettingsResult;
 
 export function toSettingsJson(settings: Settings): SettingsJson {
 	return {
@@ -42,6 +52,9 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		delaySeconds: settings.delaySeconds,
 		autoAdvance: settings.autoAdvance,
 		advanceDelaySeconds: settings.advanceDelaySeconds,
+		soundEnabled: settings.soundEnabled,
+		soundDelaySeconds: settings.soundDelaySeconds,
+		soundDurationSeconds: settings.soundDurationSeconds,
 	};
 }
 
@@ -75,6 +88,89 @@ export function setIncludeSharps(
 		ok: true,
 		settings: { ...settings, ...snapped, includeSharps: false },
 	};
+}
+
+/** The sum rule only holds a sound inside the advance wait when both are on. */
+export function soundRuleApplies(s: Settings): boolean {
+	return s.soundEnabled && s.autoAdvance;
+}
+
+/** Sound delay plus duration fits in the advance delay (compared with a tolerance for half seconds). */
+export function soundFits(s: Settings): boolean {
+	return (
+		s.soundDelaySeconds + s.soundDurationSeconds <= s.advanceDelaySeconds + 1e-9
+	);
+}
+
+export function breaksSoundRule(s: Settings): boolean {
+	return soundRuleApplies(s) && !soundFits(s);
+}
+
+export function soundTooLongReason(s: Settings): string {
+	const total = s.soundDelaySeconds + s.soundDurationSeconds;
+	return `Sound delay plus duration (${total} s) is longer than the advance delay (${s.advanceDelaySeconds} s)`;
+}
+
+export function canTurnSoundOn(s: Settings): boolean {
+	return !breaksSoundRule({ ...s, soundEnabled: true });
+}
+
+export function canTurnAutoAdvanceOn(s: Settings): boolean {
+	return !breaksSoundRule({ ...s, autoAdvance: true });
+}
+
+export function setSoundEnabled(s: Settings, on: boolean): SettingsResult {
+	const next = { ...s, soundEnabled: on };
+	if (breaksSoundRule(next)) {
+		return { ok: false, reason: soundTooLongReason(next) };
+	}
+	return { ok: true, settings: next };
+}
+
+export function setAutoAdvance(s: Settings, on: boolean): SettingsResult {
+	const next = { ...s, autoAdvance: on };
+	if (breaksSoundRule(next)) {
+		return { ok: false, reason: soundTooLongReason(next) };
+	}
+	return { ok: true, settings: next };
+}
+
+export type TimingPatch = Partial<
+	Pick<
+		Settings,
+		"soundDelaySeconds" | "soundDurationSeconds" | "advanceDelaySeconds"
+	>
+>;
+
+/** Apply a timing edit, or reject it when the sound would outlast the advance delay. */
+export function setTimings(s: Settings, patch: TimingPatch): SettingsResult {
+	const next = { ...s, ...patch };
+	if (breaksSoundRule(next)) {
+		return {
+			ok: false,
+			reason:
+				"The sound delay plus the sound duration must not exceed the advance delay.",
+		};
+	}
+	return { ok: true, settings: next };
+}
+
+function isValidSoundDelay(value: unknown): value is number {
+	return (
+		typeof value === "number" &&
+		Number.isFinite(value) &&
+		value >= MIN_SOUND_DELAY_SECONDS &&
+		value <= MAX_DELAY_SECONDS
+	);
+}
+
+function isValidSoundDuration(value: unknown): value is number {
+	return (
+		typeof value === "number" &&
+		Number.isFinite(value) &&
+		value >= MIN_SOUND_DURATION_SECONDS &&
+		value <= MAX_DELAY_SECONDS
+	);
 }
 
 function isValidDelay(value: unknown): value is number {
@@ -121,6 +217,16 @@ export function validateSettings(
 	const advanceDelaySeconds = isValidDelay(obj.advanceDelaySeconds)
 		? obj.advanceDelaySeconds
 		: defaults.advanceDelaySeconds;
+	const soundEnabled =
+		typeof obj.soundEnabled === "boolean"
+			? obj.soundEnabled
+			: defaults.soundEnabled;
+	const soundDelaySeconds = isValidSoundDelay(obj.soundDelaySeconds)
+		? obj.soundDelaySeconds
+		: defaults.soundDelaySeconds;
+	const soundDurationSeconds = isValidSoundDuration(obj.soundDurationSeconds)
+		? obj.soundDurationSeconds
+		: defaults.soundDurationSeconds;
 
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
@@ -136,13 +242,23 @@ export function validateSettings(
 			({ lowest, highest } = snapped);
 		}
 	}
-	return {
+	const result: Settings = {
 		lowest,
 		highest,
 		includeSharps,
 		delaySeconds,
 		autoAdvance,
 		advanceDelaySeconds,
+		soundEnabled,
+		soundDelaySeconds,
+		soundDurationSeconds,
+	};
+	if (!breaksSoundRule(result)) return result;
+	return {
+		...result,
+		soundDelaySeconds: defaults.soundDelaySeconds,
+		soundDurationSeconds: defaults.soundDurationSeconds,
+		advanceDelaySeconds: defaults.advanceDelaySeconds,
 	};
 }
 
@@ -175,6 +291,19 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 			`advanceDelaySeconds must be a number from ${MIN_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}`,
 		);
 	}
+	if (typeof obj.soundEnabled !== "boolean") {
+		throw new SettingsError("soundEnabled must be true or false");
+	}
+	if (!isValidSoundDelay(obj.soundDelaySeconds)) {
+		throw new SettingsError(
+			`soundDelaySeconds must be a number from ${MIN_SOUND_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}`,
+		);
+	}
+	if (!isValidSoundDuration(obj.soundDurationSeconds)) {
+		throw new SettingsError(
+			`soundDurationSeconds must be a number from ${MIN_SOUND_DURATION_SECONDS} to ${MAX_DELAY_SECONDS}`,
+		);
+	}
 
 	for (const [field, p] of [
 		["lowest", lowest],
@@ -194,12 +323,21 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 			"lowest and highest must be naturals when includeSharps is false",
 		);
 	}
-	return {
+	const settings: Settings = {
 		lowest,
 		highest,
 		includeSharps: obj.includeSharps,
 		delaySeconds: obj.delaySeconds,
 		autoAdvance: obj.autoAdvance,
 		advanceDelaySeconds: obj.advanceDelaySeconds,
+		soundEnabled: obj.soundEnabled,
+		soundDelaySeconds: obj.soundDelaySeconds,
+		soundDurationSeconds: obj.soundDurationSeconds,
 	};
+	if (breaksSoundRule(settings)) {
+		throw new SettingsError(
+			`sound delay plus duration must not exceed advanceDelaySeconds when soundEnabled and autoAdvance are on: ${soundTooLongReason(settings)}`,
+		);
+	}
+	return settings;
 }
