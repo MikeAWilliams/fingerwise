@@ -19,5 +19,5 @@ vision.md  ->  features/<n>-<name>/design.md  ->  stories/  ->  story-progress/ 
 
 1. Pick an area of the vision and write a feature design in [`../features/`](../features/).
 2. Break the design into stories (each with acceptance criteria).
-3. Work stories one at a time, tracking progress in [`../../story-progress/`](../../story-progress/).
+3. Build a feature's stories in order, one commit each, tracking progress in [`../../story-progress/`](../../story-progress/).
 4. When code lands, update [`../architecture/`](../architecture/) to describe what now exists, then trim the vision.

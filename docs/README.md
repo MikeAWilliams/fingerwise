@@ -12,7 +12,7 @@ fingerwise is planned in documents first. This is the map.
 | [`glossary.md`](glossary.md)     | Domain terms used across the docs.                                       | Reference               |
 
 Outside `docs/`:
-- [`../story-progress/`](../story-progress/): one temporary checklist per in-flight story; deleted when the story is accepted, before merge.
+- [`../story-progress/`](../story-progress/): one temporary checklist per in-flight feature; deleted when the feature is accepted, before merge.
 - [`../data/instruments/`](../data/instruments/): instrument definitions as JSON.
 
 ## Flow
@@ -26,4 +26,4 @@ Outside `docs/`:
 - Story IDs are `F<feature>-S<story>` (for example `F01-S02`), and story files are named `F01-S02-short-name.md`.
 - ADRs are numbered: `architecture/decisions/0001-short-name.md`.
 - Link to sections by anchor instead of duplicating text.
-- Branches are `plan/`, `story/`, `chore/` or `fix/`; the rules are in [`../CLAUDE.md`](../CLAUDE.md#branches).
+- Branches are `plan/`, `feature/`, `chore/` or `fix/`; the rules are in [`../CLAUDE.md`](../CLAUDE.md#branches).

@@ -20,7 +20,7 @@ Planning comes first in this project. The docs are organized by what they are fo
 | [`docs/research/`](docs/research/)         | Background research: prior art, fingering data sources, licensing.                               |
 | [`docs/templates/`](docs/templates/)       | Templates for features, stories, ADRs and progress files.                                        |
 | [`docs/glossary.md`](docs/glossary.md)     | Domain terms.                                                                                    |
-| [`story-progress/`](story-progress/)       | A checklist per story currently being built. Deleted when the story is accepted.                 |
+| [`story-progress/`](story-progress/)       | A checklist per feature currently being built. Deleted when the feature is accepted.                 |
 | [`data/instruments/`](data/instruments/)   | Instrument definitions as JSON files.                                                            |
 | [`data/fonts/`](data/fonts/)               | The bundled tablature font and its OFL license.                                                  |
 | [`CLAUDE.md`](CLAUDE.md)                   | Working rules for Claude, which writes most of the code.                                         |

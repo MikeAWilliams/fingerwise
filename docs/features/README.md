@@ -11,7 +11,7 @@ features/
       F01-S02-reveal-after-delay.md
 ```
 
-Use the templates in [`../templates/`](../templates/). Stories are durable specs: their acceptance criteria do not change as work happens. The "how" for a story in flight is tracked as a checklist in [`../../story-progress/`](../../story-progress/), not here.
+Use the templates in [`../templates/`](../templates/). Stories are durable specs: their acceptance criteria do not change as work happens. The "how" for a feature in flight is tracked as a checklist in [`../../story-progress/`](../../story-progress/), not here.
 
 ## Index
 

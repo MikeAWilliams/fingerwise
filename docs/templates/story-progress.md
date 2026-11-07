@@ -1,25 +1,29 @@
-# F<NN>-S<NN>
+# F<NN>: <feature name>
 
-Story: [`F<NN>-S<NN>-<name>`](../docs/features/<feature>/stories/F<NN>-S<NN>-<name>.md)
+Feature: [`<n>-<name>`](../docs/features/<n>-<name>/design.md)
 
-Each sub-task is one commit that leaves the repo building, linted and passing tests.
+One section per story, in dependency order. Each story is one commit that leaves the repo building, linted and passing tests.
 
-## Sub-task 1: <name>
+## F<NN>-S01: <name>
 
-Covers: AC1
+Story: [`F<NN>-S01-<name>`](../docs/features/<n>-<name>/stories/F<NN>-S01-<name>.md)
+
+Covers: AC1, AC2
 - [ ] <how: concrete step, naming files/functions/data>
 - [ ] <how: concrete step>
 - [ ] Tests for the above pass
 - [ ] Update `docs/architecture/modules/<module>.md`; trim the vision to a pointer
 
-## Sub-task 2: <name>
+## F<NN>-S02: <name>
 
-Covers: AC2, AC3
+Story: [`F<NN>-S02-<name>`](../docs/features/<n>-<name>/stories/F<NN>-S02-<name>.md)
+
+Covers: AC1
 - [ ] <how: concrete step>
 
 ## Closing
 
-- [ ] Verify AC1-AC<N> of the story
+- [ ] Verify every story's acceptance criteria
 - [ ] User acceptance
 - [ ] Delete this file (final commit before merge)
 
