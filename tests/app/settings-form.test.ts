@@ -3,6 +3,7 @@ import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
 	applyAdvanceDelayInput,
 	applyDelayInput,
+	cardsSummary,
 	highestOptions,
 	lowestOptions,
 } from "../../src/app/settings-form";
@@ -98,5 +99,32 @@ describe("applyAdvanceDelayInput", () => {
 		for (const v of [0.4, 30.5, Number.NaN]) {
 			expect(applyAdvanceDelayInput(start, v)).toBe(start);
 		}
+	});
+});
+
+describe("cardsSummary", () => {
+	test("default settings", () => {
+		expect(cardsSummary(settings("A3", "F5"))).toBe(
+			"A3 to F5, sharps, reveal 3 s, advance 3 s",
+		);
+	});
+	test("sharps off says naturals", () => {
+		expect(cardsSummary(settings("A3", "F5", false))).toBe(
+			"A3 to F5, naturals, reveal 3 s, advance 3 s",
+		);
+	});
+	test("auto-advance off says advance off", () => {
+		const s = { ...settings("A3", "F5"), autoAdvance: false };
+		expect(cardsSummary(s)).toBe("A3 to F5, sharps, reveal 3 s, advance off");
+	});
+	test("half-second delays", () => {
+		const s = {
+			...settings("C4", "E5"),
+			delaySeconds: 0.5,
+			advanceDelaySeconds: 2.5,
+		};
+		expect(cardsSummary(s)).toBe(
+			"C4 to E5, sharps, reveal 0.5 s, advance 2.5 s",
+		);
 	});
 });

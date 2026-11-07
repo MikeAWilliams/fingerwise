@@ -1,10 +1,28 @@
 import type { Instrument } from "../core/instrument";
-import { isNatural, type Pitch, pitchesInRange } from "../core/pitch";
+import {
+	formatPitch,
+	isNatural,
+	type Pitch,
+	pitchesInRange,
+} from "../core/pitch";
 import {
 	MAX_DELAY_SECONDS,
 	MIN_DELAY_SECONDS,
 	type Settings,
 } from "../core/settings";
+import { formatSeconds } from "./section";
+
+/** One line of the Cards section's values, shown while it is closed. */
+export function cardsSummary(settings: Settings): string {
+	return [
+		`${formatPitch(settings.lowest)} to ${formatPitch(settings.highest)}`,
+		settings.includeSharps ? "sharps" : "naturals",
+		`reveal ${formatSeconds(settings.delaySeconds)}`,
+		settings.autoAdvance
+			? `advance ${formatSeconds(settings.advanceDelaySeconds)}`
+			: "advance off",
+	].join(", ");
+}
 
 function offered(settings: Settings, lowest: Pitch, highest: Pitch): Pitch[] {
 	if (lowest > highest) return [];
