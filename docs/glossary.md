@@ -25,8 +25,8 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Listening window**           | The part of a card's life when the judge uses microphone readings: from the card's appearance until its reveal. The microphone stream itself stays open across cards while drilling. |
 | **Verdict**                    | The judge's result for a card: correct, incorrect, or none (nothing heard).                      |
 | **Tolerance**                  | How many cents from the expected pitch a played tone may be and still be correct. A setting.     |
-| **Settle time**                | How long a detected pitch must stay clear, loud enough and steady before it counts as a played tone. Set by the F04 spike. |
-| **Hold-off**                   | A short time at the start of each listening window when readings are ignored, so the room tail of the previous tone is not judged. |
+| **Settle time**                | How long a detected pitch must stay clear, loud enough and steady before it counts as a played tone. 200 ms, from the [F04 spike](research/pitch-detection-spike.md). |
+| **Hold-off**                   | A short time at the start of each listening window when readings are ignored, so the room tail of the previous tone is not judged. 500 ms from the card's appearance. |
 | **Cents**                      | A hundredth of a semitone, the unit for how far a tone is from a note.                           |
 | **Song**                       | One tune, an ordered list of written pitches, read from the player's ABC text ([F05](features/05-songs/design.md)). |
 | **Use song**                   | A setting: cards follow the saved song in order instead of the random pool. Default off; disabled with no valid song. |

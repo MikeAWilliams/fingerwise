@@ -21,9 +21,11 @@ The player pastes one tune in ABC notation into the settings, and the drill show
 - Key signature, meter and note lengths are read so the pitches are right. Lengths and meter are then not used.
 - Accidentals follow ABC rules: the key signature, and an accidental carried to later notes of the same pitch in its bar.
 - Repeat signs and first and second endings are played out as written.
-- Rests, ties, slurs, dynamics, chord symbols, lyrics and decorations are ignored.
-- Rejected, with a message that names where: chords, a second voice, grace notes, more than one tune, no notes, a note outside the instrument's written range (A3 to F5 for the alto C, each offender listed), a song over the length limit.
-- **Flats become sharps:** B♭ is A♯ and so on, because the app spells in sharps only. E♯ and B♯ (which the app has no name for) become F and C. The validator counts the conversions and says so. Songs written with flats therefore show sharps on the staff and in the reveal.
+- A tie joins its notes into one: `B-B` is one card.
+- Rests, slurs, dynamics, chord symbols, lyrics and decorations are ignored.
+- Rejected, with a message that names where: chords, a second voice, grace notes, more than one tune, no notes, a note outside the instrument's written range (A3 to F5 for the alto C, each offender listed), a song over the length limit, and D.C., D.S., Fine, coda and segno marks (abcjs does not play them out; write the repeat out in the editor instead).
+- Anything abcjs warns about is rejected with its line and column. abcjs reads almost any text as notes, so a warning is the only sign that the text is not the tune it looks like.
+- **Flats become sharps:** B♭ is A♯ and so on, because the app spells in sharps only. E♯ and B♯ (which the app has no name for) become F and C, and double sharps and flats become their plain note. The validator counts the conversions and says so. Songs written with flats therefore show sharps on the staff and in the reveal.
 - A length limit (about 500 notes and 10,000 characters) keeps the saved settings small.
 
 **Playing a song**
@@ -51,10 +53,9 @@ The player pastes one tune in ABC notation into the settings, and the drill show
 - `src/core/song` (new): the `Song` type (a list of pitches) and the range check; pure.
 - `src/core/drill`: an in-order choice of the next pitch from a plain pitch list (the pitch after the previous one, looping), alongside `drawPitch`. Still only pitches; it does not import `song`.
 - `src/core/settings`: the song text and "use song" as fields, checked for type and the character limit only. It cannot parse ABC (no library in `src/core`).
-- An ABC adapter outside `src/core` (location decided in the breakdown; `src/core` may not import a library) that turns ABC text into a `Song` or a list of problems using abcjs.
+- An ABC adapter outside `src/core` (location decided in the breakdown; `src/core` may not import a library) that turns ABC text into a `Song` or a list of problems using abcjs ([ADR 0006](../../architecture/decisions/0006-abcjs-for-songs.md)). The pitches come from abcjs's audio sequence (`setUpAudio`), which already applies the key signature, carried accidentals, ties and repeats. The parse tree is used to find what is rejected and to count conversions. See the [spike](../../research/abcjs-parsing-spike.md).
 - `src/app`: settings view, validator messages, card flow takes a song source. On load the app parses the saved song text once with the adapter, which gives the card flow its `Song` and turns "use song" off if the text no longer passes.
-- ADR for the abcjs dependency and the supported ABC subset.
-- `package.json`: abcjs, agreed 2026-11-07, recorded in the ADR.
+- `package.json`: abcjs pinned to an exact version, agreed 2026-11-07 ([ADR 0006](../../architecture/decisions/0006-abcjs-for-songs.md)).
 
 The tone player, the judge and the staff are untouched.
 
@@ -64,10 +65,11 @@ New settings `useSong` (default off) and `songAbc` (default empty text), in the 
 
 ## Risks and open questions
 
-- **abcjs in a non-browser environment.** The parser may touch browser globals or bring in rendering code; tests run in Node. The spike-sized check is the first acceptance criterion of S02; if abcjs cannot run there, stop and tell the user.
-- **Accidental rules.** Applying the key signature and bar-carried accidentals correctly is the part most likely to be wrong. S02 tests it against known tunes written out by hand.
+- **abcjs in a non-browser environment.** Settled by the [spike](../../research/abcjs-parsing-spike.md): `parseOnly` and `setUpAudio` run under Vitest with no DOM.
+- **Accidental rules.** abcjs applies them in its sequence (the spike checked key signatures, bar-carried accidentals per octave, naturals and ties across the bar line). S02 still tests them against known tunes written out by hand, since the adapter depends on abcjs getting them right.
+- **Deep import.** The narrow entry (`abcjs/src/api/abc_tunebook.js`) is not a documented API and may move in a release. abcjs is pinned exactly, and the adapter's tests catch a break on a deliberate upgrade.
 - **Flats shown as sharps** may look strange to players who read flats. A flat-spelling feature touches pitch, staff and reveal and is not part of this one.
-- **Bundle size.** abcjs is larger than the rest of the app together and may not allow leaving its renderer out. It is lazy-loaded (a dynamic import when the Song section opens or a saved song is in use) and still precached for offline use; S02 measures and reports the size. With a saved song in use, the first card waits for abcjs to load and parse.
+- **Bundle size.** The deep import leaves the renderer, synth and editor out: about 211 kB minified, 61 kB gzip, against 509 kB and 149 kB for the whole package (the app's main chunk is about 747 kB and 399 kB). It is lazy-loaded (a dynamic import when the Song section opens or a saved song is in use) and still precached for offline use; S02 measures the real numbers in the app build. With a saved song in use, the first card waits for abcjs to load and parse.
 - **Which tunes fit.** The 12-hole alto C spans only A3 to F5, so many tunes will be rejected for range. A transposing option may be wanted later.
 
 ## Stories
