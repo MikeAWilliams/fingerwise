@@ -4,8 +4,10 @@ import {
 	applyAdvanceDelayInput,
 	applyDelayInput,
 	cardsSummary,
+	editTiming,
 	highestOptions,
 	lowestOptions,
+	soundSummary,
 } from "../../src/app/settings-form";
 import { loadInstrument } from "../../src/core/instrument";
 import {
@@ -129,5 +131,72 @@ describe("cardsSummary", () => {
 		expect(cardsSummary(s)).toBe(
 			"C4 to E5, sharps, reveal 0.5 s, advance 2.5 s",
 		);
+	});
+});
+
+describe("soundSummary", () => {
+	test("on shows the delay and duration", () => {
+		const s = { ...settings("A3", "F5"), soundEnabled: true };
+		expect(soundSummary(s)).toBe("on, after 0.5 s, for 1.5 s");
+	});
+	test("off says off", () => {
+		expect(soundSummary(settings("A3", "F5"))).toBe("off");
+	});
+});
+
+describe("editTiming", () => {
+	const on: Settings = { ...settings("A3", "F5"), soundEnabled: true };
+	const reason =
+		"The sound delay plus the sound duration must not exceed the advance delay.";
+
+	test("out of bounds or not finite is unchanged with no message", () => {
+		const cases: [Parameters<typeof editTiming>[1], number][] = [
+			["soundDelaySeconds", -0.5],
+			["soundDelaySeconds", 30.5],
+			["soundDurationSeconds", 0.4],
+			["soundDurationSeconds", 31],
+			["advanceDelaySeconds", 0.4],
+			["advanceDelaySeconds", Number.NaN],
+		];
+		for (const [field, value] of cases) {
+			expect(editTiming(on, field, value)).toEqual({
+				settings: on,
+				rejected: null,
+			});
+		}
+	});
+
+	test("an edit of each field over the sum is rejected with the message", () => {
+		const tight = { ...on, advanceDelaySeconds: 2 };
+		for (const [field, value] of [
+			["advanceDelaySeconds", 1.5],
+			["soundDelaySeconds", 1],
+			["soundDurationSeconds", 2],
+		] as const) {
+			expect(editTiming(tight, field, value)).toEqual({
+				settings: tight,
+				rejected: reason,
+			});
+		}
+	});
+
+	test("an edit with the sum equal to the advance delay is accepted", () => {
+		const result = editTiming(on, "advanceDelaySeconds", 2);
+		expect(result.rejected).toBeNull();
+		expect(result.settings.advanceDelaySeconds).toBe(2);
+	});
+
+	test("edits are free with play note off and with auto-advance off", () => {
+		for (const off of [{ soundEnabled: false }, { autoAdvance: false }]) {
+			const s = { ...on, ...off };
+			expect(editTiming(s, "advanceDelaySeconds", 0.5)).toMatchObject({
+				rejected: null,
+				settings: { advanceDelaySeconds: 0.5 },
+			});
+			expect(editTiming(s, "soundDurationSeconds", 30)).toMatchObject({
+				rejected: null,
+				settings: { soundDurationSeconds: 30 },
+			});
+		}
 	});
 });
