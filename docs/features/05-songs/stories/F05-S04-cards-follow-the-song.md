@@ -25,6 +25,7 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - The card flow takes a "next pitch" source; the random draw and the song are two sources, so the flow does not know which is in use.
 - A song that changed in the settings view takes effect when the view closes, as with the other settings.
 - No indicator of the song position is required.
+- abcjs is lazy-loaded (F05-S02 AC10), so with a saved song in use the first card waits until the song is parsed; nothing is shown in the meantime.
 
 ## Test approach
 

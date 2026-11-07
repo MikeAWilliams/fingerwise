@@ -20,13 +20,15 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - **AC7:** Given a chord, a second voice, a grace note, more than one tune, no notes, or text over the limits (about 500 notes, 10,000 characters), then the result is a list of problems and no song. Each problem has a plain message and the line and note number (or character) it is about.
 - **AC8:** Given a song with notes outside the instrument's written range, then the result lists each offender with its pitch, position and which side of the range it is on.
 - **AC9:** Given text abcjs cannot parse, or that makes it throw, then the result is a problem, never an exception.
-- **AC10:** Given the change, then a new ADR records the abcjs dependency (parse only; no rendering imported) and the supported subset, `make verify` passes, the built size and precache growth are reported to the user, and a module doc describes the adapter.
+- **AC10:** Given the change, then abcjs is imported through the narrowest entry it offers, and only by a dynamic import, so it is a separate chunk that is not loaded at start-up unless a song is in use. The chunk is still in the service worker's precache.
+- **AC11:** Given the change, then a new ADR records the abcjs dependency, what of it ends up in the bundle (including any rendering code that cannot be left out), its size and precache growth as measured, and the supported subset. The sizes are reported to the user, `make verify` passes, and a module doc describes the adapter.
 
 ## Notes
 
 - `src/core` may not import a library ([CLAUDE.md](../../../../CLAUDE.md#rules)); the adapter lives elsewhere and returns the `Song` type from S01.
 - Pitches stay in written pitch. No transposition is applied at import ([ADR 0003](../../../architecture/decisions/0003-written-pitch-and-transposition.md)).
-- Import only abcjs's parsing entry; check the bundle does not pull in the renderer. The user agreed to abcjs on 2026-11-07.
+- abcjs may ship as one bundle with no parse-only entry; if so, the renderer comes along and that is accepted, measured and recorded (AC11), not a reason to stop. The user agreed to abcjs on 2026-11-07.
+- Because of the dynamic import, the adapter's entry point is async.
 
 ## Test approach
 

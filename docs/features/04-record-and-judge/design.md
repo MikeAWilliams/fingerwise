@@ -11,14 +11,16 @@ With judging on, the player plays the note on their ocarina instead of only fing
 
 **Listening**
 - Judging is a setting, default off ([F04-S04](stories/F04-S04-judge-settings.md)). With it off the app behaves exactly as after [F03](../03-play-the-note/design.md).
-- With it on, each new card starts listening when the card is shown. The microphone is used only from the card's appearance until its reveal. It is not used during the reveal, so the tone from F03 is never heard by the judge.
+- With it on, the microphone stream is open while the drill is showing, and is not reopened per card (that would cost start-up time on every card and flicker the browser's recording indicator). Readings are judged only in each card's **listening window**, from the card's appearance until its reveal. Readings during the reveal are ignored, so the tone from F03 is never judged.
 - The expected pitch is the card's sounding pitch (written pitch plus the instrument's transposition, [ADR 0003](../../architecture/decisions/0003-written-pitch-and-transposition.md)). The microphone hears sounding pitch.
-- The permission is requested the first time listening is needed. If it is denied or no microphone exists, the drill carries on as with judging off, and the card area shows a short notice that judging is unavailable.
+- Listening uses the same audio context as the F03 tone, so it is locked until the first click, tap or key press. While it is locked and judging is on, the card area shows "Tap or press a key to start listening". That gesture unlocks audio and acts as usual (it reveals the card, with "nothing heard"); listening starts from the next card. This is the only prompt to tap in the app, because judging, unlike the tone, would otherwise fail silently.
+- While the stream is opening (including the permission prompt), the card is shown but its reveal delay and listening window wait until the stream runs or fails, so the prompt never counts against the player.
+- The permission is requested the first time listening is needed. If it is denied or no microphone exists, the drill carries on as with judging off, and the card area shows a short notice that judging is unavailable ([F04-S05](stories/F04-S05-listen-before-reveal.md)).
 
 **Judging one tone**
 - Background rejection: a tone counts only when the detector reports a clear pitch (clarity above a threshold) with a level above a noise gate, held steady for a settle time (about 150 ms). This skips room noise, speech and the unsteady start of a breath. The thresholds are set by the spike ([F04-S01](stories/F04-S01-detector-spike.md)).
 - The first stable tone decides the card. There is no second try on the same card.
-- **Correct:** the detected pitch is in the same octave and within the tolerance, in cents, of the expected pitch. The tolerance is a setting. The default is provisionally 50 cents (the spike fixes the final value).
+- **Correct:** the detected pitch is in the same octave and within the tolerance, in cents, of the expected pitch. The tolerance is a setting, bounded below 50 cents so a tone nearer the neighbouring semitone (likely a wrong fingering) is never correct. Provisionally the bounds are 10 to 45 and the default 40; the spike may tighten them but not raise the upper bound to 50 or more.
 - **Incorrect:** any other stable tone.
 - A verdict triggers the reveal immediately, cancelling the reveal-delay timer.
 - **No answer:** if the reveal delay ends with no stable tone, the card reveals as before with a neutral "nothing heard" state. It is not a miss.
@@ -32,7 +34,8 @@ With judging on, the player plays the note on their ocarina instead of only fing
 
 **Edge cases**
 - Opening settings, turning judging off, or the page being hidden stops listening and releases the microphone.
-- The tone from the previous card cannot reach the next one: F03 requires the tone to end before the advance. A short hold-off at the start of listening covers the room tail (the spike sets its length).
+- With judging on, when the hidden page is shown again it behaves like closing the settings view: the stream reopens and a fresh card is dealt, its reveal delay waiting for the stream. With judging off, page visibility changes nothing.
+- The tone from the previous card cannot reach the next one: F03 requires the tone to end before the advance. A short hold-off at the start of each listening window covers the room tail (the spike sets its length).
 - Octave errors count as incorrect and are shown as such by the graph (pinned to the edge).
 - The grade is shown, not stored. It is exposed from the card flow as `correct | incorrect | none` for feature 6.
 
@@ -47,7 +50,7 @@ With judging on, the player plays the note on their ocarina instead of only fing
 ## Modules touched
 
 - `src/core/judge` (new): frequency to the nearest pitch and cents offset, the tolerance rule, and the stability logic over a stream of detector readings. Pure; no browser API.
-- `src/audio`: microphone capture and the detector loop (the detector itself is chosen by the spike).
+- `src/audio`: microphone capture and the detector loop (the detector itself is chosen by the spike), over the one audio context shared with the F03 tone player.
 - `src/core/settings`: judge toggle and tolerance.
 - `src/app`: card flow listens, reveals on a verdict; the reveal shows the verdict, judged note and graph; a "Microphone" settings section (see [F03-S01](../03-play-the-note/stories/F03-S01-settings-sections.md)) with the inputs and the unavailable notice.
 - `src/render` or `src/app`: the pitch graph (decided in S06).
@@ -65,7 +68,7 @@ New settings `judgeEnabled` (default off) and `toleranceCents`, in the defaults 
 - **Mic latency and permission on mobile.** Android latency varies by device; HTTPS is required (GitHub Pages provides it). Checked by hand on the [target matrix](../02-deploy-and-pwa/design.md#target-matrix).
 - **Dependency.** Pitchy is the vision's candidate. The spike compares it with a small own implementation of YIN and the user approves before any dependency is added ([CLAUDE.md](../../../CLAUDE.md#rules)).
 - **Speaker bleed.** On a phone the F03 tone could be heard by the next card's listening if the room is live. Mitigated by the hold-off; revisit if the by-hand check shows false verdicts.
-- **Privacy.** Audio is processed in the page and never stored or sent. The browser's own microphone indicator shows while listening.
+- **Privacy.** Audio is processed in the page and never stored or sent. The microphone is open while drilling with judging on, and only the listening windows are analysed. The browser's own microphone indicator shows the whole time it is open.
 
 ## Stories
 

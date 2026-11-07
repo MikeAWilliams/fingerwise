@@ -19,14 +19,15 @@ After a card is revealed, the player hears the note: a plain tone at the instrum
 - Browsers keep audio locked until the first click, tap or key press on the page. The first such gesture unlocks audio; until then a tone that is due is simply skipped. There is no "tap to enable sound" prompt. A player who opens the app and lets it run hands-free hears nothing until they tap once.
 
 **Settings** (a new "Sound" section of the settings view, saved with the others; the view is first split into collapsible sections by [F03-S01](stories/F03-S01-settings-sections.md))
-- **Play note:** a toggle. Default on. Off, no tone plays and the two timing inputs below do not matter.
+- **Play note:** a toggle. Default on. Off, no tone plays, the two timing inputs below are disabled (their values kept) and no sound rule applies.
 - **Sound delay:** seconds from the reveal to the start of the tone, 0 to 30. Default 0.5.
 - **Sound duration:** seconds the tone plays, 0.5 to 30. Default 1.5.
-- **Rule:** sound delay + sound duration must be at most the **advance delay**. It applies whether or not auto-advance or play note is on, so the settings are always consistent.
+- **Rule:** while play note **and** auto-advance are both on, sound delay + sound duration must be at most the **advance delay**. With either off it does not apply: no tone, or no timed advance for it to ring over (a click to advance cuts the tone).
 
-**Conflicts in the settings view**
-- An edit to the sound delay, sound duration or advance delay that would break the rule is rejected, the old value stays, and the view says the sum must not exceed the advance delay.
-- Stored or default values that break the rule are reset to the defaults (all three timing values, so the result is valid). See F03-S04.
+**Conflicts in the settings view** (the settings are never in a state that breaks the rule)
+- While the rule applies, an edit to the sound delay, sound duration or advance delay that would break it is rejected, the old value stays, and the view says the sum must not exceed the advance delay.
+- While the rule does not apply, the advance delay can be set freely. Turning play note or auto-advance on when that would break the rule is blocked: the toggle is disabled and the view names the values, for example "Sound delay plus duration (2 s) is longer than the advance delay (1 s)", the same pattern as the blocked sharps toggle in F01.
+- Stored or default values that break the rule while it applies are reset to the defaults (all three timing values, so the result is valid). See F03-S04.
 
 **Edge cases**
 - With auto-advance off, the tone plays once after the reveal and does not repeat.
@@ -59,7 +60,7 @@ New settings: `soundEnabled`, `soundDelaySeconds`, `soundDurationSeconds`, in th
 
 - **Locked audio on mobile.** Some mobile browsers only unlock on certain gesture types (touch end, not touch start). Checked by hand on the target matrix from [F02](../02-deploy-and-pwa/design.md#target-matrix).
 - **Timer drift.** The tone is scheduled from the app's timers, not the audio clock, so its start can be off by a few milliseconds. Fine for this feature; feature 8 will need the audio clock.
-- **Existing saved settings.** A saved advance delay below 2 s with the new defaults breaks the rule on load; the reset rule in S03 resolves it, which also resets the player's advance delay. Accepted.
+- **Existing saved settings.** A saved advance delay below 2 s with the new defaults breaks the rule on load; the reset rule in [F03-S04](stories/F03-S04-sound-settings.md) resolves it, which also resets the player's advance delay. Accepted.
 
 ## Stories
 

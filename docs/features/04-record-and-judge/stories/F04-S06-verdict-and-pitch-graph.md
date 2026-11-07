@@ -20,7 +20,7 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - **AC7:** Given a played pitch beyond the axis, then its marker is pinned to the edge with an arrow, and its note name still shows.
 - **AC8:** Given a card with judge off, then none of this is shown and the reveal looks as after F03.
 - **AC9:** Given revealing a judged card, then the staff does not move, the reveal area keeps its fixed height, and the graph fits at 360 px wide and at tablet sizes without sideways scroll (F02-S02).
-- **AC10:** Given the graph and verdict, then they have text alternatives for screen readers and are readable in light and dark color schemes if the app supports both.
+- **AC10:** Given the graph and verdict, then they have text alternatives for screen readers and enough contrast to read in the app's (light) color scheme.
 - **AC11:** Given the change, then `make verify` passes and the `app` (and `render`, if added) module docs describe what was built.
 
 ## Notes

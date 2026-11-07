@@ -16,13 +16,13 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - **AC3:** Given a tone is playing, when a new tone is requested, then the first is stopped before the second starts, so at most one tone sounds.
 - **AC4:** Given the audio context is suspended, when `unlock()` is called, then it asks the context to resume; given it is already running, or there is no context, then `unlock()` does nothing and never throws.
 - **AC5:** Given no Web Audio support, or a context that throws or rejects when created, resumed or played, then no call to the player throws or rejects; it plays nothing.
-- **AC6:** Given the context is not running (still locked), when a tone is requested, then nothing is played and nothing is queued for later.
+- **AC6:** Given the context is locked and `unlock()` has not been called, when a tone is requested, then nothing is played and nothing is queued for later. Given `unlock()` has been called and the resume has not finished, when a tone is requested, then it is scheduled on the context and sounds once the context runs (so a tone requested on the unlocking gesture is heard).
 - **AC7:** Given the change, then `make verify` passes, `src/audio` is not imported by `src/core`, and a new `modules/audio.md` documents the interface.
 
 ## Notes
 
 - Web Audio objects are injected (like `loadFont` takes its `env`) so the tests run in Node with fakes.
-- The context is created lazily on first `unlock()` or play, not at import time.
+- The context is created lazily on first `unlock()` or play, not at import time. It is the one audio context of the app; the F04 microphone listener will share it, so keep it reachable from `src/audio` rather than private to the tone player.
 - Fade lengths are small constants (about 10 to 30 ms) inside the module, not settings. A duration shorter than the two fades must still produce a valid envelope.
 - `src/audio` takes a pitch and seconds only. It does not know settings, cards or the instrument.
 

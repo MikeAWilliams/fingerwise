@@ -12,7 +12,7 @@ The player pastes one tune in ABC notation into the settings, and the drill show
 **Song settings** (a "Song" section of the settings view, see [F03-S01](../03-play-the-note/stories/F03-S01-settings-sections.md); saved with the others)
 - A text box for the tune in ABC notation, a short line of help, and a link to the online ABC editor `https://editor.drawthedots.com/` for writing and checking a tune with a staff and playback. The app itself draws nothing of the song.
 - A validator reads the text as it is edited and reports in plain words: either what it accepted (for example "21 notes, 2 flats converted to sharps") or a list of problems, each with its line and note number so the tune can be fixed in the editor.
-- Only a text that passes is applied and saved. While the box holds a text that fails, the problems show and the last good song stays saved. Clearing the box removes the song.
+- Only a text that passes is applied and saved. While the box holds a text that fails, the problems show and the last good song stays saved. Closing the settings view drops a failing text: on reopening, the box shows the saved song. Tunes are expected to be fixed in the linked editor. Clearing the box removes the song.
 - **Use song:** a toggle, default off. It is disabled while no valid song is saved. Off, the drill is the random pool as in F01.
 - With "use song" on, the note range and include-sharps settings do not apply; the view says so and shows them disabled.
 
@@ -49,10 +49,10 @@ The player pastes one tune in ABC notation into the settings, and the drill show
 ## Modules touched
 
 - `src/core/song` (new): the `Song` type (a list of pitches) and the range check; pure.
-- `src/core/drill`: a song-based choice of the next pitch (the pitch after the previous one, looping), alongside `drawPitch`. Still only pitches.
-- `src/core/settings`: the song text, "use song", and their validation.
+- `src/core/drill`: an in-order choice of the next pitch from a plain pitch list (the pitch after the previous one, looping), alongside `drawPitch`. Still only pitches; it does not import `song`.
+- `src/core/settings`: the song text and "use song" as fields, checked for type and the character limit only. It cannot parse ABC (no library in `src/core`).
 - An ABC adapter outside `src/core` (location decided in the breakdown; `src/core` may not import a library) that turns ABC text into a `Song` or a list of problems using abcjs.
-- `src/app`: settings view, validator messages, card flow takes a song source.
+- `src/app`: settings view, validator messages, card flow takes a song source. On load the app parses the saved song text once with the adapter, which gives the card flow its `Song` and turns "use song" off if the text no longer passes.
 - ADR for the abcjs dependency and the supported ABC subset.
 - `package.json`: abcjs, agreed 2026-11-07, recorded in the ADR.
 
@@ -67,7 +67,7 @@ New settings `useSong` (default off) and `songAbc` (default empty text), in the 
 - **abcjs in a non-browser environment.** The parser may touch browser globals or bring in rendering code; tests run in Node. The spike-sized check is the first acceptance criterion of S02; if abcjs cannot run there, stop and tell the user.
 - **Accidental rules.** Applying the key signature and bar-carried accidentals correctly is the part most likely to be wrong. S02 tests it against known tunes written out by hand.
 - **Flats shown as sharps** may look strange to players who read flats. A flat-spelling feature touches pitch, staff and reveal and is not part of this one.
-- **Bundle size.** abcjs is larger than the rest of the app together; check the built size and precache cost in S02 and report it.
+- **Bundle size.** abcjs is larger than the rest of the app together and may not allow leaving its renderer out. It is lazy-loaded (a dynamic import when the Song section opens or a saved song is in use) and still precached for offline use; S02 measures and reports the size. With a saved song in use, the first card waits for abcjs to load and parse.
 - **Which tunes fit.** The 12-hole alto C spans only A3 to F5, so many tunes will be rejected for range. A transposing option may be wanted later.
 
 ## Stories
