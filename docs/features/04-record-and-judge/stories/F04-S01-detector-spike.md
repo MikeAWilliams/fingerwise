@@ -24,6 +24,8 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - This story can edit the thresholds proposed in the design's provisional values (50 cents, about 150 ms); it does not change any acceptance criteria.
 - Real-device checks (Android mic latency) are listed for the user to do, not simulated.
 - The spike's own test code is throwaway unless the chosen detector wants it kept.
+- By the user's choice, the fixtures are all generated; no real recordings are used. The generator should not stop at clean sine waves: use a near-sine tone with weak harmonics, a slow attack, pitch rising as breath pressure builds, breath noise mixed in, several levels, and room-tail decay for the hold-off.
+- The proposed thresholds are provisional until the live check after F04-S06, where the user plays and sees how notes are judged. The research note says so.
 
 ## Test approach
 

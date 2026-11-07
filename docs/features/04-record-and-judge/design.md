@@ -61,7 +61,7 @@ New settings `judgeEnabled` (default off) and `toleranceCents`, in the defaults 
 
 ## Risks and open questions
 
-- **Accuracy on an ocarina.** Pitch rises with breath pressure, and a soft, near-sine tone with a quiet attack is hard for some detectors. The spike answers this before anything is built on it.
+- **Accuracy on an ocarina.** Pitch rises with breath pressure, and a soft, near-sine tone with a quiet attack is hard for some detectors. The spike answers this before anything is built on it, using generated tones only, so its thresholds are provisional until the live check after [F04-S06](stories/F04-S06-verdict-and-pitch-graph.md), where the user plays and the thresholds are confirmed or retuned.
 - **Mic latency and permission on mobile.** Android latency varies by device; HTTPS is required (GitHub Pages provides it). Checked by hand on the [target matrix](../02-deploy-and-pwa/design.md#target-matrix).
 - **Dependency.** Pitchy is the vision's candidate. The spike compares it with a small own implementation of YIN and the user approves before any dependency is added ([CLAUDE.md](../../../CLAUDE.md#rules)).
 - **Speaker bleed.** On a phone the F03 tone could be heard by the next card's listening if the room is live. Mitigated by the hold-off; revisit if the by-hand check shows false verdicts.
