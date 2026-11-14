@@ -1,0 +1,10 @@
+name: Feature idea
+description: Suggest something new. Please read docs/vision/vision.md first; it may already be planned.
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like, and the problem it solves for you.
+    validations:
+      required: true

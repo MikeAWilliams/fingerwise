@@ -25,6 +25,8 @@ Planning comes first in this project. The docs are organized by what they are fo
 | [`data/fonts/`](data/fonts/)               | The bundled tablature font and its OFL license.                                                  |
 | [`CLAUDE.md`](CLAUDE.md)                   | Working rules for Claude, which writes most of the code.                                         |
 
+The vision is a proposal, not a promise: it records intent and may change, and only the architecture docs describe what is built.
+
 The flow is: vision, then feature designs and stories, then progress tracking and code, then architecture docs updated to describe what was built. See [`docs/README.md`](docs/README.md) for the details.
 
 ## Building
@@ -81,9 +83,23 @@ tests/        Vitest tests
 data/         instrument definitions (JSON) and the tablature font
 ```
 
+## Run it locally
+
+```bash
+bun install      # or: make install
+make dev         # http://localhost:5173/fingerwise/
+make verify      # lint, type-check, tests and build
+```
+
+See [Building](#building) for the full command list.
+
 ## Using
 
 The app drills the 12-hole alto C ocarina. A note appears on the staff; name it and finger it, then wait for the reveal (or click or press a key) to see the note name and fingering. Click or press a key again for the next note. The Settings button sets the note range, whether sharps are included, and the reveal delay; settings are kept in the browser.
+
+## Contributing
+
+Contributions are welcome, especially bug fixes, fingering corrections and new instruments. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first. This project is built with AI assistance; the details are there.
 
 ## License
 

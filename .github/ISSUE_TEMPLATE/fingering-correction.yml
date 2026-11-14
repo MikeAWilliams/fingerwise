@@ -1,0 +1,32 @@
+name: Fingering correction
+description: A fingering shown for a note looks wrong.
+labels: [fingering-data]
+body:
+  - type: input
+    id: instrument
+    attributes:
+      label: Instrument
+      placeholder: 12-hole alto C ocarina
+    validations:
+      required: true
+  - type: input
+    id: note
+    attributes:
+      label: Note
+      placeholder: A4
+    validations:
+      required: true
+  - type: textarea
+    id: correct
+    attributes:
+      label: Correct fingering
+      description: Which holes are covered. Describe it in words or as a hole diagram.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source
+      description: Where this comes from. It must be an open source or your own testing on a real instrument. Please do not copy from commercial charts.
+    validations:
+      required: true

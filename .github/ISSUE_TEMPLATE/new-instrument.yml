@@ -1,0 +1,24 @@
+name: New instrument
+description: Propose adding an instrument.
+labels: [instrument]
+body:
+  - type: input
+    id: instrument
+    attributes:
+      label: Instrument
+      description: Name, hole count, key and fingering style.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Fingering source
+      description: Where the fingerings would come from. It must be an open source or your own testing on a real instrument. Please do not copy from commercial charts.
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to write the instrument definition (see data/instruments/README.md).
