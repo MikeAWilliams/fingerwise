@@ -4,7 +4,7 @@
 - **Date:** 2026-11-14
 
 ## Context
-Feature 6 replaces the uniform draw of random cards with one that favours the notes the player knows least ([F06 design](../../features/06-smart-sampling/design.md)). The vision named Leitner boxes and SM-2 as candidates and left open the card unit, grades with judging off, the `none` verdict, new cards and misses ([vision](../../vision/vision.md#feature-order)). The user decided these in a planning session on 2026-11-14.
+Feature 6 replaces the uniform draw of random cards with one that favours the notes the player knows least ([F06 design](../../features/06-smart-sampling/design.md)). The vision named Leitner boxes and SM-2 as candidates and left open the card unit, grades with judging off, the `none` verdict, new cards and misses. The user decided these in a planning session on 2026-11-14.
 
 The drill is rapid-fire: a card every few seconds, often over a hundred in a sitting, from a pool of 15 to 30 pitches. Day-scale due dates, the core of Leitner and SM-2 as usually run, would leave nothing due within minutes. The judge is also noisy as a grader: it hears pitch, not fingering, and breath wobble or a quiet start can give a false miss.
 
