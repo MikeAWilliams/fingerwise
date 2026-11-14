@@ -1,7 +1,6 @@
 # F07: Song practice
 
 - **Status:** designed
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 

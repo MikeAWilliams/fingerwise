@@ -1,7 +1,6 @@
 # F01: Core flashcards
 
 - **Status:** done
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 

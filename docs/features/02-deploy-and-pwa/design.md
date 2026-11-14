@@ -1,7 +1,6 @@
 # F02: Deploy and PWA
 
 - **Status:** done
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 

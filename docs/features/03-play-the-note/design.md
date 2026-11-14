@@ -1,7 +1,6 @@
 # F03: Play the note
 
 - **Status:** done
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 
@@ -38,7 +37,7 @@ After a card is revealed, the player hears the note: a plain tone at the instrum
 ## Out of scope
 
 - Playing on the new card (before the reveal), a replay button, an ear-first mode that hides the staff note.
-- Volume, waveform choice, ocarina-like or sampled sounds ("optional samples" in the vision stays later).
+- Volume, waveform choice, ocarina-like or sampled sounds stays later).
 - A tuning setting other than A4 = 440 Hz.
 - Any microphone use (feature 4).
 

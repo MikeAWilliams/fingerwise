@@ -4,9 +4,8 @@ fingerwise is planned in documents first. This is the map.
 
 | Folder                           | Holds                                                                    | Nature                  |
 | -------------------------------- | ------------------------------------------------------------------------ | ----------------------- |
-| [`vision/`](vision/)             | The vision and detailed planning. Where most human work happens.         | Intent (may be unbuilt) |
 | [`architecture/`](architecture/) | Overview, one doc per module, data formats, decision records (ADRs).     | As-built fact           |
-| [`features/`](features/)         | One folder per feature: a design doc plus its stories.                   | Specs                   |
+| [`features/`](features/)         | One folder per feature: a design doc plus its stories. Where planning happens. | Specs (may be unbuilt) |
 | [`research/`](research/)         | Background investigation: prior art, fingering sources, licensing notes. | Reference               |
 | [`templates/`](templates/)       | Templates for feature designs, stories, ADRs and progress files.         | Tooling                 |
 | [`glossary.md`](glossary.md)     | Domain terms used across the docs.                                       | Reference               |
@@ -17,7 +16,7 @@ Outside `docs/`:
 
 ## Flow
 
-`vision` -> `features` (design, then stories) -> `story-progress` -> code -> `architecture` updated.
+`features` (design, then stories) -> `story-progress` -> code -> `architecture` updated.
 
 ## Conventions
 

@@ -20,7 +20,7 @@ The breakdown is written on the feature's own branch, `feature/<F>-<slug>`, wher
 
 1. The feature's `design.md` and every story file in its `stories/` folder
 2. The architecture docs for every module the stories touch, and relevant ADRs
-3. The existing code those modules cover, and `docs/vision/vision.md` for the intended shape
+3. The existing code those modules cover
 4. `docs/templates/story-progress.md`
 
 If a story is missing, ambiguous, contradicts an ADR or another story, or its acceptance criteria cannot be checked, stop and tell the user. Never edit a story or its criteria.
@@ -39,7 +39,7 @@ Ask all blocking questions in one batch, with a recommendation for each (AskUser
 - **Order the stories by dependency**, using the story numbers when they already fit and reordering only when a later story is needed by an earlier one. Within a story, order checklist items lowest layer first (pitch and data before drill logic before rendering before UI). Respect the layer rule: the drill engine knows only pitch and instrument definitions.
 - **Plan across stories.** Note shared code that one story builds and later ones reuse, so the earlier story builds it once and in the right place.
 - **Tests belong with the code** they cover, in the same story's section, not in a trailing "add tests" item.
-- **Docs land with code**: the story that completes a module includes updating its `docs/architecture/modules/` doc and trimming the vision to a pointer.
+- **Docs land with code**: the story that completes a module includes updating its `docs/architecture/modules/` doc.
 - **Checklist items are concrete steps** a hands-off executor can follow without asking: name the files, functions or data to create, and the command that proves it works. Refer to acceptance criteria as `AC1`, `AC2` (per story); never copy their text.
 - **Keep it proportionate.** A small story may be two or three items. Do not pad.
 - **Instruments are data**: new fingering or instrument facts go in `data/instruments/` JSON, not code.

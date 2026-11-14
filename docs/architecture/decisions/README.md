@@ -22,4 +22,4 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 
 ## Likely next ADRs
 
-Open questions are tracked in `../../vision/vision.md#open-questions` and under the features in `../../vision/vision.md#feature-order`.
+Open questions are tracked under "Risks and open questions" in each feature design in [`../../features/`](../../features/).

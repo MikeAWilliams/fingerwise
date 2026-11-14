@@ -1,5 +1,5 @@
 name: Feature idea
-description: Suggest something new. Please read docs/vision/vision.md first; it may already be planned.
+description: Suggest something new. Please read docs/features/README.md first; it may already be planned.
 body:
   - type: markdown
     attributes:

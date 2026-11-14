@@ -1,7 +1,6 @@
 # F08: Timed play-along
 
 - **Status:** designed
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 

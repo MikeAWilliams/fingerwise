@@ -1,6 +1,6 @@
 # Architecture
 
-This folder describes what is **built**, not what is planned. Plans live in [`../vision/`](../vision/). If the code and these docs disagree, that is a bug in one of them: fix it in the same change.
+This folder describes what is **built**, not what is planned. Plans live in [`../features/`](../features/). If the code and these docs disagree, that is a bug in one of them: fix it in the same change.
 
 ## Contents
 
@@ -14,4 +14,4 @@ This folder describes what is **built**, not what is planned. Plans live in [`..
 
 ## Layer rule
 
-The drill engine depends only on pitch and instrument definitions. It must not import from rendering, audio or the UI. See `../vision/vision.md#required-abstractions`.
+The drill engine depends only on pitch and instrument definitions. It must not import from rendering, audio or the UI. See [`modules/drill.md`](modules/drill.md).

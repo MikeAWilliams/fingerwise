@@ -1,7 +1,6 @@
 # F05: Songs as note order
 
 - **Status:** done
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 

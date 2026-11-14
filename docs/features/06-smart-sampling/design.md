@@ -1,7 +1,6 @@
 # F06: Smart sampling
 
 - **Status:** designed
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 

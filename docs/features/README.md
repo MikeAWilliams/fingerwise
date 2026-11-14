@@ -25,6 +25,6 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 06  | Smart sampling                 | designed      |
 | 07  | Song practice                  | designed      |
 | 08  | Timed play-along               | designed      |
-| 09  | Other instruments and clefs    | not started   |
+| 09  | Other instruments and clefs    | parked        |
 
-Feature order and scope come from `../vision/vision.md#feature-order`. Folders are created when a feature is designed, not before.
+This index is the feature order. Folders are created when a feature is designed, not before; a parked feature keeps a short design as a placeholder.
