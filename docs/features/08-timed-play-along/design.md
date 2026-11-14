@@ -1,6 +1,6 @@
 # F08: Timed play-along
 
-- **Status:** designed
+- **Status:** done
 
 ## Goal
 
@@ -29,6 +29,7 @@ A song can be played in time. With a new **keep tempo** setting on, each song ca
 **Playing a slot**
 
 - The card appears at the start of its slot and is replaced by the next card when the slot ends. Cards and clicks run from the audio clock, so they stay together.
+- **Lines of music** (added during acceptance): a one-note card left no time to read the next note, so a timed song's staff shows the line of music holding the current note and the line after it. A line is a **bars per line** setting (1 to 4, default 2, enabled only with keep tempo) of bars, cut at the tune's bar lines with a pickup as a short first bar. The current note is black and every other note, rest and tie is grey. Rests fill the gaps between notes, a note over a bar line is drawn as tied pieces, and eighths and shorter are beamed by the meter. Lines never move, so the eye can read ahead into the lower line: once the current note is on the lower line, the upper line is redrawn with the line after it, and a grey arrow at the end of the lower line points up to it. Reading goes top, bottom, top, bottom. Untimed songs and random cards still show one note.
 - With judging on, the slot is the listening window. The [hold-off](../../glossary.md) is shorter than F04's 500 ms, because no tone is played (see Risks). A correct tone shows the F04 verdict (icon, "Correct", the judged note) at once, without the note letter, tablature or pitch graph, and the card keeps its place until the slot ends. A wrong tone shows "Incorrect" with the judged note, and the card keeps listening, so the player can still correct it within the slot. A later correct tone replaces it.
 - When the slot ends, the note is **correct** if a correct tone was heard in it, otherwise **missed**. A missed note shows nothing extra on its way out.
 - No tone plays during the song, because the microphone would hear it on the next note.
@@ -51,7 +52,7 @@ A song can be played in time. With a new **keep tempo** setting on, each song ca
 
 - Timing judgment: onset detection, early or late verdicts, ±100–150 ms windows, latency calibration. A note is right if its pitch is heard anywhere in its slot.
 - A tempo setting or slow-down control. The player edits `Q:`.
-- Drawing rests, bars or several notes on the staff. One note per card as today.
+- Drawing rests, bars or several notes on the staff for untimed cards. Triplet brackets: a triplet is drawn at the nearest plain note length.
 - Tempo or meter changes within a tune (a second `Q:` or `M:`), and swing. The first `Q:` and `M:` hold for the whole tune, and later ones are accepted and ignored. Note lengths still follow the written notes, so a meter change alone plays correctly; only the clicks keep the first meter's beat.
 - Storing scores, or feeding timed grades into [F06](../06-smart-sampling/design.md).
 - Pausing.

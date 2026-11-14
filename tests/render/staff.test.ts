@@ -1,9 +1,11 @@
 import { Accidental } from "vexflow/bravura";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
+import { lineOfNote, splitBeats } from "../../src/render/staff";
 import {
 	buildNote,
 	ledgerLines,
+	noteDuration,
 	noteLayout,
 	type StaffOptions,
 	StaffRangeError,
@@ -85,5 +87,58 @@ describe("range (AC5)", () => {
 		expect(() => noteLayout(p("A3"), { ...options, lowest: p("C4") })).toThrow(
 			StaffRangeError,
 		);
+	});
+});
+
+describe("note length", () => {
+	test("song lengths map to VexFlow durations", () => {
+		expect(noteDuration(4)).toBe("w");
+		expect(noteDuration(3)).toBe("hd");
+		expect(noteDuration(2)).toBe("h");
+		expect(noteDuration(1.5)).toBe("qd");
+		expect(noteDuration(1)).toBe("q");
+		expect(noteDuration(0.5)).toBe("8");
+		expect(noteDuration(0.25)).toBe("16");
+	});
+
+	test("a length no single note shows gets the longest that fits", () => {
+		expect(noteDuration(5)).toBe("w");
+		expect(noteDuration(1 / 3)).toBe("16");
+	});
+
+	test("a note is whole by default, or as long as asked", () => {
+		const layout = noteLayout(p("C4"), options);
+		expect(buildNote(layout).getDuration()).toBe("w");
+		expect(buildNote(layout, 1).getDuration()).toBe("q");
+	});
+});
+
+describe("song lines", () => {
+	test("splitBeats breaks a length into note values to tie", () => {
+		expect(splitBeats(1)).toEqual([1]);
+		expect(splitBeats(2.5)).toEqual([2, 0.5]);
+		expect(splitBeats(5)).toEqual([4, 1]);
+		expect(splitBeats(1.5)).toEqual([1.5]);
+	});
+
+	test("a triplet length stays one note", () => {
+		expect(splitBeats(1 / 3)).toEqual([1 / 3]);
+	});
+
+	test("lineOfNote finds the line where a note starts", () => {
+		const note = (index: number) => ({
+			kind: "note" as const,
+			index,
+			pitch: p("C4"),
+			beats: 4,
+			tied: false,
+		});
+		const lines = [
+			[{ start: 0, items: [note(0)] }],
+			[{ start: 4, items: [note(1)] }],
+		];
+		expect(lineOfNote(lines, 0)).toBe(0);
+		expect(lineOfNote(lines, 1)).toBe(1);
+		expect(lineOfNote(lines, 9)).toBe(0);
 	});
 });

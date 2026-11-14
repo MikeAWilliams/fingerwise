@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
 	applyAdvanceDelayInput,
+	applyBarsPerLineInput,
 	applyDelayInput,
 	applyToleranceInput,
 	cardsSummary,
@@ -44,6 +45,9 @@ function settings(
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
+		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	};
 }
@@ -162,6 +166,23 @@ describe("micSummary", () => {
 		const s = { ...settings("A3", "F5"), judgeEnabled: true };
 		expect(micSummary(s)).toBe("on, within 40¢");
 		expect(micSummary({ ...s, toleranceCents: 12.5 })).toBe("on, within 12.5¢");
+	});
+});
+
+describe("applyBarsPerLineInput", () => {
+	const base = settings("A3", "F5");
+	test("accepts 1 to 4", () => {
+		for (const v of [1, 2, 3, 4]) {
+			expect(applyBarsPerLineInput(base, v)).toEqual({
+				...base,
+				barsPerLine: v,
+			});
+		}
+	});
+	test("rejects 0, 5, 1.5 and NaN by returning the settings unchanged", () => {
+		for (const v of [0, 5, 1.5, Number.NaN]) {
+			expect(applyBarsPerLineInput(base, v)).toBe(base);
+		}
 	});
 });
 

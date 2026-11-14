@@ -15,6 +15,9 @@ export interface Settings {
 	smartSampling: boolean;
 	toleranceCents: number;
 	useSong: boolean;
+	keepTempo: boolean;
+	metronome: boolean;
+	barsPerLine: number;
 	songAbc: string;
 }
 
@@ -33,6 +36,9 @@ export interface SettingsJson {
 	smartSampling: boolean;
 	toleranceCents: number;
 	useSong: boolean;
+	keepTempo: boolean;
+	metronome: boolean;
+	barsPerLine: number;
 	songAbc: string;
 }
 
@@ -42,6 +48,9 @@ export const MIN_SOUND_DELAY_SECONDS = 0;
 export const MIN_SOUND_DURATION_SECONDS = 0.5;
 export const MIN_TOLERANCE_CENTS = 10;
 export const MAX_TOLERANCE_CENTS = 45;
+/** Bars on each line of a timed song's staff. */
+export const MIN_BARS_PER_LINE = 1;
+export const MAX_BARS_PER_LINE = 4;
 /** Longest song text kept, in characters. Settings only check the length; the ABC adapter reads the text. */
 export const MAX_SONG_CHARS = 10000;
 
@@ -73,6 +82,9 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		smartSampling: settings.smartSampling,
 		toleranceCents: settings.toleranceCents,
 		useSong: settings.useSong,
+		keepTempo: settings.keepTempo,
+		metronome: settings.metronome,
+		barsPerLine: settings.barsPerLine,
 		songAbc: settings.songAbc,
 	};
 }
@@ -117,6 +129,16 @@ export function soundRuleApplies(s: Settings): boolean {
 /** Smart sampling draws by need, which takes the judge's grades and a random draw, so a song or no judging turns it off. */
 export function smartSamplingApplies(s: Settings): boolean {
 	return s.smartSampling && s.judgeEnabled && !s.useSong;
+}
+
+/** Keep tempo times a held song's cards, so it needs the song on. */
+export function keepTempoApplies(s: Settings): boolean {
+	return s.useSong && s.keepTempo;
+}
+
+/** The metronome clicks on every beat of a timed song, so it needs keep tempo to apply. */
+export function metronomeApplies(s: Settings): boolean {
+	return keepTempoApplies(s) && s.metronome;
 }
 
 /** Sound delay plus duration fits in the advance delay (compared with a tolerance for half seconds). */
@@ -216,6 +238,16 @@ function isValidDelay(value: unknown): value is number {
 	);
 }
 
+/** A whole number of bars from 1 to 4. */
+export function isValidBarsPerLine(value: unknown): value is number {
+	return (
+		typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= MIN_BARS_PER_LINE &&
+		value <= MAX_BARS_PER_LINE
+	);
+}
+
 function isValidSongText(value: unknown): value is string {
 	return typeof value === "string" && value.length <= MAX_SONG_CHARS;
 }
@@ -279,6 +311,13 @@ export function validateSettings(
 
 	const useSong =
 		typeof obj.useSong === "boolean" ? obj.useSong : defaults.useSong;
+	const keepTempo =
+		typeof obj.keepTempo === "boolean" ? obj.keepTempo : defaults.keepTempo;
+	const metronome =
+		typeof obj.metronome === "boolean" ? obj.metronome : defaults.metronome;
+	const barsPerLine = isValidBarsPerLine(obj.barsPerLine)
+		? obj.barsPerLine
+		: defaults.barsPerLine;
 	// Text saved empty (or never saved) takes the defaults' song, the example.
 	const songAbc =
 		isValidSongText(obj.songAbc) && obj.songAbc !== ""
@@ -313,6 +352,9 @@ export function validateSettings(
 		smartSampling,
 		toleranceCents,
 		useSong,
+		keepTempo,
+		metronome,
+		barsPerLine,
 		songAbc,
 	};
 	if (!breaksSoundRule(result)) return result;
@@ -383,6 +425,17 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (obj.useSong) {
 		throw new SettingsError("useSong must be false in the defaults");
 	}
+	if (typeof obj.keepTempo !== "boolean") {
+		throw new SettingsError("keepTempo must be true or false");
+	}
+	if (typeof obj.metronome !== "boolean") {
+		throw new SettingsError("metronome must be true or false");
+	}
+	if (!isValidBarsPerLine(obj.barsPerLine)) {
+		throw new SettingsError(
+			`barsPerLine must be a whole number from ${MIN_BARS_PER_LINE} to ${MAX_BARS_PER_LINE}`,
+		);
+	}
 	if (typeof obj.songAbc !== "string") {
 		throw new SettingsError("songAbc must be a string");
 	}
@@ -424,6 +477,9 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		smartSampling: obj.smartSampling,
 		toleranceCents: obj.toleranceCents,
 		useSong: obj.useSong,
+		keepTempo: obj.keepTempo,
+		metronome: obj.metronome,
+		barsPerLine: obj.barsPerLine,
 		songAbc: obj.songAbc,
 	};
 	if (breaksSoundRule(settings)) {

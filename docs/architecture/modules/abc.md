@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Turns pasted ABC notation into a [`Song`](song.md) of written pitches, or into a list of problems the player can fix. It lives outside `src/core` because it imports a library; `src/core` never imports it. Built in [F05-S02](../../features/05-songs/stories/F05-S02-abc-to-song.md) as [ADR 0006](../decisions/0006-abcjs-for-songs.md) records.
+Turns pasted ABC notation into a [`Song`](song.md) of written pitches with their lengths, tempo and meter, or into a list of problems the player can fix. It lives outside `src/core` because it imports a library; `src/core` never imports it. Built in [F05-S02](../../features/05-songs/stories/F05-S02-abc-to-song.md) as [ADR 0006](../decisions/0006-abcjs-for-songs.md) records.
 
 ## Public interface
 
@@ -16,13 +16,15 @@ Turns pasted ABC notation into a [`Song`](song.md) of written pitches, or into a
 
 ## How it reads a tune
 
-`parseOnly(text)`, then the tune's `setUpAudio({ chordsOff: true })`. The MIDI numbers of the note events are the app's pitches (sharp spelling), so abcjs applies the key signature, accidentals carried through the bar, naturals, ties, and repeats with first and second endings. No transposition (ADR 0003). The parse tree is used only to reject and to explain.
+`parseOnly(text)`, then the tune's `setUpAudio({ chordsOff: true })`. The MIDI numbers of the note events are the app's pitches (sharp spelling), so abcjs applies the key signature, accidentals carried through the bar, naturals, ties, and repeats with first and second endings. No transposition (ADR 0003). Each note event also carries `start` and `duration` in whole-note units (an eighth is 0.125); the adapter multiplies by 4 for quarter-note beats and subtracts the first note's start, so rests before the first note are dropped and a rest later on is a gap between one note's end and the next start. Ties are joined and triplets come out as written by abcjs. This is undocumented API, so the tests write every start and length out.
+
+Before `setUpAudio`, every `el_type: "tempo"` element is removed from the voices (a mid-tune `Q:` line or inline `[Q:…]`): abcjs otherwise rescales the durations of every later note by the tempo ratio, which would change the written lengths. The tempo comes from the tune's first `Q:` in `metaText.tempo` (`bpm` times its beat length in quarter notes), and is `null` when there is none or no rate. The meter comes from `getMeter()`: `specified` with plain numbers gives that meter, `cut_time` gives 2/2, and anything else (no `M:`, `M:none`, `M:C`, a compound top number such as `2+3`) gives `DEFAULT_METER`. A second `Q:` or `M:` is ignored and reports nothing. The song's `firstBar` comes from the first voice's parse tree: the played length of the notes and rests before the first `bar` element (a triplet's notes scaled by its `tripletMultiplier` up to `endTriplet`), less the first note's start, taken modulo a bar; a result of zero or a whole bar, or a tune with no bar line, gives a whole bar. The rest of the parse tree is used only to reject and to explain.
 
 abcjs is imported as `import("abcjs/src/api/abc_tunebook.js")` and nowhere else; it is CommonJS, so the API is `mod.default ?? mod`. The package has no `exports` map, so the deep path resolves, but it is not a documented API: abcjs is pinned to an exact version (6.7.2) and a bump reruns the tests. `abcjs.d.ts` types only the fields read.
 
 ## Supported subset and rejections
 
-Rests, slurs, decorations, chord symbols, lyrics, dynamics, triplets, note lengths and meter are read and not kept. Each of these is a problem with a position and a plain message:
+Slurs, decorations, chord symbols, lyrics and dynamics are read and not kept; rests, triplets, note lengths, tempo and meter are kept as rhythm (see above). Each of these is a problem with a position and a plain message:
 
 - a chord, a grace note, a second voice or staff, more than one tune (the line of the second `X:`), no notes;
 - a D.C., D.S., fine, coda or segno decoration (on a note or a bar);
@@ -50,5 +52,5 @@ The precache grew from 18 entries (839.07 KiB) to 20 entries (1051.45 KiB), +212
 
 ## Tests
 
-- `tests/abc/abc.test.ts` (Node, no DOM): octaves; tunes in K:G, K:F, K:Ddor and K:D with the pitches written out; carried accidentals and naturals; flats, E♯, B♯, double accidentals and the converted counts, also inside a repeat; repeats and endings; the ignored markup; ties; CRLF, tabs, blank lines; every rejection with its line, note and column; both limits, repeats counted; the range offenders with side; prose and malformed text give problems and never throw.
+- `tests/abc/abc.test.ts` (Node, no DOM): octaves; note lengths, ties, triplets, rests and repeats with endings (starts and beats written out); `Q:` tempos and no `Q:`; `M:` meters including `C`, `C|`, none and a compound top number; a later `Q:` or `M:` ignored; the first bar (no pickup, a pickup, a leading rest, a triplet pickup, no bar line, 6/8); tunes in K:G, K:F, K:Ddor and K:D with the pitches written out; carried accidentals and naturals; flats, E♯, B♯, double accidentals and the converted counts, also inside a repeat; repeats and endings; the ignored markup; ties; CRLF, tabs, blank lines; every rejection with its line, note and column; both limits, repeats counted; the range offenders with side; prose and malformed text give problems and never throw.
 - `tests/abc/abc-imports.test.ts`: abcjs appears in exactly one runtime import, the dynamic deep import in `src/abc/index.ts`, and in no static import.

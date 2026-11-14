@@ -354,3 +354,159 @@ describe("warnings and failures (AC9)", () => {
 		}
 	});
 });
+
+async function rhythm(text: string) {
+	const { song } = await parsed(text);
+	return song.notes.map((n) => [formatPitch(n.pitch), n.start, n.beats]);
+}
+
+describe("note lengths (F08-S01 AC4)", () => {
+	test("quarter, eighth, half and dotted notes in quarter-note beats", async () => {
+		expect(await rhythm(`${head}L:1/4\nK:C\nC D/ E/ F2 G3/2 A/|`)).toEqual([
+			["C4", 0, 1],
+			["D4", 1, 0.5],
+			["E4", 1.5, 0.5],
+			["F4", 2, 2],
+			["G4", 4, 1.5],
+			["A4", 5.5, 0.5],
+		]);
+	});
+
+	test("a tie joins two notes into one", async () => {
+		expect(await rhythm(`${head}L:1/4\nK:C\nC2- C D|`)).toEqual([
+			["C4", 0, 3],
+			["D4", 3, 1],
+		]);
+	});
+
+	test("a triplet is written thirds of a beat", async () => {
+		const notes = await rhythm(`${head}L:1/8\nK:C\n(3CDE F2|`);
+		expect(notes.map((n) => n[0])).toEqual(["C4", "D4", "E4", "F4"]);
+		const third = 1 / 3;
+		expect(notes[0]?.[1]).toBeCloseTo(0);
+		expect(notes[1]?.[1]).toBeCloseTo(third);
+		expect(notes[2]?.[1]).toBeCloseTo(2 * third);
+		expect(notes[3]?.[1]).toBeCloseTo(1);
+		for (const n of notes.slice(0, 3)) expect(n[2]).toBeCloseTo(third);
+		expect(notes[3]?.[2]).toBeCloseTo(1);
+	});
+
+	test("a rest between notes leaves a gap; rests before the first note are dropped", async () => {
+		expect(await rhythm(`${head}L:1/4\nK:C\nz2 C z D|`)).toEqual([
+			["C4", 0, 1],
+			["D4", 2, 1],
+		]);
+	});
+
+	test("a repeat with first and second endings plays out with its starts", async () => {
+		expect(await rhythm(`${head}L:1/4\nK:C\nC D |1 E F :|2 G A|]`)).toEqual([
+			["C4", 0, 1],
+			["D4", 1, 1],
+			["E4", 2, 1],
+			["F4", 3, 1],
+			["C4", 4, 1],
+			["D4", 5, 1],
+			["G4", 6, 1],
+			["A4", 7, 1],
+		]);
+	});
+});
+
+describe("tempo (F08-S01 AC5)", () => {
+	const tempoOf = async (q: string) =>
+		(await parsed(`${head}${q}K:C\nC D|`)).song.tempo;
+
+	test("Q:1/4=120 is 120", async () => {
+		expect(await tempoOf("Q:1/4=120\n")).toBe(120);
+	});
+
+	test("Q:3/8=60 is 90", async () => {
+		expect(await tempoOf("Q:3/8=60\n")).toBe(90);
+	});
+
+	test("Q:1/2=60 is 120", async () => {
+		expect(await tempoOf("Q:1/2=60\n")).toBe(120);
+	});
+
+	test("no Q: gives null and the tune is valid", async () => {
+		const result = await parsed(`${head}K:C\nC D|`);
+		expect(result.ok).toBe(true);
+		expect(result.song.tempo).toBeNull();
+	});
+});
+
+describe("meter (F08-S01 AC6)", () => {
+	const meterOf = async (m: string) =>
+		(await parsed(`${head}${m}K:C\nC D|`)).song.meter;
+
+	test("no M: is 4/4", async () => {
+		expect(await meterOf("")).toEqual({ beats: 4, unit: 4 });
+	});
+
+	test("M:none is 4/4", async () => {
+		expect(await meterOf("M:none\n")).toEqual({ beats: 4, unit: 4 });
+	});
+
+	test("M:C is 4/4", async () => {
+		expect(await meterOf("M:C\n")).toEqual({ beats: 4, unit: 4 });
+	});
+
+	test("M:C| is 2/2", async () => {
+		expect(await meterOf("M:C|\n")).toEqual({ beats: 2, unit: 2 });
+	});
+
+	test("M:6/8 is 6/8", async () => {
+		expect(await meterOf("M:6/8\n")).toEqual({ beats: 6, unit: 8 });
+	});
+
+	test("a compound top number falls back to 4/4", async () => {
+		expect(await meterOf("M:2+3/8\n")).toEqual({ beats: 4, unit: 4 });
+	});
+});
+
+describe("the first bar", () => {
+	const firstBar = async (body: string) =>
+		(await parsed(`${head}M:4/4\nL:1/4\nK:C\n${body}`)).song.firstBar;
+
+	test("a tune that starts on the bar line has a whole first bar", async () => {
+		expect(await firstBar("C D E F|G A B c|")).toBe(4);
+	});
+
+	test("a one-beat pickup gives a one-beat first bar", async () => {
+		expect(await firstBar("C|D E F G|")).toBe(1);
+	});
+
+	test("a leading rest is not counted: the bar runs from the first note", async () => {
+		expect(await firstBar("z C D E|F G A B|")).toBe(3);
+	});
+
+	test("a triplet pickup counts as its played length", async () => {
+		expect(await firstBar("(3C/D/E/|F G A B|")).toBe(1);
+	});
+
+	test("a tune with no bar line has a whole first bar", async () => {
+		expect(await firstBar("C D E")).toBe(4);
+	});
+
+	test("6/8 bars are three quarters long", async () => {
+		const result = await parsed(`${head}M:6/8\nL:1/8\nK:C\nC|DEF GAB|`);
+		expect(result.song.firstBar).toBe(0.5);
+	});
+});
+
+describe("a later Q: or M: (F08-S01 AC7)", () => {
+	test("a second Q: line and an inline Q: leave the first tempo and the written lengths", async () => {
+		const text = `${head}M:4/4\nL:1/8\nQ:1/4=120\nK:C\nCDEF|\nQ:1/4=60\nGABc|[Q:1/4=30] cdef|`;
+		const result = await parsed(text);
+		expect(result.song.tempo).toBe(120);
+		expect(result.song.notes.map((n) => n.beats)).toEqual(Array(12).fill(0.5));
+		expect(result.song.notes.map((n) => n.start)).toEqual(
+			Array.from({ length: 12 }, (_, i) => i / 2),
+		);
+	});
+
+	test("a second M: is ignored and reports no problem", async () => {
+		const result = await parsed(`${head}M:3/4\nK:C\nC D E|\nM:6/8\nF G A|`);
+		expect(result.song.meter).toEqual({ beats: 3, unit: 4 });
+	});
+});

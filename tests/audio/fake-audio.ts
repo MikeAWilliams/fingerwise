@@ -2,6 +2,8 @@ import type {
 	AnalyserLike,
 	AudioContextLike,
 	AudioParamLike,
+	BufferLike,
+	BufferSourceLike,
 	GainLike,
 	OscillatorLike,
 	SourceLike,
@@ -53,6 +55,37 @@ export class FakeGain implements GainLike {
 	}
 }
 
+export class FakeBuffer implements BufferLike {
+	data: Float32Array<ArrayBuffer>;
+	constructor(
+		public channels: number,
+		public length: number,
+		public rate: number,
+	) {
+		this.data = new Float32Array(length);
+	}
+	getChannelData() {
+		return this.data;
+	}
+}
+
+export class FakeBufferSource implements BufferSourceLike {
+	buffer: BufferLike | null = null;
+	onended: ((...args: never[]) => void) | null = null;
+	connected: unknown[] = [];
+	starts: (number | undefined)[] = [];
+	stops: (number | undefined)[] = [];
+	connect(destination: unknown) {
+		this.connected.push(destination);
+	}
+	start(when?: number) {
+		this.starts.push(when);
+	}
+	stop(when?: number) {
+		this.stops.push(when);
+	}
+}
+
 /** Hands out queued sample buffers, one per read; the last one repeats. */
 export class FakeAnalyser implements AnalyserLike {
 	fftSize = 2048;
@@ -94,11 +127,15 @@ export class FakeContext implements AudioContextLike {
 	samples: Float32Array[] = [];
 	oscillators: FakeOscillator[] = [];
 	gains: FakeGain[] = [];
+	buffers: FakeBuffer[] = [];
+	bufferSources: FakeBufferSource[] = [];
 	resumeCalls = 0;
 	/** "throw" throws from `resume()`, "reject" returns a rejected promise. */
 	resumeFails: "throw" | "reject" | null = null;
 	/** Makes `createOscillator()` throw. */
 	createFails = false;
+	/** Makes `createBuffer()` and `createBufferSource()` throw. */
+	bufferFails = false;
 
 	resume(): Promise<void> {
 		this.resumeCalls++;
@@ -117,6 +154,18 @@ export class FakeContext implements AudioContextLike {
 		const gain = new FakeGain();
 		this.gains.push(gain);
 		return gain;
+	}
+	createBuffer(channels: number, length: number, rate: number): FakeBuffer {
+		if (this.bufferFails) throw new Error("createBuffer threw");
+		const buffer = new FakeBuffer(channels, length, rate);
+		this.buffers.push(buffer);
+		return buffer;
+	}
+	createBufferSource(): FakeBufferSource {
+		if (this.bufferFails) throw new Error("createBufferSource threw");
+		const source = new FakeBufferSource();
+		this.bufferSources.push(source);
+		return source;
 	}
 	createAnalyser(): FakeAnalyser {
 		const analyser = new FakeAnalyser();

@@ -88,13 +88,18 @@ export function needSource(
 /**
  * The notes of a song in order, looping after the last. It keeps its own
  * position, so a repeated note is shown again; each flow builds a new one and
- * so starts at the first note. It draws nothing at random.
+ * so starts at the first note. It draws nothing at random. `onIndex` hears the
+ * position of each note it deals, before the card shows.
  */
-export function songSource(pitches: readonly Pitch[]): PitchSource {
+export function songSource(
+	pitches: readonly Pitch[],
+	onIndex?: (index: number) => void,
+): PitchSource {
 	let index: number | null = null;
 	return () => {
 		const next = nextInOrder(pitches, index);
 		index = next.index;
+		onIndex?.(index);
 		return next.pitch;
 	};
 }

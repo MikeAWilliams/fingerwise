@@ -6,7 +6,15 @@ import type {
 import type { Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import { MAX_SONG_CHARS } from "../core/settings";
-import { createSong, type Song, songOutOfRange } from "../core/song";
+import {
+	barBeats,
+	createSong,
+	DEFAULT_METER,
+	type Meter,
+	type Song,
+	type SongNote,
+	songOutOfRange,
+} from "../core/song";
 
 export const MAX_ABC_CHARS = MAX_SONG_CHARS;
 export const MAX_ABC_NOTES = 500;
@@ -70,6 +78,82 @@ function noteElements(tune: AbcTune): AbcElement[] {
 		}
 	}
 	return notes.sort((a, b) => (a.startChar ?? 0) - (b.startChar ?? 0));
+}
+
+/**
+ * abcjs rescales the notes after a mid-tune `Q:` (header line or inline) by the
+ * tempo ratio, which would break the written lengths, so drop those elements
+ * before the audio sequence is built. The first `Q:` is read from the tune's
+ * meta text instead.
+ */
+function removeTempoElements(tune: AbcTune): void {
+	for (const line of tune.lines) {
+		for (const staff of line.staff ?? []) {
+			for (const voice of staff.voices) {
+				for (let i = voice.length - 1; i >= 0; i--) {
+					if (voice[i]?.el_type === "tempo") voice.splice(i, 1);
+				}
+			}
+		}
+	}
+}
+
+/** Quarter notes per minute from the first `Q:`, or null when there is none or no rate. */
+function tempoOf(tune: AbcTune): number | null {
+	const tempo = tune.metaText?.tempo;
+	if (tempo?.bpm === undefined) return null;
+	const whole = (tempo.duration ?? []).reduce((sum, d) => sum + d, 0);
+	const quarters = tempo.bpm * whole * 4;
+	return Number.isFinite(quarters) && quarters > 0 ? quarters : null;
+}
+
+/**
+ * Where the first bar line falls, in quarter-note beats from the start of the
+ * tune: the played length of the notes and rests before it, or null when the
+ * tune has no bar line.
+ */
+function firstBarLineOf(tune: AbcTune): number | null {
+	let whole = 0;
+	let triplet = 1;
+	for (const line of tune.lines) {
+		for (const el of line.staff?.[0]?.voices[0] ?? []) {
+			if (el.el_type === "bar") return whole * 4;
+			if (el.el_type !== "note" || typeof el.duration !== "number") continue;
+			if (el.tripletMultiplier !== undefined) triplet = el.tripletMultiplier;
+			whole += el.duration * triplet;
+			if (el.endTriplet) triplet = 1;
+		}
+	}
+	return null;
+}
+
+/**
+ * Beats from the first note to the first bar line after it. With no bar line
+ * the first note is taken to start a bar.
+ */
+function firstBarOf(tune: AbcTune, origin: number, meter: Meter): number {
+	const bar = barBeats(meter);
+	const line = firstBarLineOf(tune);
+	if (line === null) return bar;
+	const ahead = (((line - origin) % bar) + bar) % bar;
+	return ahead > 1e-3 && bar - ahead > 1e-3 ? ahead : bar;
+}
+
+/** The first `M:` as a meter; 2/2 for cut time; 4/4 for anything else (no `M:`, `M:none`, `M:C`, `2+3/8`). */
+function meterOf(tune: AbcTune): Meter {
+	const meter = tune.getMeter();
+	if (meter.type === "cut_time") return { beats: 2, unit: 2 };
+	if (meter.type !== "specified") return DEFAULT_METER;
+	const first = meter.value?.[0];
+	if (
+		first === undefined ||
+		!/^\d+$/.test(first.num) ||
+		!/^\d+$/.test(first.den)
+	)
+		return DEFAULT_METER;
+	const beats = Number(first.num);
+	const unit = Number(first.den);
+	return beats > 0 && unit > 0 ? { beats, unit } : DEFAULT_METER;
 }
 
 function stripMarkup(html: string): string {
@@ -231,8 +315,14 @@ export async function parseAbc(
 	];
 	if (found.length > 0) return { ok: false, problems: summed(found) };
 
-	let events: { pitch: Pitch; startChar: number | undefined }[];
+	let events: {
+		pitch: Pitch;
+		startChar: number | undefined;
+		start: number;
+		duration: number;
+	}[];
 	try {
+		removeTempoElements(tune);
 		const tracks = tune
 			.setUpAudio({ chordsOff: true })
 			.tracks.map((track) =>
@@ -253,6 +343,8 @@ export async function parseAbc(
 		events = (tracks[0] ?? []).map((e) => ({
 			pitch: e.pitch as Pitch,
 			startChar: e.startChar,
+			start: (e.start ?? 0) * 4,
+			duration: (e.duration ?? 0) * 4,
 		}));
 	} catch (error) {
 		return { ok: false, problems: [thrownProblem(error)] };
@@ -274,7 +366,23 @@ export async function parseAbc(
 		};
 	}
 
-	const song = createSong(events.map((e) => e.pitch));
+	let song: Song;
+	try {
+		const origin = (events[0] as { start: number }).start;
+		const notes: SongNote[] = events.map((e) => ({
+			pitch: e.pitch,
+			start: e.start - origin,
+			beats: e.duration,
+		}));
+		const meter = meterOf(tune);
+		song = createSong(notes, {
+			tempo: tempoOf(tune),
+			meter,
+			firstBar: firstBarOf(tune, origin, meter),
+		});
+	} catch (error) {
+		return { ok: false, problems: [thrownProblem(error)] };
+	}
 	const offenders = songOutOfRange(song, instrument);
 	if (offenders.length > 0) {
 		const range = `${formatPitch(instrument.lowest)} to ${formatPitch(instrument.highest)}`;

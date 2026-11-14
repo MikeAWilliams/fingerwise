@@ -6,8 +6,11 @@ import {
 	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
 	canTurnSoundOn,
+	keepTempoApplies,
+	MAX_BARS_PER_LINE,
 	MAX_DELAY_SECONDS,
 	MAX_TOLERANCE_CENTS,
+	MIN_BARS_PER_LINE,
 	MIN_DELAY_SECONDS,
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
@@ -21,6 +24,7 @@ import {
 import { JUDGE_HELP, JUDGE_UNAVAILABLE } from "./judge-text";
 import { Section } from "./Section";
 import {
+	applyBarsPerLineInput,
 	applyDelayInput,
 	applyToleranceInput,
 	cardsSummary,
@@ -39,6 +43,7 @@ import {
 	applySongText,
 	canUseSong,
 	isEmptySong,
+	NO_TEMPO_NOTE,
 	problemLine,
 	SONG_EXAMPLE,
 	type SongState,
@@ -81,7 +86,9 @@ export function Settings({
 	const latest = useRef(settings);
 	latest.current = settings;
 	const edits = useRef(0);
-	const editSong = (text: string) => {
+	const editSong = (typed: string) => {
+		// An emptied box loads the example at once, so there is always a song.
+		const text = isEmptySong(typed) ? SONG_EXAMPLE : typed;
 		setDraft(text);
 		const id = ++edits.current;
 		const apply = (result: Awaited<ReturnType<typeof parseAbc>> | null) => {
@@ -95,8 +102,7 @@ export function Settings({
 				onSong(edit.state);
 			}
 		};
-		if (isEmptySong(text)) apply(null);
-		else parseAbc(text, instrument).then(apply);
+		parseAbc(text, instrument).then(apply);
 	};
 
 	const [rejection, setRejection] = useState<{
@@ -385,6 +391,9 @@ export function Settings({
 					) : (
 						songSummary !== null && <p class="settings-note">{songSummary}</p>
 					)}
+					{songState.song?.tempo === null && (
+						<p class="settings-note">{NO_TEMPO_NOTE}</p>
+					)}
 				</div>
 				<label>
 					<input
@@ -396,6 +405,44 @@ export function Settings({
 						}
 					/>
 					Use song
+				</label>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.keepTempo}
+						disabled={!settings.useSong}
+						onChange={(e) =>
+							onChange({ ...settings, keepTempo: e.currentTarget.checked })
+						}
+					/>
+					Keep tempo
+				</label>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.metronome}
+						disabled={!keepTempoApplies(settings)}
+						onChange={(e) =>
+							onChange({ ...settings, metronome: e.currentTarget.checked })
+						}
+					/>
+					Metronome
+				</label>
+				<label>
+					Bars per line
+					<input
+						type="number"
+						min={MIN_BARS_PER_LINE}
+						max={MAX_BARS_PER_LINE}
+						step="1"
+						value={settings.barsPerLine}
+						disabled={!keepTempoApplies(settings)}
+						onInput={(e) =>
+							onChange(
+								applyBarsPerLineInput(settings, e.currentTarget.valueAsNumber),
+							)
+						}
+					/>
 				</label>
 			</Section>
 			<div class="settings-footer">

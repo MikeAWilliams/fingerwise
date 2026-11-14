@@ -6,6 +6,7 @@ import {
 	pitchesInRange,
 } from "../core/pitch";
 import {
+	isValidBarsPerLine,
 	isValidTolerance,
 	MAX_DELAY_SECONDS,
 	MIN_DELAY_SECONDS,
@@ -110,6 +111,15 @@ export function applyToleranceInput(
 ): Settings {
 	if (!isValidTolerance(value)) return settings;
 	return { ...settings, toleranceCents: value };
+}
+
+/** The settings with `value` as the bars per line, or unchanged when it is not a whole number from 1 to 4. */
+export function applyBarsPerLineInput(
+	settings: Settings,
+	value: number,
+): Settings {
+	if (!isValidBarsPerLine(value)) return settings;
+	return { ...settings, barsPerLine: value };
 }
 
 export type TimingField =
