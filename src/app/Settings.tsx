@@ -28,6 +28,9 @@ import {
 	highestOptions,
 	lowestOptions,
 	micSummary,
+	SONG_IN_USE,
+	smartSamplingDisabled,
+	smartSamplingNote,
 	soundSummary,
 	type TimingField,
 } from "./settings-form";
@@ -128,11 +131,7 @@ export function Settings({
 				}
 				initiallyOpen
 			>
-				{settings.useSong && (
-					<p class="settings-note">
-						A song is in use, so the note range and sharps do not apply.
-					</p>
-				)}
+				{settings.useSong && <p class="settings-note">{SONG_IN_USE}</p>}
 				<label>
 					Lowest note
 					<select
@@ -231,6 +230,20 @@ export function Settings({
 					/>
 				</label>
 				{advanceRejection && <p class="settings-note">{advanceRejection}</p>}
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.smartSampling}
+						disabled={smartSamplingDisabled(settings)}
+						onChange={(e) =>
+							onChange({ ...settings, smartSampling: e.currentTarget.checked })
+						}
+					/>
+					Use smart sampling
+				</label>
+				{smartSamplingNote(settings) !== null && (
+					<p class="settings-note">{smartSamplingNote(settings)}</p>
+				)}
 			</Section>
 			<Section
 				title="Sound"

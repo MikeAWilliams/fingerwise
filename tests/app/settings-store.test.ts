@@ -27,6 +27,7 @@ const DEFAULTS: Settings = {
 	soundDelaySeconds: 0.5,
 	soundDurationSeconds: 1.5,
 	judgeEnabled: false,
+	smartSampling: false,
 	toleranceCents: 40,
 	useSong: false,
 	songAbc: "",
@@ -56,6 +57,7 @@ test("saved settings load back unchanged", () => {
 		soundDelaySeconds: 2,
 		soundDurationSeconds: 4,
 		judgeEnabled: true,
+		smartSampling: true,
 		toleranceCents: 25.5,
 		useSong: false,
 		songAbc: "",
@@ -73,6 +75,7 @@ test("saved settings load back unchanged", () => {
 		soundDelaySeconds: 2,
 		soundDurationSeconds: 4,
 		judgeEnabled: true,
+		smartSampling: true,
 		toleranceCents: 25.5,
 		useSong: false,
 		songAbc: "",
@@ -126,6 +129,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -154,6 +158,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -182,6 +187,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -206,6 +212,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		lowest: pitch("C4"),
 		highest: pitch("E5"),
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -274,5 +281,30 @@ test("settings saved before songs load with use song off and no text", () => {
 		toleranceCents: 30,
 		useSong: false,
 		songAbc: "",
+	});
+});
+
+test("settings saved before smart sampling load with it off and keep their fields", () => {
+	const old = {
+		lowest: "C4",
+		highest: "E5",
+		includeSharps: true,
+		delaySeconds: 4,
+		autoAdvance: false,
+		advanceDelaySeconds: 3,
+		soundEnabled: false,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
+		judgeEnabled: true,
+		toleranceCents: 30,
+		useSong: false,
+		songAbc: "",
+	};
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toMatchObject({
+		delaySeconds: 4,
+		judgeEnabled: true,
+		toleranceCents: 30,
+		smartSampling: false,
 	});
 });

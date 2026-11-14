@@ -16,6 +16,20 @@ import {
 } from "../core/settings";
 import { formatSeconds } from "./section";
 
+/** Shown in Cards while a song is in use: the controls it overrides. */
+export const SONG_IN_USE =
+	"A song is in use, so the note range, sharps and smart sampling do not apply.";
+
+/** The smart sampling checkbox is off-limits without judging or with a song. */
+export function smartSamplingDisabled(settings: Settings): boolean {
+	return !settings.judgeEnabled || settings.useSong;
+}
+
+/** The line under the smart sampling checkbox while judging is off, else null. */
+export function smartSamplingNote(settings: Settings): string | null {
+	return settings.judgeEnabled ? null : "Needs Judge my playing";
+}
+
 /** One line of the Cards section's values, shown while it is closed. */
 export function cardsSummary(settings: Settings): string {
 	return [
