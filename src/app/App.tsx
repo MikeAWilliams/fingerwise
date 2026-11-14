@@ -1,7 +1,8 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
+import { parseAbc } from "../abc";
 import { browserAudioFactory, createAudio } from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer } from "../audio/tone";
@@ -22,6 +23,7 @@ import { type CardListen, type CardState, createCardFlow } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
+import { NO_SONG, type SongState, songStateFrom } from "./song-form";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -76,6 +78,10 @@ export function App() {
 	const [settings, setSettings] = useState<Settings>(() =>
 		loadSettings(browserStorage(), instrument, DEFAULT_SETTINGS),
 	);
+	const settingsRef = useRef(settings);
+	settingsRef.current = settings;
+	const songEdited = useRef(false);
+	const [songState, setSongState] = useState<SongState>(NO_SONG);
 	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
 	const [visible, setVisible] = useState(pageVisible);
@@ -84,6 +90,26 @@ export function App() {
 		setSettings(next);
 		saveSettings(browserStorage(), next);
 	};
+	// The saved song text is parsed once at load (abcjs loads only when there is
+	// one). A text that no longer passes turns use song off but stays visible.
+	useEffect(() => {
+		const saved = settingsRef.current;
+		if (saved.songAbc === "") {
+			if (saved.useSong) changeSettings({ ...saved, useSong: false });
+			return;
+		}
+		let current = true;
+		parseAbc(saved.songAbc, instrument).then((result) => {
+			if (!current || songEdited.current) return;
+			setSongState(songStateFrom(result));
+			if (!result.ok && settingsRef.current.useSong) {
+				changeSettings({ ...settingsRef.current, useSong: false });
+			}
+		});
+		return () => {
+			current = false;
+		};
+	}, []);
 	const openSettings = () => {
 		setCard(null);
 		setOpen(true);
@@ -176,6 +202,11 @@ export function App() {
 					onChange={changeSettings}
 					onClose={() => setOpen(false)}
 					judgeUnavailable={judgeUnavailable}
+					songState={songState}
+					onSong={(state) => {
+						songEdited.current = true;
+						setSongState(state);
+					}}
 				/>
 			)}
 			{!open && card && (

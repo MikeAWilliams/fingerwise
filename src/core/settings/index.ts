@@ -13,6 +13,8 @@ export interface Settings {
 	soundDurationSeconds: number;
 	judgeEnabled: boolean;
 	toleranceCents: number;
+	useSong: boolean;
+	songAbc: string;
 }
 
 /** Serialized form shared by the defaults file and storage; pitches are note names. */
@@ -28,6 +30,8 @@ export interface SettingsJson {
 	soundDurationSeconds: number;
 	judgeEnabled: boolean;
 	toleranceCents: number;
+	useSong: boolean;
+	songAbc: string;
 }
 
 export const MIN_DELAY_SECONDS = 0.5;
@@ -36,6 +40,8 @@ export const MIN_SOUND_DELAY_SECONDS = 0;
 export const MIN_SOUND_DURATION_SECONDS = 0.5;
 export const MIN_TOLERANCE_CENTS = 10;
 export const MAX_TOLERANCE_CENTS = 45;
+/** Longest song text kept, in characters. Settings only check the length; the ABC adapter reads the text. */
+export const MAX_SONG_CHARS = 10000;
 
 export class SettingsError extends Error {
 	constructor(message: string) {
@@ -63,6 +69,8 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		soundDurationSeconds: settings.soundDurationSeconds,
 		judgeEnabled: settings.judgeEnabled,
 		toleranceCents: settings.toleranceCents,
+		useSong: settings.useSong,
+		songAbc: settings.songAbc,
 	};
 }
 
@@ -200,6 +208,10 @@ function isValidDelay(value: unknown): value is number {
 	);
 }
 
+function isValidSongText(value: unknown): value is string {
+	return typeof value === "string" && value.length <= MAX_SONG_CHARS;
+}
+
 function pitchOrNull(value: unknown): Pitch | null {
 	return typeof value === "string" ? parsePitch(value) : null;
 }
@@ -253,6 +265,10 @@ export function validateSettings(
 		? obj.toleranceCents
 		: defaults.toleranceCents;
 
+	const useSong =
+		typeof obj.useSong === "boolean" ? obj.useSong : defaults.useSong;
+	const songAbc = isValidSongText(obj.songAbc) ? obj.songAbc : defaults.songAbc;
+
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
 		highest = defaults.highest;
@@ -279,6 +295,8 @@ export function validateSettings(
 		soundDurationSeconds,
 		judgeEnabled,
 		toleranceCents,
+		useSong,
+		songAbc,
 	};
 	if (!breaksSoundRule(result)) return result;
 	return {
@@ -339,6 +357,18 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 			`toleranceCents must be a number from ${MIN_TOLERANCE_CENTS} to ${MAX_TOLERANCE_CENTS}`,
 		);
 	}
+	if (typeof obj.useSong !== "boolean") {
+		throw new SettingsError("useSong must be true or false");
+	}
+	if (obj.useSong) {
+		throw new SettingsError("useSong must be false in the defaults");
+	}
+	if (typeof obj.songAbc !== "string") {
+		throw new SettingsError("songAbc must be a string");
+	}
+	if (obj.songAbc !== "") {
+		throw new SettingsError("songAbc must be empty in the defaults");
+	}
 
 	for (const [field, p] of [
 		["lowest", lowest],
@@ -370,6 +400,8 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		soundDurationSeconds: obj.soundDurationSeconds,
 		judgeEnabled: obj.judgeEnabled,
 		toleranceCents: obj.toleranceCents,
+		useSong: obj.useSong,
+		songAbc: obj.songAbc,
 	};
 	if (breaksSoundRule(settings)) {
 		throw new SettingsError(

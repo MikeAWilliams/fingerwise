@@ -1,4 +1,5 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
+import { type AbcProblem, parseAbc } from "../abc";
 import type { Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import {
@@ -30,6 +31,14 @@ import {
 	soundSummary,
 	type TimingField,
 } from "./settings-form";
+import {
+	applySongText,
+	canUseSong,
+	isEmptySong,
+	problemLine,
+	type SongState,
+	songSectionSummary,
+} from "./song-form";
 
 interface SettingsProps {
 	instrument: Instrument;
@@ -38,6 +47,10 @@ interface SettingsProps {
 	onClose: () => void;
 	/** The microphone was denied or missing; shown in, and opens, the Microphone section. */
 	judgeUnavailable?: boolean;
+	/** The song the app holds and the problems of the saved text, from the load-time parse. */
+	songState: SongState;
+	/** A passing or emptied text replaces the app's song; a failing text does not call it. */
+	onSong: (state: SongState) => void;
 }
 
 export function Settings({
@@ -46,7 +59,38 @@ export function Settings({
 	onChange,
 	onClose,
 	judgeUnavailable = false,
+	songState,
+	onSong,
 }: SettingsProps) {
+	// The box starts from the saved text, so reopening drops a failing one.
+	const [draft, setDraft] = useState(settings.songAbc);
+	const [songProblems, setSongProblems] = useState<AbcProblem[]>(
+		songState.problems,
+	);
+	const [songSummary, setSongSummary] = useState<string | null>(
+		songState.summary,
+	);
+	const latest = useRef(settings);
+	latest.current = settings;
+	const edits = useRef(0);
+	const editSong = (text: string) => {
+		setDraft(text);
+		const id = ++edits.current;
+		const apply = (result: Awaited<ReturnType<typeof parseAbc>> | null) => {
+			// A result for an older edit is ignored.
+			if (id !== edits.current) return;
+			const edit = applySongText(latest.current, text, result);
+			setSongProblems(edit.problems);
+			if (edit.state !== undefined) {
+				setSongSummary(edit.state.summary);
+				onChange(edit.settings);
+				onSong(edit.state);
+			}
+		};
+		if (isEmptySong(text)) apply(null);
+		else parseAbc(text, instrument).then(apply);
+	};
+
 	const [rejection, setRejection] = useState<{
 		field: TimingField;
 		message: string;
@@ -83,9 +127,15 @@ export function Settings({
 				}
 				initiallyOpen
 			>
+				{settings.useSong && (
+					<p class="settings-note">
+						A song is in use, so the note range and sharps do not apply.
+					</p>
+				)}
 				<label>
 					Lowest note
 					<select
+						disabled={settings.useSong}
 						value={settings.lowest}
 						onChange={(e) =>
 							onChange({
@@ -104,6 +154,7 @@ export function Settings({
 				<label>
 					Highest note
 					<select
+						disabled={settings.useSong}
 						value={settings.highest}
 						onChange={(e) =>
 							onChange({
@@ -123,7 +174,7 @@ export function Settings({
 					<input
 						type="checkbox"
 						checked={settings.includeSharps}
-						disabled={sharpsLocked}
+						disabled={sharpsLocked || settings.useSong}
 						onChange={(e) => {
 							const result = setIncludeSharps(
 								settings,
@@ -268,6 +319,56 @@ export function Settings({
 							)
 						}
 					/>
+				</label>
+			</Section>
+			<Section
+				title="Song"
+				summary={songSectionSummary(settings)}
+				hasMessage={songProblems.length > 0}
+			>
+				<label class="settings-song-text">
+					Tune in ABC notation
+					<textarea
+						rows={8}
+						value={draft}
+						spellcheck={false}
+						autocapitalize="off"
+						onInput={(e) => editSong(e.currentTarget.value)}
+					/>
+				</label>
+				<p class="settings-note">
+					Paste one tune with one voice and no chords. Flats are shown as
+					sharps. Write and check a tune in the{" "}
+					<a
+						href="https://editor.drawthedots.com/"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						online ABC editor
+					</a>
+					.
+				</p>
+				<div role="status" aria-live="polite" class="settings-song-status">
+					{songProblems.length > 0 ? (
+						<ul>
+							{songProblems.map((problem) => (
+								<li key={problemLine(problem)}>{problemLine(problem)}</li>
+							))}
+						</ul>
+					) : (
+						songSummary !== null && <p class="settings-note">{songSummary}</p>
+					)}
+				</div>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.useSong}
+						disabled={!canUseSong(songState.song)}
+						onChange={(e) =>
+							onChange({ ...settings, useSong: e.currentTarget.checked })
+						}
+					/>
+					Use song
 				</label>
 			</Section>
 			<div class="settings-footer">

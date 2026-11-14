@@ -8,6 +8,7 @@ import {
 	canTurnSharpsOff,
 	canTurnSoundOn,
 	isValidTolerance,
+	MAX_SONG_CHARS,
 	MAX_TOLERANCE_CENTS,
 	MIN_TOLERANCE_CENTS,
 	parseDefaults,
@@ -53,6 +54,8 @@ function settings(
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 	};
 }
 
@@ -71,6 +74,8 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 		...over,
 	};
 }
@@ -580,6 +585,8 @@ describe("judge fields", () => {
 				...DEFAULTS,
 				delaySeconds: 5,
 				toleranceCents: 20,
+				useSong: false,
+				songAbc: "",
 			});
 		}
 	});
@@ -640,6 +647,100 @@ describe("judge fields", () => {
 		expect(
 			toSettingsJson({ ...DEFAULTS, judgeEnabled: true, toleranceCents: 15 }),
 		).toMatchObject({ judgeEnabled: true, toleranceCents: 15 });
+	});
+});
+
+describe("song fields", () => {
+	const tune = "X:1\nK:C\nC D E|";
+
+	test("the limit is 10,000 characters", () => {
+		expect(MAX_SONG_CHARS).toBe(10000);
+	});
+
+	test("valid values are kept and round trip through the JSON form", () => {
+		const input = { ...DEFAULTS, useSong: true, songAbc: tune };
+		expect(toSettingsJson(input)).toMatchObject({
+			useSong: true,
+			songAbc: tune,
+		});
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
+	test("text at the limit is kept, over it resets", () => {
+		const atLimit = "C".repeat(MAX_SONG_CHARS);
+		expect(
+			validateSettings(json({ songAbc: atLimit }), instrument, DEFAULTS)
+				.songAbc,
+		).toBe(atLimit);
+		expect(
+			validateSettings(json({ songAbc: `${atLimit}C` }), instrument, DEFAULTS)
+				.songAbc,
+		).toBe("");
+	});
+
+	test("a bad use song flag resets alone", () => {
+		for (const useSong of [undefined, "true", 1, null]) {
+			const result = validateSettings(
+				json({ useSong, songAbc: tune, delaySeconds: 5 }),
+				instrument,
+				DEFAULTS,
+			);
+			expect(result).toEqual({
+				...DEFAULTS,
+				delaySeconds: 5,
+				useSong: false,
+				songAbc: tune,
+			});
+		}
+	});
+
+	test("a bad song text resets alone", () => {
+		for (const songAbc of [undefined, 5, null, ["C"], "x".repeat(10001)]) {
+			const result = validateSettings(
+				json({ useSong: true, songAbc, delaySeconds: 5 }),
+				instrument,
+				DEFAULTS,
+			);
+			expect(result).toEqual({
+				...DEFAULTS,
+				delaySeconds: 5,
+				useSong: true,
+				songAbc: "",
+			});
+		}
+	});
+
+	test("old data without the fields keeps everything else", () => {
+		const { useSong, songAbc, ...old } = json({ delaySeconds: 7 });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+			useSong: false,
+			songAbc: "",
+		});
+	});
+
+	test("the strict parse accepts off and empty and rejects anything else", () => {
+		expect(parseDefaults(json(), instrument)).toMatchObject({
+			useSong: false,
+			songAbc: "",
+		});
+		const bad: [Record<string, unknown>, string][] = [
+			[{ useSong: undefined }, "useSong"],
+			[{ useSong: "no" }, "useSong"],
+			[{ useSong: true }, "useSong"],
+			[{ songAbc: undefined }, "songAbc"],
+			[{ songAbc: 3 }, "songAbc"],
+			[{ songAbc: tune }, "songAbc"],
+		];
+		for (const [over, fragment] of bad) {
+			expect(() => parseDefaults(json(over), instrument)).toThrow(
+				SettingsError,
+			);
+			expect(() => parseDefaults(json(over), instrument)).toThrow(fragment);
+		}
 	});
 });
 

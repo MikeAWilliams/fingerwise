@@ -8,7 +8,7 @@ Turns pasted ABC notation into a [`Song`](song.md) of written pitches, or into a
 
 ## Public interface
 
-- `MAX_ABC_CHARS = 10000` (S03 replaces it with the settings constant) and `MAX_ABC_NOTES = 500`.
+- `MAX_ABC_CHARS` (the settings' `MAX_SONG_CHARS`, 10000) and `MAX_ABC_NOTES = 500`.
 - `interface AbcProblem { message, line, note?, column? }`: `line` and `column` are 1-based in the text (CRLF counts as one line break); `note` counts written notes in text order, as the editor shows them (a chord is one, rests and grace notes are none).
 - `type AbcResult = { ok: true; song; notes; converted } | { ok: false; problems }`. `notes` is the song length (repeats played out); `converted` counts played notes written with a different letter than their sharp spelling (B♭ to A♯, E♯ to F, double accidentals), once per play.
 - `parseAbc(text, instrument): Promise<AbcResult>`: async because abcjs is loaded by a dynamic import on first use. Never throws.
@@ -34,7 +34,7 @@ Lists longer than 10 are cut to 10 plus "and N more problems".
 
 ## Dependencies
 
-`abcjs` (dynamic, deep import only), `src/core/song`, `src/core/pitch`, `src/core/instrument`.
+`abcjs` (dynamic, deep import only), `src/core/settings` (`MAX_SONG_CHARS` only), `src/core/song`, `src/core/pitch`, `src/core/instrument`.
 
 ## Measured size
 
@@ -43,7 +43,7 @@ abcjs is its own chunk, `abc_tunebook-<hash>.js`, with no `modulepreload` in `di
 | | Minified | Gzip |
 | --- | --- | --- |
 | abcjs chunk | 211.04 kB | 60.74 kB |
-| the adapter chunk | 4.83 kB | 2.14 kB |
+| the adapter, in its own chunk for the measurement only (in the app it is part of the main chunk) | 4.83 kB | 2.14 kB |
 | spike (for comparison) | about 211 kB | about 61 kB |
 
 The precache grew from 18 entries (839.07 KiB) to 20 entries (1051.45 KiB), +212.38 KiB.

@@ -5,9 +5,10 @@ import type {
 } from "abcjs/src/api/abc_tunebook.js";
 import type { Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
+import { MAX_SONG_CHARS } from "../core/settings";
 import { createSong, type Song, songOutOfRange } from "../core/song";
 
-export const MAX_ABC_CHARS = 10000;
+export const MAX_ABC_CHARS = MAX_SONG_CHARS;
 export const MAX_ABC_NOTES = 500;
 
 /** Warnings and offenders listed before the rest are summed up. */
