@@ -279,7 +279,11 @@ export function validateSettings(
 
 	const useSong =
 		typeof obj.useSong === "boolean" ? obj.useSong : defaults.useSong;
-	const songAbc = isValidSongText(obj.songAbc) ? obj.songAbc : defaults.songAbc;
+	// Text saved empty (or never saved) takes the defaults' song, the example.
+	const songAbc =
+		isValidSongText(obj.songAbc) && obj.songAbc !== ""
+			? obj.songAbc
+			: defaults.songAbc;
 
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
@@ -382,8 +386,10 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (typeof obj.songAbc !== "string") {
 		throw new SettingsError("songAbc must be a string");
 	}
-	if (obj.songAbc !== "") {
-		throw new SettingsError("songAbc must be empty in the defaults");
+	if (!isValidSongText(obj.songAbc)) {
+		throw new SettingsError(
+			`songAbc must be at most ${MAX_SONG_CHARS} characters`,
+		);
 	}
 
 	for (const [field, p] of [

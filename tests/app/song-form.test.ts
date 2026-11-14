@@ -6,7 +6,6 @@ import {
 	canUseSong,
 	NO_SONG,
 	problemLine,
-	SONG_EXAMPLE,
 	songSectionSummary,
 	songStateFrom,
 	songStatus,
@@ -143,9 +142,4 @@ describe("state", () => {
 		expect(songSectionSummary(SETTINGS)).toBe("off");
 		expect(songSectionSummary({ ...SETTINGS, useSong: true })).toBe("on");
 	});
-});
-
-test("the placeholder example is a valid song for the alto C", async () => {
-	const result = await parseAbc(SONG_EXAMPLE, loadInstrument(alto));
-	expect(result).toMatchObject({ ok: true, notes: 26, converted: 0 });
 });
