@@ -26,6 +26,7 @@ Covers: AC1
 - [ ] Verify every story's acceptance criteria
 - [ ] User acceptance
 - [ ] Delete this file (final commit before merge)
+- [ ] Mark feature as done in docs/features/README.md
 
 ## Notes
 

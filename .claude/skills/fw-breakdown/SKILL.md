@@ -46,6 +46,6 @@ Ask all blocking questions in one batch, with a recommendation for each (AskUser
 
 ## Output
 
-Write `story-progress/<F>.md` from the template, with a `## <story ID>: <name>` section per story, each holding its checklist, followed by the Closing section. Add a `Covers: AC1, AC2` line per story so every acceptance criterion of every story is covered; check this before finishing.
+Write `story-progress/<F>.md` from the template, with a `## <story ID>: <name>` section per story, each holding its checklist, followed by the Closing section. Keep the template's Closing items as they are, including the last one, marking the feature done in `docs/features/README.md`. Add a `Covers: AC1, AC2` line per story so every acceptance criterion of every story is covered; check this before finishing.
 
 Then summarize in a few lines: the stories in order, the assumptions you made, and anything the user should confirm. Do not start executing. Do not commit unless asked.

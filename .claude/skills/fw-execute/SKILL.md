@@ -42,4 +42,4 @@ When stopping, record what happened under Notes in the progress file, leave the 
 
 After the last story, verify each story's acceptance criteria against the running code or tests, tick the Closing items you can, and report which criteria are met and how, story by story. Then stop for user acceptance. Do not delete the progress file yet.
 
-If the user then says the feature is accepted, delete `story-progress/<F>.md` in a final commit (`<F>: remove progress file`), after confirming durable outcomes are already in the architecture docs or ADRs. Do not merge or push unless asked.
+If the user then says the feature is accepted, first confirm durable outcomes are already in the architecture docs or ADRs. Then, in a final commit (`<F>: remove progress file`), delete `story-progress/<F>.md` and set the feature's Design status to `done` in `docs/features/README.md`. Do not merge or push unless asked.
