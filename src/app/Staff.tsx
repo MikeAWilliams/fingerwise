@@ -23,8 +23,10 @@ export interface SongView {
 	lines: readonly Bar[][];
 	meter: Meter;
 	barsPerLine: number;
-	/** The index in the song of the note to play. */
+	/** The index in the song of the note to play; -1 during the count-in. */
 	current: number;
+	/** The count-in beat clicking, from 0; null when none is. */
+	countBeat: number | null;
 }
 
 /** The line holding the note to play and the line after it. */
@@ -36,10 +38,18 @@ export function SongStaff({
 	options: StaffOptions;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
-	const { lines, meter, barsPerLine, current } = view;
+	const { lines, meter, barsPerLine, current, countBeat } = view;
 	useEffect(() => {
 		if (ref.current)
-			drawSongLines(ref.current, lines, current, options, meter, barsPerLine);
-	}, [lines, current, options, meter, barsPerLine]);
+			drawSongLines(
+				ref.current,
+				lines,
+				current,
+				options,
+				meter,
+				barsPerLine,
+				countBeat,
+			);
+	}, [lines, current, options, meter, barsPerLine, countBeat]);
 	return <div class="song-staff" ref={ref} />;
 }

@@ -89,6 +89,7 @@ describe("ready (AC3)", () => {
 			pitch: 60,
 			beats: 1,
 			phase: "ready",
+			countBeat: null,
 			verdict: null,
 			listening: "off",
 			summary: null,
@@ -115,6 +116,24 @@ describe("count-in (AC4)", () => {
 		expect(last().phase).toBe("count-in");
 		vi.advanceTimersByTime(1);
 		expect(last()).toMatchObject({ phase: "playing", pitch: 60 });
+	});
+
+	test("each count-in beat shows on its click", () => {
+		const flow = setup();
+		flow.step();
+		expect(last()).toMatchObject({ phase: "count-in", countBeat: null });
+		const beats = () =>
+			states.filter((s) => s.phase === "count-in").map((s) => s.countBeat);
+		vi.advanceTimersByTime(LEAD_SECONDS * 1000);
+		expect(beats()).toEqual([null, 0]);
+		vi.advanceTimersByTime(499);
+		expect(last().countBeat).toBe(0);
+		vi.advanceTimersByTime(1);
+		expect(last().countBeat).toBe(1);
+		vi.advanceTimersByTime(1000);
+		expect(beats()).toEqual([null, 0, 1, 2, 3]);
+		vi.advanceTimersByTime(500);
+		expect(last()).toMatchObject({ phase: "playing", countBeat: null });
 	});
 
 	test("3/4 gives three clicks", () => {
@@ -188,9 +207,11 @@ describe("taps (AC6)", () => {
 		flow.step();
 		const count = states.length;
 		flow.step();
-		vi.advanceTimersByTime(1000);
-		flow.step();
 		expect(states).toHaveLength(count);
+		vi.advanceTimersByTime(1000);
+		const ticked = states.length;
+		flow.step();
+		expect(states).toHaveLength(ticked);
 		expect(clicks).toHaveLength(4);
 		vi.advanceTimersByTime(1100);
 		expect(last().phase).toBe("playing");
@@ -211,6 +232,7 @@ describe("the end (AC7)", () => {
 			pitch: 62,
 			beats: 1,
 			phase: "summary",
+			countBeat: null,
 			verdict: null,
 			listening: "off",
 			summary: { correct: 0, graded: 0 },

@@ -188,6 +188,8 @@ export function App() {
 		() => (song === null ? [] : songLines(song, barsPerLine)),
 		[song, barsPerLine],
 	);
+	// Waiting for the tap or counting in: no note is lit yet.
+	const counting = timed?.phase === "ready" || timed?.phase === "count-in";
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
@@ -333,7 +335,9 @@ export function App() {
 									lines,
 									meter: song.meter,
 									barsPerLine,
-									current: timed.index,
+									// Before the first slot the first rest is lit, then each beat's.
+									current: counting ? -1 : timed.index,
+									countBeat: counting ? (timed.countBeat ?? 0) : null,
 								}
 					}
 					instrument={instrument}

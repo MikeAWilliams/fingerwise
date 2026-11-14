@@ -50,6 +50,8 @@ export interface TimedState {
 	/** That note's length in quarter-note beats. */
 	beats: number;
 	phase: TimedPhase;
+	/** The count-in's beat sounding, from 0; null outside the count-in. */
+	countBeat: number | null;
 	/** The judge's answer for the note playing; null when none has been heard or it is not listened to. */
 	verdict: Verdict | null;
 	/** Where listening stands; `off` without judging. */
@@ -91,6 +93,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const bar = countIn(song.meter, tempo);
 
 	let phase: TimedPhase = "ready";
+	let countBeat: number | null = null;
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let stopped = false;
 
@@ -120,6 +123,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			pitch: note.pitch,
 			beats: note.beats,
 			phase,
+			countBeat,
 			verdict,
 			listening,
 			summary,
@@ -213,6 +217,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		}
 		const firstSlot = t0 + (bar.beats * bar.beatMs) / 1000;
 		phase = "count-in";
+		countBeat = null;
 		currentIndex = 0;
 		currentPitch = notes[0]?.pitch as Pitch;
 		emit(0);
@@ -246,6 +251,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 				return;
 			}
 			phase = "playing";
+			countBeat = null;
 			currentIndex = index;
 			currentPitch = notes[index]?.pitch as Pitch;
 			openSlot(index);
@@ -255,7 +261,17 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			emit(index);
 			at(boundaries[index] as number, () => show(index + 1));
 		};
-		at(firstSlot, () => show(0));
+		// Each count-in beat shows on its click; the beat after the last is the first slot.
+		const tick = (beat: number): void => {
+			if (beat === bar.beats) {
+				show(0);
+				return;
+			}
+			countBeat = beat;
+			emit(0);
+			at(t0 + ((beat + 1) * bar.beatMs) / 1000, () => tick(beat + 1));
+		};
+		at(t0, () => tick(0));
 	}
 
 	/** The first tap opens the stream, if judging; the count-in starts when that settles, whatever it says. */
@@ -295,6 +311,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		start() {
 			stopped = false;
 			phase = "ready";
+			countBeat = null;
 			emit(0);
 		},
 		step() {

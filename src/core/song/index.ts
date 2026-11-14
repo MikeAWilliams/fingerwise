@@ -119,10 +119,20 @@ export function countIn(
 	meter: Meter,
 	tempo: number,
 ): { beats: number; beatMs: number } {
-	const compound = meter.unit === 8 && [6, 9, 12].includes(meter.beats);
-	const beats = compound ? meter.beats / 3 : meter.beats;
-	const quarters = compound ? 1.5 : 4 / meter.unit;
+	const { beats, quarters } = countInBeats(meter);
 	return { beats, beatMs: (quarters * 60000) / tempo };
+}
+
+/** The count-in's beats per bar and each beat's length in quarter notes, whatever the tempo. */
+export function countInBeats(meter: Meter): {
+	beats: number;
+	quarters: number;
+} {
+	const compound = meter.unit === 8 && [6, 9, 12].includes(meter.beats);
+	return {
+		beats: compound ? meter.beats / 3 : meter.beats,
+		quarters: compound ? 1.5 : 4 / meter.unit,
+	};
 }
 
 /** Beats closer than this count as the same time, as abcjs rounds its starts. */
