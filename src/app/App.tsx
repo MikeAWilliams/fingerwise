@@ -183,6 +183,8 @@ export function App() {
 					pitch={card.pitch}
 					revealed={card.revealed}
 					listening={card.listening}
+					judging={settings.judgeEnabled}
+					verdict={card.verdict}
 					instrument={instrument}
 					staffOptions={STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}

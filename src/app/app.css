@@ -82,6 +82,75 @@ main {
 	opacity: 0.6;
 }
 
+/* Judge on: room for the verdict and graph too, so revealing never moves the staff. */
+.card-reveal.judging {
+	height: 17rem;
+}
+
+.card-reveal.judging .card-glyph {
+	height: 7rem;
+	font-size: 5.5rem;
+}
+
+.card-verdict {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	font-weight: 600;
+}
+
+.card-verdict-icon {
+	font-size: 1.25em;
+}
+
+/* Text and icon colors at least 4.5:1 on white. */
+.verdict-correct {
+	color: #17692e;
+}
+
+.verdict-incorrect {
+	color: #b3261e;
+}
+
+.verdict-none {
+	color: #555;
+}
+
+.card-judged {
+	margin-left: 0.5rem;
+	font-weight: normal;
+	color: CanvasText;
+}
+
+.pitch-graph {
+	display: block;
+	width: 100%;
+	max-width: 20rem;
+	margin: 0.25rem auto 0;
+	overflow: visible;
+}
+
+.pitch-graph text {
+	font-size: 11px;
+	fill: currentColor;
+}
+
+.pitch-graph-axis {
+	stroke: currentColor;
+	stroke-width: 1;
+}
+
+.pitch-graph-expected {
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-dasharray: 3 2;
+}
+
+.pitch-graph-played {
+	fill: #1b4f9c;
+}
+
 button,
 select,
 input[type="number"] {
@@ -184,6 +253,15 @@ footer {
 		height: 10rem;
 		font-size: 8rem;
 	}
+
+	.card-reveal.judging {
+		height: 21rem;
+	}
+
+	.card-reveal.judging .card-glyph {
+		height: 9rem;
+		font-size: 7rem;
+	}
 }
 
 @media (max-height: 480px) {
@@ -194,5 +272,18 @@ footer {
 	.card-glyph {
 		height: 6rem;
 		font-size: 4.5rem;
+	}
+
+	.card-reveal.judging {
+		height: 13rem;
+	}
+
+	.card-reveal.judging .card-glyph {
+		height: 5rem;
+		font-size: 4rem;
+	}
+
+	.pitch-graph {
+		max-width: 16rem;
 	}
 }
