@@ -1,4 +1,5 @@
-import type { Pitch } from "../pitch";
+import type { Instrument } from "../instrument";
+import { formatPitch, type Pitch, parsePitch } from "../pitch";
 
 /** How far one grade moves a need towards its target. */
 export const ALPHA = 0.3;
@@ -42,4 +43,41 @@ export function resetScores(): Scores {
 /** The weight of `pitch` in a weighted draw: its need, never below `FLOOR`. */
 export function drawWeight(scores: Scores, pitch: Pitch): number {
 	return Math.max(needOf(scores, pitch), FLOOR);
+}
+
+/** Stored form: written pitch name (`C♯5`) to need. */
+export type ProgressJson = Record<string, number>;
+
+export function toProgressJson(scores: Scores): ProgressJson {
+	const json: ProgressJson = {};
+	for (const [pitch, need] of scores) json[formatPitch(pitch)] = need;
+	return json;
+}
+
+/**
+ * Scores from stored JSON. Entries whose name does not parse, lies outside the
+ * instrument's written range, or whose value is not a finite number from 0 to 1
+ * are dropped. Anything that is not an object gives no scores. Never throws.
+ */
+export function fromProgressJson(raw: unknown, instrument: Instrument): Scores {
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+		return emptyScores();
+	}
+	const scores = new Map<Pitch, number>();
+	for (const [name, need] of Object.entries(raw)) {
+		const pitch = parsePitch(name);
+		if (
+			pitch === null ||
+			pitch < instrument.lowest ||
+			pitch > instrument.highest ||
+			typeof need !== "number" ||
+			!Number.isFinite(need) ||
+			need < 0 ||
+			need > 1
+		) {
+			continue;
+		}
+		scores.set(pitch, need);
+	}
+	return scores;
 }

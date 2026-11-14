@@ -59,3 +59,13 @@ Settings are kept in `localStorage` under the single key `fingerwise.settings`, 
 ```
 
 On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. Data saved before auto-advance existed lacks `autoAdvance` and `advanceDelaySeconds`, so it keeps its other fields and gets the defaults for those two; data saved before sound existed likewise gets play note on, 0.5 s and 1.5 s, and data saved before judging gets judge off and 40 cents; data saved before smart sampling gets it off; a `smartSampling` that is not a boolean resets alone; data saved before songs gets use song off and an empty text. A `useSong` that is not a boolean, or a `songAbc` that is not a string or is over 10,000 characters, resets alone. Whether a stored text still passes is not checked here: the app parses it at load and turns use song off when it fails ([app](modules/app.md)). If the result breaks the sound rule above (for example an old advance delay of 1 s), the sound delay, sound duration and advance delay all reset to the defaults and the other fields are kept. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet; nothing from the microphone is ever stored.
+
+### Progress
+
+Smart sampling's scores ([progress](modules/progress.md)) are kept in `localStorage` under their own key, `fingerwise.progress`, separate from the settings, as one JSON object keyed by the instrument's `name`, each value a map from written pitch name to need (0 known, 1 needs work):
+
+```json
+{ "12-hole alto C ocarina": { "C5": 0.24, "C♯5": 0.7 } }
+```
+
+Only pitches that have been graded appear; any other reads as need 1. Because the key is the instrument's `name`, renaming an instrument in its JSON orphans its scores. On load only the current instrument's entry is read, and `fromProgressJson` drops each entry whose pitch name does not parse, is outside the instrument's written range, or whose value is not a finite number from 0 to 1; a value that is not an object gives no scores. A missing key, unparseable JSON, a non-object store, a throwing `getItem` or absent storage gives no scores. Saving replaces only the current instrument's entry and copies the other instruments' entries as stored (unvalidated, since only one instrument is loaded); an unreadable store is replaced. A failed write or absent storage is ignored. There is no version field, as with the settings. Nothing from the microphone is stored, only these numbers.

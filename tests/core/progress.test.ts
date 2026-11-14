@@ -1,14 +1,18 @@
 import { describe, expect, test } from "vitest";
-import { type Pitch, parsePitch } from "../../src/core/pitch";
+import alto from "../../data/instruments/ocarina-12-taiwanese.json";
+import { loadInstrument } from "../../src/core/instrument";
+import { formatPitch, type Pitch, parsePitch } from "../../src/core/pitch";
 import {
 	ALPHA,
 	applyGrade,
 	drawWeight,
 	emptyScores,
 	FLOOR,
+	fromProgressJson,
 	needOf,
 	resetScores,
 	type Scores,
+	toProgressJson,
 } from "../../src/core/progress";
 import progressSource from "../../src/core/progress/index.ts?raw";
 
@@ -92,16 +96,69 @@ describe("resetScores (AC4, AC5)", () => {
 });
 
 describe("AC9: imports and purity", () => {
-	test("imports only ../pitch", () => {
+	test("imports only ../pitch and ../instrument", () => {
 		const specifiers = [...progressSource.matchAll(/from\s+["']([^"']+)["']/g)]
 			.map((m) => m[1])
 			.sort();
-		expect(specifiers).toEqual(["../pitch"]);
+		expect(specifiers).toEqual(["../instrument", "../pitch"]);
 	});
 
 	test("knows nothing of the judge and uses no randomness or clock", () => {
 		for (const word of ["judge", "Math.random", "Date", "performance"]) {
 			expect(progressSource).not.toContain(word);
+		}
+	});
+});
+
+describe("progress JSON (F06-S03 AC1, AC2)", () => {
+	const instrument = loadInstrument(alto);
+	const C5 = pitch("C5");
+	const Cs5 = pitch("C♯5");
+
+	test("round trips, writing sharps as C♯5", () => {
+		const scores: Scores = new Map([
+			[C5, 0.24],
+			[Cs5, 0.7],
+			[pitch("A3"), 0],
+			[pitch("F5"), 1],
+		]);
+		const json = toProgressJson(scores);
+		expect(json).toEqual({ C5: 0.24, "C♯5": 0.7, A3: 0, F5: 1 });
+		expect(fromProgressJson(json, instrument)).toEqual(scores);
+		expect(
+			fromProgressJson(JSON.parse(JSON.stringify(json)), instrument),
+		).toEqual(scores);
+		expect([...scores.keys()].map(formatPitch)).toContain("C♯5");
+	});
+
+	test("drops entries with a bad name, range or value and keeps the rest", () => {
+		const scores = fromProgressJson(
+			{
+				C5: 0.5,
+				nope: 0.5,
+				"": 0.5,
+				"B♯4": 0.5,
+				G3: 0.5,
+				"F♯5": 0.5,
+				D5: Number.NaN,
+				E5: -0.1,
+				F4: 1.1,
+				G4: "0.5",
+				A4: null,
+				B4: Number.POSITIVE_INFINITY,
+				C4: 0,
+			},
+			instrument,
+		);
+		expect([...scores]).toEqual([
+			[C5, 0.5],
+			[pitch("C4"), 0],
+		]);
+	});
+
+	test("anything but an object gives no scores", () => {
+		for (const raw of [null, undefined, [], [1], "C5", 5, true]) {
+			expect(fromProgressJson(raw, instrument).size).toBe(0);
 		}
 	});
 });
