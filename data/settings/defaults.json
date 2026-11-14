@@ -9,5 +9,7 @@
 	"soundDelaySeconds": 0.5,
 	"soundDurationSeconds": 1.5,
 	"judgeEnabled": false,
-	"toleranceCents": 40
+	"toleranceCents": 40,
+	"useSong": false,
+	"songAbc": ""
 }

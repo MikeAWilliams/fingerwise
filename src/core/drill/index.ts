@@ -62,3 +62,14 @@ export function drawPitch(
 	const candidates = pool.filter((p) => p !== previous);
 	return candidates[Math.floor(random() * candidates.length)] as Pitch;
 }
+
+/** The next note of a tune: the first for `null`, otherwise the following one, wrapping after the last. */
+export function nextInOrder(
+	pitches: readonly Pitch[],
+	previousIndex: number | null,
+): { index: number; pitch: Pitch } {
+	if (pitches.length === 0) throw new DrillError("the list is empty");
+	const index =
+		previousIndex === null ? 0 : (previousIndex + 1) % pitches.length;
+	return { index, pitch: pitches[index] as Pitch };
+}

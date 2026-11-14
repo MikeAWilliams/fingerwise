@@ -7,11 +7,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 describe("service worker precache (S04-AC1)", () => {
 	let outDir = "";
 	let sw = "";
+	let html = "";
 
 	beforeAll(async () => {
 		outDir = mkdtempSync(join(tmpdir(), "fingerwise-build-"));
 		await build({ logLevel: "silent", build: { outDir, emptyOutDir: true } });
 		sw = readFileSync(join(outDir, "sw.js"), "utf8");
+		html = readFileSync(join(outDir, "index.html"), "utf8");
 	}, 60_000);
 
 	afterAll(() => {
@@ -34,6 +36,12 @@ describe("service worker precache (S04-AC1)", () => {
 	it("precaches the page and the app bundle", () => {
 		expect(sw).toContain("index.html");
 		expect(sw).toMatch(/assets\/index-[^"']*\.js/);
+	});
+
+	it("precaches the abcjs chunk without preloading it (F05)", () => {
+		expect(sw).toMatch(/assets\/abc_tunebook-[^"']*\.js/);
+		expect(html).not.toContain("abc_tunebook");
+		expect(html).not.toContain("modulepreload");
 	});
 
 	it("does not skip waiting or claim clients on its own", () => {

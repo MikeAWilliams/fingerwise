@@ -39,6 +39,8 @@ function settings(
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 	};
 }
 

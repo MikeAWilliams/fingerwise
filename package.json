@@ -15,6 +15,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"abcjs": "6.7.2",
 		"preact": "^11.0.2",
 		"vexflow": "5.0.0"
 	},

@@ -4,6 +4,9 @@ import {
 	type CardState,
 	type CardTone,
 	createCardFlow,
+	type PitchSource,
+	randomSource,
+	songSource,
 } from "../../src/app/card-flow";
 import type { ListenResult, PitchReading } from "../../src/audio/listener";
 import { createToneTracker, DEFAULT_THRESHOLDS } from "../../src/core/judge";
@@ -21,8 +24,7 @@ function setup(advanceDelayMs: number | null = null) {
 	// Cycles 0, 1/3, 2/3: with a previous pitch removed, three candidates.
 	const random = () => (i++ % 3) / 3;
 	const flow = createCardFlow({
-		pool: POOL,
-		random,
+		next: randomSource(POOL, random),
 		delayMs: DELAY,
 		advanceDelayMs,
 		onChange: (s) => states.push(s),
@@ -255,8 +257,7 @@ describe("createCardFlow tone", () => {
 					};
 		let i = 0;
 		const flow = createCardFlow({
-			pool: POOL,
-			random: () => (i++ % 3) / 3,
+			next: randomSource(POOL, () => (i++ % 3) / 3),
 			delayMs: DELAY,
 			advanceDelayMs,
 			tone,
@@ -421,6 +422,7 @@ describe("createCardFlow listen", () => {
 			tracker?: CardListen["tracker"];
 			tone?: CardTone | null;
 			grade?: CardListen["grade"];
+			next?: PitchSource;
 		} = {},
 	) {
 		const listener = new FakeListener();
@@ -439,8 +441,7 @@ describe("createCardFlow listen", () => {
 		};
 		let i = 0;
 		const flow = createCardFlow({
-			pool: POOL,
-			random: () => (i++ % 3) / 3,
+			next: over.next ?? randomSource(POOL, () => (i++ % 3) / 3),
 			delayMs: DELAY,
 			advanceDelayMs:
 				over.advanceDelayMs === undefined ? null : over.advanceDelayMs,
@@ -612,7 +613,7 @@ describe("createCardFlow listen", () => {
 		// Inside the new card's hold-off, the same tone is not judged.
 		play(listener, 440, 480);
 		expect(last().revealed).toBe(false);
-		play(listener, 440, 400);
+		play(listener, 440, 900);
 		expect(last().verdict).toMatchObject({ grade: "correct" });
 		expect(listener.starts).toBe(1);
 		expect(resets).toEqual([0, dealtAt]);
@@ -760,5 +761,119 @@ describe("createCardFlow listen", () => {
 		listener.results[1]?.(RUNNING);
 		await settle();
 		expect(last().listening).toBe("running");
+	});
+	test("F05-S04 AC6: a song card is judged against its own pitch", async () => {
+		const { flow, listener, graded } = listenSetup({
+			next: songSource([69, 71] as Pitch[]),
+		});
+		flow.start();
+		await settle();
+		expect(last().pitch).toBe(69);
+		play(listener, 440, 900);
+		expect(graded).toEqual([{ pitch: 69, hz: 440 }]);
+		expect(last().verdict).toMatchObject({ grade: "correct" });
+		flow.step();
+		expect(last().pitch).toBe(71);
+	});
+});
+
+describe("song cards (F05-S04)", () => {
+	const SONG = [60, 62, 64] as Pitch[];
+
+	function songFlow(
+		pitches: Pitch[] = SONG,
+		over: { advanceDelayMs?: number | null; tone?: CardTone | null } = {},
+	) {
+		const flow = createCardFlow({
+			next: songSource(pitches),
+			delayMs: DELAY,
+			advanceDelayMs: over.advanceDelayMs ?? null,
+			tone: over.tone ?? null,
+			onChange: (s) => states.push(s),
+		});
+		flow.start();
+		return flow;
+	}
+
+	const shown = () => states.filter((s) => !s.revealed).map((s) => s.pitch);
+
+	test("AC2: the first card is the first note and each next card the following one", () => {
+		const flow = songFlow();
+		expect(last()).toMatchObject({ pitch: 60, revealed: false });
+		flow.step();
+		flow.step();
+		expect(last()).toMatchObject({ pitch: 62, revealed: false });
+		flow.step();
+		flow.step();
+		expect(shown()).toEqual([60, 62, 64]);
+	});
+
+	test("AC3: after the last note is revealed and advanced from, the song starts over", () => {
+		songFlow(SONG, { advanceDelayMs: ADVANCE });
+		for (let n = 0; n < 4; n++) vi.advanceTimersByTime(DELAY + ADVANCE);
+		expect(shown()).toEqual([60, 62, 64, 60, 62]);
+	});
+
+	test("AC4: the same note twice in a row is shown twice", () => {
+		const flow = songFlow([60, 60, 62] as Pitch[]);
+		flow.step();
+		flow.step();
+		expect(last()).toMatchObject({ pitch: 60, revealed: false });
+		flow.step();
+		flow.step();
+		expect(shown()).toEqual([60, 60, 62]);
+	});
+
+	test("a one-note song shows that note every time", () => {
+		const flow = songFlow([67] as Pitch[]);
+		for (let n = 0; n < 4; n++) flow.step();
+		expect(shown()).toEqual([67, 67, 67]);
+	});
+
+	test("AC5: a new flow starts at the first note again", () => {
+		const first = songFlow();
+		first.step();
+		first.step();
+		expect(last().pitch).toBe(62);
+		first.stop();
+		states = [];
+		songFlow();
+		expect(last()).toMatchObject({ pitch: 60, revealed: false });
+	});
+
+	test("AC7: nothing is drawn at random", () => {
+		const spy = vi.spyOn(Math, "random").mockImplementation(() => {
+			throw new Error("random was called");
+		});
+		try {
+			const flow = songFlow(SONG, { advanceDelayMs: ADVANCE });
+			vi.advanceTimersByTime((DELAY + ADVANCE) * 4);
+			flow.step();
+			expect(spy).not.toHaveBeenCalled();
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	test("AC6: the reveal delay, the early reveal and the tone are as for random cards", () => {
+		const calls: { pitch: Pitch; at: number }[] = [];
+		const start = Date.now();
+		const flow = songFlow(SONG, {
+			tone: {
+				delayMs: 500,
+				play: (pitch) => calls.push({ pitch, at: Date.now() - start }),
+				stop: () => {},
+			},
+		});
+		vi.advanceTimersByTime(DELAY - 1);
+		expect(last().revealed).toBe(false);
+		vi.advanceTimersByTime(1);
+		expect(last()).toMatchObject({ pitch: 60, revealed: true });
+		vi.advanceTimersByTime(500);
+		expect(calls).toEqual([{ pitch: 60, at: DELAY + 500 }]);
+		flow.step();
+		expect(last()).toMatchObject({ pitch: 62, revealed: false });
+		flow.step();
+		expect(last()).toMatchObject({ pitch: 62, revealed: true });
 	});
 });

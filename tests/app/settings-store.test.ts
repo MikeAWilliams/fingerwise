@@ -28,6 +28,8 @@ const DEFAULTS: Settings = {
 	soundDurationSeconds: 1.5,
 	judgeEnabled: false,
 	toleranceCents: 40,
+	useSong: false,
+	songAbc: "",
 };
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -55,6 +57,8 @@ test("saved settings load back unchanged", () => {
 		soundDurationSeconds: 4,
 		judgeEnabled: true,
 		toleranceCents: 25.5,
+		useSong: false,
+		songAbc: "",
 	};
 	saveSettings(storage, settings);
 	expect([...data.keys()]).toEqual([SETTINGS_KEY]);
@@ -70,6 +74,8 @@ test("saved settings load back unchanged", () => {
 		soundDurationSeconds: 4,
 		judgeEnabled: true,
 		toleranceCents: 25.5,
+		useSong: false,
+		songAbc: "",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -121,6 +127,8 @@ test("settings saved before auto-advance load with its defaults", () => {
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 	});
 });
 
@@ -147,6 +155,8 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 	});
 });
 
@@ -173,6 +183,8 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 	});
 });
 
@@ -195,6 +207,8 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		highest: pitch("E5"),
 		judgeEnabled: false,
 		toleranceCents: 40,
+		useSong: false,
+		songAbc: "",
 	});
 });
 
@@ -221,4 +235,44 @@ test("a throwing setItem is swallowed", () => {
 test("null storage loads the defaults and saves nothing", () => {
 	expect(loadSettings(null, instrument, DEFAULTS)).toEqual(DEFAULTS);
 	expect(() => saveSettings(null, DEFAULTS)).not.toThrow();
+});
+
+test("a song and its switch save and load back", () => {
+	const { storage, data } = fakeStorage();
+	const settings: Settings = {
+		...DEFAULTS,
+		useSong: true,
+		songAbc: "X:1\nK:C\nC D E|",
+	};
+	saveSettings(storage, settings);
+	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
+		useSong: true,
+		songAbc: "X:1\nK:C\nC D E|",
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
+});
+
+test("settings saved before songs load with use song off and no text", () => {
+	const old = {
+		lowest: "C4",
+		highest: "E5",
+		includeSharps: true,
+		delaySeconds: 4,
+		autoAdvance: false,
+		advanceDelaySeconds: 3,
+		soundEnabled: false,
+		soundDelaySeconds: 0.5,
+		soundDurationSeconds: 1.5,
+		judgeEnabled: true,
+		toleranceCents: 30,
+	};
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toMatchObject({
+		lowest: pitch("C4"),
+		delaySeconds: 4,
+		judgeEnabled: true,
+		toleranceCents: 30,
+		useSong: false,
+		songAbc: "",
+	});
 });
