@@ -4,9 +4,9 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 
 ## Where things live
 
-- `docs/vision/vision.md`: intent and planning. A proposal, not fact.
 - `docs/architecture/`: what is built. Fact. Module docs mirror `src/` folders; ADRs are in `decisions/`.
-- `docs/features/<n>-<name>/`: `design.md` plus `stories/`. Story specs are durable.
+- `docs/features/<n>-<name>/`: `design.md` plus `stories/`. Story specs are durable. The feature index in `docs/features/README.md` is the plan; a design is a proposal until built.
+- `docs/research/`: background investigation (prior art, fingering data, spikes).
 - `story-progress/`: one temporary checklist per in-flight feature, deleted when the feature is accepted (see its README).
 - `data/instruments/`: instrument definitions as JSON.
 - `docs/templates/`: use these when creating features, stories, ADRs, progress files.
@@ -15,16 +15,16 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 
 | Skill               | Use                                                               | Style                         |
 | ------------------- | ----------------------------------------------------------------- | ----------------------------- |
-| `fw-plan`           | Think through and record vision, ADRs, feature designs, stories.  | Dialog-heavy                  |
+| `fw-plan`           | Think through and record ADRs, feature designs, stories.  | Dialog-heavy                  |
 | `fw-breakdown <F>`  | Turn all of a feature's stories into one checklist in `story-progress/`. | Checks assumptions, asks once |
 | `fw-execute <F>`    | Run the checklist, one commit per story.                          | Hands-off; user-invoked only  |
 
 ## Workflow
 
-1. On a `plan/` branch, plan with `fw-plan`: vision, then feature design, then stories. Merge the branch to `main`.
+1. On a `plan/` branch, plan with `fw-plan`: feature design, then stories. Merge the branch to `main`.
 2. On a `feature/F<NN>-<slug>` branch, `fw-breakdown F<NN>` reads the feature design, all its stories and the module docs, and writes `story-progress/F<NN>.md`: one section per story, each a checklist of how, referring to the story's `AC` numbers instead of copying text.
 3. `fw-execute F<NN>` on the same branch implements one story at a time, in order, running checks and committing after each. It stops and reports instead of guessing.
-4. When code lands, the matching `docs/architecture/modules/` doc is updated in the same commit, and the corresponding detail in the vision is trimmed to a pointer.
+4. When code lands, the matching `docs/architecture/modules/` doc is updated in the same commit.
 5. After the last story, verify each story's acceptance criteria. Stop for the user's acceptance.
 6. After acceptance, delete the progress file in the final commit before merge. Move anything durable into architecture docs or an ADR first.
 
@@ -34,7 +34,7 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 
 | Branch              | For                                                                                    | Example                                              | Skill                        |
 | ------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------- |
-| `plan/<topic>`      | Vision, ADRs, feature designs, stories, glossary. Docs only.                           | `plan/spaced-repetition`, `plan/f01-core-flashcards` | `fw-plan`                    |
+| `plan/<topic>`      | ADRs, feature designs, stories, research, glossary. Docs only.                           | `plan/spaced-repetition`, `plan/f01-core-flashcards` | `fw-plan`                    |
 | `feature/F<NN>-<slug>` | Building one feature's stories: code, tests, module docs, the progress file. One feature per branch. | `feature/F01-core-flashcards`                   | `fw-breakdown`, `fw-execute` |
 | `chore/<topic>`     | Tooling, scaffolding, CI, skills, `CLAUDE.md`.                                         | `chore/ci-pages`                                     | none                         |
 | `fix/<topic>`       | Bug fixes outside a story.                                                             | `fix/ledger-line-clip`                               | none                         |
@@ -52,7 +52,7 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 
 - Do not edit a story's acceptance criteria. If they are wrong, stop and tell the user.
 - Do not reverse an accepted ADR. Propose a new ADR that supersedes it.
-- A decision that changes architecture or answers a vision open question needs an ADR first; ask the user.
+- A decision that changes architecture or answers an open question in a feature design needs an ADR first; ask the user.
 - Respect the layer rule: the drill engine knows only pitch and instrument definitions, never clef, staff, audio or UI. Pitch is the single internal representation.
 - Instruments are data (JSON in `data/instruments/`), not code.
 - Never copy commercial fingering charts; use open sources only.

@@ -17,7 +17,7 @@ The maintainer is not a sophisticated musician, and cannot check fingerings or m
 - New instruments. An instrument is a JSON file in [`data/instruments/`](data/instruments/), not code. See that folder's README.
 - Documentation fixes.
 
-For anything feature-sized, open an issue or discussion first. The direction is set in [`docs/vision/vision.md`](docs/vision/vision.md) and the feature designs in [`docs/features/`](docs/features/), so a good idea may still not fit the plan, and it is better to find out before you write the code.
+For anything feature-sized, open an issue or discussion first. The direction is set in the feature designs in [`docs/features/`](docs/features/), so a good idea may still not fit the plan, and it is better to find out before you write the code.
 
 ## Fingering data: open sources only
 

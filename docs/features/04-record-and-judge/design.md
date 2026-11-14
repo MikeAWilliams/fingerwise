@@ -1,7 +1,6 @@
 # F04: Record and judge a single note
 
 - **Status:** done
-- **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
 
@@ -44,7 +43,7 @@ With judging on, the player plays the note on their ocarina instead of only fing
 
 - Retries, hints, a play-along or timing judgment (feature 8), and judging a sequence (feature 7).
 - Storing grades or any progress (feature 6).
-- Detecting the fingering. The judge hears the pitch that came out, not what the fingers did (vision, technical gotchas).
+- Detecting the fingering. The judge hears the pitch that came out, not what the fingers did ([gotchas](../../research/prior-art-and-gotchas.md#technical-gotchas)).
 - Latency calibration, per-device tuning, and an A4 reference other than 440 Hz.
 - Instruments other than the alto C.
 

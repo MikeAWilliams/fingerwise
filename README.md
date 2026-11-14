@@ -8,7 +8,7 @@ A flashcard drill for learning ocarina fingerings. A note appears on the staff, 
 
 The first target is the 12-hole ocarina. The design keeps instruments, clefs and staff styles as swappable data and layers so other instruments can be added later.
 
-**Status:** features 1 to 4 are done.
+**Status:** features 1 to 5 are done.
 
 - **Cards:** a random note is drawn on the staff. Its name and fingering appear after the delay or on a click or key press, and the next click or key shows another note. The next note also appears on its own after an advance delay.
 - **Sound:** after the reveal the app plays the note as a plain tone, with a settable delay and duration.
@@ -16,7 +16,7 @@ The first target is the 12-hole ocarina. The design keeps instruments, clefs and
 - **Settings:** note range, sharps, reveal delay, auto-advance and its delay, sound, and judging. They are kept in the browser.
 - **App:** published to GitHub Pages from `main` (every push is verified), lays out for phone and tablet, installs to the home screen, works offline and updates itself silently (see [`deployment.md`](docs/architecture/deployment.md)).
 
-Next is feature 5, playing a song's notes in order. See [`docs/features/`](docs/features/) for the list. The rest are not built yet.
+Features 6 to 8 (smart sampling, song practice, timed play-along) are designed but not built; feature 9 (other instruments) is parked. See [`docs/features/`](docs/features/) for the list.
 
 ## Documentation
 
@@ -24,9 +24,8 @@ Planning comes first in this project. The docs are organized by what they are fo
 
 | Where                                      | What it is                                                                                       |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| [`docs/vision/`](docs/vision/)             | The vision and detailed plan. Intent, not fact. Start with [`vision.md`](docs/vision/vision.md). |
 | [`docs/architecture/`](docs/architecture/) | What is actually built: overview, module docs, data formats, and decision records (ADRs).        |
-| [`docs/features/`](docs/features/)         | One folder per feature: a design doc plus its stories with acceptance criteria.                  |
+| [`docs/features/`](docs/features/)         | One folder per feature: a design doc plus its stories with acceptance criteria. The plan, not fact. |
 | [`docs/research/`](docs/research/)         | Background research: prior art, fingering data sources, licensing.                               |
 | [`docs/templates/`](docs/templates/)       | Templates for features, stories, ADRs and progress files.                                        |
 | [`docs/glossary.md`](docs/glossary.md)     | Domain terms.                                                                                    |
@@ -35,9 +34,9 @@ Planning comes first in this project. The docs are organized by what they are fo
 | [`data/fonts/`](data/fonts/)               | The bundled tablature font and its OFL license.                                                  |
 | [`CLAUDE.md`](CLAUDE.md)                   | Working rules for Claude, which writes most of the code.                                         |
 
-The vision is a proposal, not a promise: it records intent and may change, and only the architecture docs describe what is built.
+Feature designs are proposals, not promises: they record intent and may change, and only the architecture docs describe what is built.
 
-The flow is: vision, then feature designs and stories, then progress tracking and code, then architecture docs updated to describe what was built. See [`docs/README.md`](docs/README.md) for the details.
+The flow is: feature designs and stories, then progress tracking and code, then architecture docs updated to describe what was built. See [`docs/README.md`](docs/README.md) for the details.
 
 ## Building
 
@@ -117,4 +116,4 @@ Contributions are welcome, especially bug fixes, fingering corrections and new i
 
 ## License
 
-MIT, see [`LICENSE`](LICENSE). Third-party assets and dependencies are noted in the [vision](docs/vision/vision.md#license-and-assets).
+MIT, see [`LICENSE`](LICENSE). Dependencies such as VexFlow and abcjs are MIT, and panzi's tablature fonts are unrestricted (the pitch detector is our own, [ADR 0005](docs/architecture/decisions/0005-yin-pitch-detector.md)). Fingerings must never be copied from commercial charts (Songbird, STL Ocarina and similar); use open sources and the open fonts. Code license and third-party asset notes stay separate in the repo.

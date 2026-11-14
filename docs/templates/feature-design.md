@@ -1,7 +1,6 @@
 # F<NN>: <Feature name>
 
 - **Status:** draft | designed | in progress | shipped
-- **Vision source:** `../../vision/vision.md#<anchor>`
 
 ## Goal
 

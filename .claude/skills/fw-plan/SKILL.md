@@ -1,6 +1,6 @@
 ---
 name: fw-plan
-description: Plan fingerwise with the user in dialog. Use when the user wants to think through, refine or record vision, architecture changes, ADRs, feature designs or stories. Works only on planning docs, never on code.
+description: Plan fingerwise with the user in dialog. Use when the user wants to think through, refine or record architecture changes, ADRs, feature designs or stories. Works only on planning docs, never on code.
 argument-hint: "[topic, e.g. 'spaced repetition' or 'F01 stories']"
 ---
 
@@ -19,30 +19,30 @@ Planning happens on a `plan/<topic>` branch (see CLAUDE.md#branches).
 ## Orient first
 
 Read, in this order, before saying anything substantive:
-1. `docs/vision/README.md` and `docs/vision/vision.md` (intent, open questions)
+1. `docs/features/README.md` (the feature index) and the relevant `docs/features/` folder, if the topic has one
 2. `docs/architecture/README.md` and the relevant `modules/` and `decisions/` (what is built and decided)
-3. The relevant `docs/features/` folder, if the topic has one
+3. `docs/research/` if the topic touches it
 4. `docs/glossary.md`
 
-If the topic was given as an argument, start there. Otherwise ask what they want to work on, offering the open questions in the vision as options.
+If the topic was given as an argument, start there. Otherwise ask what they want to work on, offering the open questions in the feature designs as options.
 
 ## How to run the conversation
 
 - **Dialog, not monologue.** Ask one or two questions at a time. Wait for answers. Do not draft whole documents unprompted.
 - **Recommend, don't survey.** When there is a choice, state your recommendation and why, and name the real tradeoff. Use AskUserQuestion for bounded choices.
-- **Challenge.** Point out contradictions with the vision, accepted ADRs, or the layer rule (the drill engine knows only pitch and instrument definitions). Flag scope creep, hidden assumptions and decisions that are being made by default.
+- **Challenge.** Point out contradictions with accepted ADRs, or the layer rule (the drill engine knows only pitch and instrument definitions). Flag scope creep, hidden assumptions and decisions that are being made by default.
 - **Separate exploring from deciding.** Say which one you think you're in. Do not treat an idea as a decision until the user says so.
 - **Keep the user's voice.** Use their terms and the glossary. Add new terms to the glossary when one firms up.
 
 ## Recording (only after the user confirms)
 
 Say what you intend to write and where, then write it.
-- **Exploration or direction change** goes in `docs/vision/vision.md` under its existing headings. Keep anchors stable.
-- **A decision** goes in an ADR from `docs/templates/adr.md`, numbered next in `docs/architecture/decisions/`, and added to the ADR index. Then replace the corresponding open question in the vision with a link. Never edit an accepted ADR; write a superseding one.
+- **Exploration or direction change** goes in the relevant feature design, or `docs/research/` for background. A new idea with no design yet becomes a parked feature in `docs/features/README.md`.
+- **A decision** goes in an ADR from `docs/templates/adr.md`, numbered next in `docs/architecture/decisions/`, and added to the ADR index. Then replace the corresponding open question in the feature design with a link. Never edit an accepted ADR; write a superseding one.
 - **A feature** gets `docs/features/<NN>-<name>/design.md` from the template, and its row in `docs/features/README.md` updated.
 - **Stories** go in that feature's `stories/` as `F<NN>-S<NN>-<name>.md` from the template. Acceptance criteria are numbered `AC1...`, concrete and checkable. Stories say _what_; leave _how_ to the breakdown skill.
 - **Architecture docs** describe only what is built. Do not put plans there.
-- Do not leave two sources of truth: when something moves out of the vision, leave a one-line pointer.
+- Do not leave two sources of truth: when something moves elsewhere, leave a one-line pointer.
 
 ## Boundaries
 

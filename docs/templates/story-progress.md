@@ -12,7 +12,7 @@ Covers: AC1, AC2
 - [ ] <how: concrete step, naming files/functions/data>
 - [ ] <how: concrete step>
 - [ ] Tests for the above pass
-- [ ] Update `docs/architecture/modules/<module>.md`; trim the vision to a pointer
+- [ ] Update `docs/architecture/modules/<module>.md`
 
 ## F<NN>-S02: <name>
 
