@@ -4,6 +4,7 @@ import {
 	type CardState,
 	type CardTone,
 	createCardFlow,
+	needSource,
 	type PitchSource,
 	randomSource,
 	songSource,
@@ -11,6 +12,12 @@ import {
 import type { ListenResult, PitchReading } from "../../src/audio/listener";
 import { createToneTracker, DEFAULT_THRESHOLDS } from "../../src/core/judge";
 import type { Pitch } from "../../src/core/pitch";
+import {
+	applyGrade,
+	emptyScores,
+	type ProgressGrade,
+	type Scores,
+} from "../../src/core/progress";
 
 const POOL = [60, 62, 64, 65] as Pitch[];
 const NONE = { grade: "none" };
@@ -875,5 +882,263 @@ describe("song cards (F05-S04)", () => {
 		expect(last()).toMatchObject({ pitch: 62, revealed: false });
 		flow.step();
 		expect(last()).toMatchObject({ pitch: 62, revealed: true });
+	});
+});
+
+describe("cards drawn by need (F06-S04)", () => {
+	beforeEach(() => {
+		vi.setSystemTime(0);
+	});
+
+	const RUNNING: ListenResult = { status: "running" };
+
+	function fakeListener(result: ListenResult = RUNNING) {
+		const state = {
+			onReading: null as ((r: PitchReading) => void) | null,
+			result,
+		};
+		return {
+			state,
+			listener: {
+				start(onReading: (r: PitchReading) => void) {
+					state.onReading = onReading;
+					return Promise.resolve(state.result);
+				},
+				stop() {},
+			},
+		};
+	}
+
+	function gradedSetup(
+		over: { listen?: boolean; onGraded?: null; result?: ListenResult } = {},
+	) {
+		const fake = fakeListener(over.result);
+		const grades: { pitch: Pitch; grade: ProgressGrade }[] = [];
+		let scores: Scores = emptyScores();
+		let i = 0;
+		const flow = createCardFlow({
+			next: needSource(
+				POOL,
+				() => scores,
+				() => (i++ % 3) / 3,
+			),
+			delayMs: DELAY,
+			advanceDelayMs: null,
+			listen:
+				over.listen === false
+					? null
+					: {
+							listener: fake.listener,
+							tracker: createToneTracker(DEFAULT_THRESHOLDS),
+							grade: (_p, hz) => (hz === 440 ? "correct" : "incorrect"),
+							now: () => Date.now(),
+						},
+			onGraded:
+				over.onGraded === null
+					? null
+					: (pitch, grade) => {
+							grades.push({ pitch, grade });
+							scores = applyGrade(scores, pitch, grade);
+						},
+			onChange: (st) => states.push(st),
+		});
+		return { flow, fake, grades, getScores: () => scores };
+	}
+
+	async function settle() {
+		for (let k = 0; k < 5; k++) await Promise.resolve();
+	}
+
+	function play(fake: ReturnType<typeof fakeListener>, hz: number, ms: number) {
+		for (let t = 0; t < ms; t += 16) {
+			fake.state.onReading?.({
+				time: Date.now(),
+				frequency: hz,
+				clarity: 0.98,
+				level: -30,
+			});
+			vi.advanceTimersByTime(16);
+		}
+	}
+
+	test("needSource draws by weight and never the previous", () => {
+		const weights = new Map<Pitch, number>([
+			[POOL[0] as Pitch, 1],
+			[POOL[1] as Pitch, 3],
+		]);
+		const pool = [POOL[0], POOL[1]] as Pitch[];
+		const source = needSource(
+			pool,
+			() => weights,
+			() => 0.6,
+		);
+		// Candidates minus the previous: one pitch left, so it is drawn.
+		expect(source(POOL[0] as Pitch)).toBe(POOL[1]);
+		expect(source(POOL[1] as Pitch)).toBe(POOL[0]);
+		// With no previous, a random of 0.6 falls past the first weight (0.25 of the total).
+		expect(source(null)).toBe(POOL[1]);
+		expect(
+			needSource(
+				pool,
+				() => weights,
+				() => 0,
+			)(null),
+		).toBe(POOL[0]);
+	});
+
+	test("a scores change is seen by the next draw", () => {
+		let scores: Scores = emptyScores();
+		const pool = [POOL[0], POOL[1]] as Pitch[];
+		const source = needSource(
+			pool,
+			() => scores,
+			() => 0.5,
+		);
+		expect(source(null)).toBe(POOL[1]);
+		scores = new Map([[POOL[1] as Pitch, 0]]);
+		// POOL[1] now weighs the floor, 0.05 against 1: 0.5 lands on the first.
+		expect(source(null)).toBe(POOL[0]);
+	});
+
+	test("scores for pitches outside a narrowed pool are used again after widening", () => {
+		const missed = POOL[3] as Pitch;
+		let scores: Scores = emptyScores();
+		for (let k = 0; k < 20; k++) scores = applyGrade(scores, missed, "correct");
+		let r = 0;
+		const sweep = () => (r++ % 1000) / 1000;
+		const narrow = needSource(
+			[POOL[0], POOL[1]] as Pitch[],
+			() => scores,
+			sweep,
+		);
+		for (let k = 0; k < 10; k++) narrow(null);
+		// Left out of the pool, the score is still there for the wide pool.
+		expect(scores.get(missed)).toBeLessThan(0.01);
+		r = 0;
+		const wide = needSource(POOL, () => scores, sweep);
+		let drawn = 0;
+		for (let k = 0; k < 1000; k++) if (wide(null) === missed) drawn++;
+		// The floor, 0.05 against three at 1, is about 1.6 percent, not a quarter.
+		expect(drawn).toBeGreaterThan(0);
+		expect(drawn).toBeLessThan(40);
+	});
+
+	test("a correct tone grades correct, once", async () => {
+		const { flow, fake, grades } = gradedSetup();
+		flow.start();
+		await settle();
+		const shown = last().pitch;
+		play(fake, 440, 900);
+		expect(last().verdict).toMatchObject({ grade: "correct" });
+		expect(grades).toEqual([{ pitch: shown, grade: "correct" }]);
+		vi.advanceTimersByTime(DELAY * 2);
+		flow.step();
+		expect(grades).toHaveLength(1);
+	});
+
+	test("an incorrect tone, a timed reveal and a tap each grade miss", async () => {
+		const { flow, fake, grades } = gradedSetup();
+		flow.start();
+		await settle();
+		play(fake, 300, 900);
+		expect(last().verdict).toMatchObject({ grade: "incorrect" });
+		expect(grades.map((g) => g.grade)).toEqual(["miss"]);
+		flow.step();
+		vi.advanceTimersByTime(DELAY);
+		expect(last().verdict).toEqual({ grade: "none" });
+		expect(grades.map((g) => g.grade)).toEqual(["miss", "miss"]);
+		flow.step();
+		flow.step();
+		expect(grades.map((g) => g.grade)).toEqual(["miss", "miss", "miss"]);
+	});
+
+	test("no grade while opening, locked or unavailable, and draws stay weighted", async () => {
+		for (const result of [
+			{ status: "locked" },
+			{ status: "unavailable", reason: "denied" },
+		] as ListenResult[]) {
+			states = [];
+			const { flow, grades } = gradedSetup({ result });
+			flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY);
+			expect(last().revealed).toBe(true);
+			expect(grades).toEqual([]);
+			flow.step();
+			expect(last().revealed).toBe(false);
+			flow.stop();
+		}
+		states = [];
+		const opening = gradedSetup();
+		opening.flow.start();
+		expect(last().listening).toBe("opening");
+		opening.flow.step();
+		expect(last().revealed).toBe(true);
+		await settle();
+		expect(opening.grades).toEqual([]);
+	});
+
+	test("a grade changes the next draw", async () => {
+		const { flow, fake, grades, getScores } = gradedSetup();
+		flow.start();
+		await settle();
+		const first = last().pitch;
+		play(fake, 440, 900);
+		expect(getScores().get(first)).toBeCloseTo(0.7, 10);
+		expect(grades).toHaveLength(1);
+	});
+
+	test("without onGraded nothing is called and cards still show", async () => {
+		const { flow, fake, grades } = gradedSetup({ onGraded: null });
+		flow.start();
+		await settle();
+		play(fake, 440, 900);
+		expect(last().revealed).toBe(true);
+		expect(grades).toEqual([]);
+	});
+
+	test("without listen nothing is graded", () => {
+		const { flow, grades } = gradedSetup({ listen: false });
+		flow.start();
+		vi.advanceTimersByTime(DELAY);
+		expect(last().revealed).toBe(true);
+		expect(grades).toEqual([]);
+	});
+
+	test("song cards without onGraded are unchanged", () => {
+		const flow = createCardFlow({
+			next: songSource(POOL),
+			delayMs: DELAY,
+			advanceDelayMs: null,
+			onChange: (st) => states.push(st),
+		});
+		flow.start();
+		expect(last().pitch).toBe(POOL[0]);
+		flow.step();
+		flow.step();
+		expect(last().pitch).toBe(POOL[1]);
+	});
+
+	test("a throwing onGraded is swallowed", async () => {
+		const fake = fakeListener();
+		const flow = createCardFlow({
+			next: needSource(POOL, emptyScores, () => 0),
+			delayMs: DELAY,
+			advanceDelayMs: null,
+			listen: {
+				listener: fake.listener,
+				tracker: createToneTracker(DEFAULT_THRESHOLDS),
+				grade: () => "correct",
+				now: () => Date.now(),
+			},
+			onGraded: () => {
+				throw new Error("save failed");
+			},
+			onChange: (st) => states.push(st),
+		});
+		flow.start();
+		await settle();
+		flow.step();
+		expect(last().revealed).toBe(true);
 	});
 });

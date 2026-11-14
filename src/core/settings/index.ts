@@ -12,6 +12,7 @@ export interface Settings {
 	soundDelaySeconds: number;
 	soundDurationSeconds: number;
 	judgeEnabled: boolean;
+	smartSampling: boolean;
 	toleranceCents: number;
 	useSong: boolean;
 	songAbc: string;
@@ -29,6 +30,7 @@ export interface SettingsJson {
 	soundDelaySeconds: number;
 	soundDurationSeconds: number;
 	judgeEnabled: boolean;
+	smartSampling: boolean;
 	toleranceCents: number;
 	useSong: boolean;
 	songAbc: string;
@@ -68,6 +70,7 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		soundDelaySeconds: settings.soundDelaySeconds,
 		soundDurationSeconds: settings.soundDurationSeconds,
 		judgeEnabled: settings.judgeEnabled,
+		smartSampling: settings.smartSampling,
 		toleranceCents: settings.toleranceCents,
 		useSong: settings.useSong,
 		songAbc: settings.songAbc,
@@ -109,6 +112,11 @@ export function setIncludeSharps(
 /** The sum rule only holds a sound inside the advance wait when both are on. */
 export function soundRuleApplies(s: Settings): boolean {
 	return s.soundEnabled && s.autoAdvance;
+}
+
+/** Smart sampling draws by need, which takes the judge's grades and a random draw, so a song or no judging turns it off. */
+export function smartSamplingApplies(s: Settings): boolean {
+	return s.smartSampling && s.judgeEnabled && !s.useSong;
 }
 
 /** Sound delay plus duration fits in the advance delay (compared with a tolerance for half seconds). */
@@ -261,6 +269,10 @@ export function validateSettings(
 		typeof obj.judgeEnabled === "boolean"
 			? obj.judgeEnabled
 			: defaults.judgeEnabled;
+	const smartSampling =
+		typeof obj.smartSampling === "boolean"
+			? obj.smartSampling
+			: defaults.smartSampling;
 	const toleranceCents = isValidTolerance(obj.toleranceCents)
 		? obj.toleranceCents
 		: defaults.toleranceCents;
@@ -294,6 +306,7 @@ export function validateSettings(
 		soundDelaySeconds,
 		soundDurationSeconds,
 		judgeEnabled,
+		smartSampling,
 		toleranceCents,
 		useSong,
 		songAbc,
@@ -352,6 +365,9 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (typeof obj.judgeEnabled !== "boolean") {
 		throw new SettingsError("judgeEnabled must be true or false");
 	}
+	if (typeof obj.smartSampling !== "boolean") {
+		throw new SettingsError("smartSampling must be true or false");
+	}
 	if (!isValidTolerance(obj.toleranceCents)) {
 		throw new SettingsError(
 			`toleranceCents must be a number from ${MIN_TOLERANCE_CENTS} to ${MAX_TOLERANCE_CENTS}`,
@@ -399,6 +415,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		soundDelaySeconds: obj.soundDelaySeconds,
 		soundDurationSeconds: obj.soundDurationSeconds,
 		judgeEnabled: obj.judgeEnabled,
+		smartSampling: obj.smartSampling,
 		toleranceCents: obj.toleranceCents,
 		useSong: obj.useSong,
 		songAbc: obj.songAbc,

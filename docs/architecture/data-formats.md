@@ -41,20 +41,31 @@ Every error is an `InstrumentError` whose message names the offending field (dot
 | `soundDelaySeconds` | number | Time from the reveal to the note starting. Finite, 0 to 30 inclusive. |
 | `soundDurationSeconds` | number | How long the note sounds. Finite, 0.5 to 30 inclusive. |
 | `judgeEnabled` | boolean | Whether the microphone judges the played note before the reveal. |
+| `smartSampling` | boolean | Whether cards are drawn by need (F06). Only takes effect with judging on and no song. |
 | `toleranceCents` | number | How far, in cents, a played tone may be from the expected pitch and still be correct. Finite, 10 to 45 inclusive. |
 | `useSong` | boolean | Cards follow the song instead of the random pool. Must be `false` in the defaults file. |
 | `songAbc` | string | The player's tune in ABC notation, kept as typed. At most 10,000 characters. Must be `""` in the defaults file. |
 
 Across fields: with `soundEnabled` and `autoAdvance` both true, `soundDelaySeconds + soundDurationSeconds` must not exceed `advanceDelaySeconds`.
 
-The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 second reveal delay, auto-advance on, 3 second advance delay, play note on, 0.5 second sound delay, 1.5 second sound duration, judge off, 40 cent tolerance, use song off and no song text.
+The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 second reveal delay, auto-advance on, 3 second advance delay, play note on, 0.5 second sound delay, 1.5 second sound duration, judge off, smart sampling off, 40 cent tolerance, use song off and no song text.
 
 ## Storage
 
 Settings are kept in `localStorage` under the single key `fingerwise.settings`, as JSON in the same shape as the defaults file:
 
 ```json
-{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3, "autoAdvance": true, "advanceDelaySeconds": 3, "soundEnabled": true, "soundDelaySeconds": 0.5, "soundDurationSeconds": 1.5, "judgeEnabled": false, "toleranceCents": 40, "useSong": false, "songAbc": "" }
+{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3, "autoAdvance": true, "advanceDelaySeconds": 3, "soundEnabled": true, "soundDelaySeconds": 0.5, "soundDurationSeconds": 1.5, "judgeEnabled": false, "smartSampling": false, "toleranceCents": 40, "useSong": false, "songAbc": "" }
 ```
 
-On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. Data saved before auto-advance existed lacks `autoAdvance` and `advanceDelaySeconds`, so it keeps its other fields and gets the defaults for those two; data saved before sound existed likewise gets play note on, 0.5 s and 1.5 s, and data saved before judging gets judge off and 40 cents; data saved before songs gets use song off and an empty text. A `useSong` that is not a boolean, or a `songAbc` that is not a string or is over 10,000 characters, resets alone. Whether a stored text still passes is not checked here: the app parses it at load and turns use song off when it fails ([app](modules/app.md)). If the result breaks the sound rule above (for example an old advance delay of 1 s), the sound delay, sound duration and advance delay all reset to the defaults and the other fields are kept. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet; nothing from the microphone is ever stored.
+On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. Data saved before auto-advance existed lacks `autoAdvance` and `advanceDelaySeconds`, so it keeps its other fields and gets the defaults for those two; data saved before sound existed likewise gets play note on, 0.5 s and 1.5 s, and data saved before judging gets judge off and 40 cents; data saved before smart sampling gets it off; a `smartSampling` that is not a boolean resets alone; data saved before songs gets use song off and an empty text. A `useSong` that is not a boolean, or a `songAbc` that is not a string or is over 10,000 characters, resets alone. Whether a stored text still passes is not checked here: the app parses it at load and turns use song off when it fails ([app](modules/app.md)). If the result breaks the sound rule above (for example an old advance delay of 1 s), the sound delay, sound duration and advance delay all reset to the defaults and the other fields are kept. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet; nothing from the microphone is ever stored.
+
+### Progress
+
+Smart sampling's scores ([progress](modules/progress.md)) are kept in `localStorage` under their own key, `fingerwise.progress`, separate from the settings, as one JSON object keyed by the instrument's `name`, each value a map from written pitch name to need (0 known, 1 needs work):
+
+```json
+{ "12-hole alto C ocarina": { "C5": 0.24, "C♯5": 0.7 } }
+```
+
+Only pitches that have been graded appear; any other reads as need 1. Because the key is the instrument's `name`, renaming an instrument in its JSON orphans its scores. On load only the current instrument's entry is read, and `fromProgressJson` drops each entry whose pitch name does not parse, is outside the instrument's written range, or whose value is not a finite number from 0 to 1; a value that is not an object gives no scores. A missing key, unparseable JSON, a non-object store, a throwing `getItem` or absent storage gives no scores. Saving replaces only the current instrument's entry and copies the other instruments' entries as stored (unvalidated, since only one instrument is loaded); an unreadable store is replaced. A failed write or absent storage is ignored. There is no version field, as with the settings. Nothing from the microphone is stored, only these numbers.

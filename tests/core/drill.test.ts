@@ -4,6 +4,7 @@ import {
 	buildPool,
 	DrillError,
 	drawPitch,
+	drawWeighted,
 	fullRange,
 	nextInOrder,
 	type RandomSource,
@@ -170,6 +171,85 @@ describe("nextInOrder (F05-S01 AC3 to AC5)", () => {
 	});
 });
 
+describe("drawWeighted (F06-S01 AC6 to AC8)", () => {
+	const pool = buildPool(instrument, {
+		...fullRange(instrument),
+		includeSharps: true,
+	});
+	const one = (): number => 1;
+
+	test("AC6: draws in proportion to weight under a stepping random", () => {
+		const two = [pitch("C4"), pitch("D4")];
+		const weight = (p: Pitch): number => (p === two[0] ? 1 : 3);
+		const random = stepping(4000);
+		const counts = new Map<Pitch, number>();
+		for (let i = 0; i < 4000; i++) {
+			const p = drawWeighted(two, null, weight, random);
+			counts.set(p, (counts.get(p) ?? 0) + 1);
+		}
+		expect(counts.get(two[0] as Pitch)).toBe(1000);
+		expect(counts.get(two[1] as Pitch)).toBe(3000);
+	});
+
+	test("AC6: every candidate is reachable and the previous is never drawn", () => {
+		const previous = pool[3] as Pitch;
+		const weight = (p: Pitch): number => 1 + (p % 5);
+		const seen = new Set<Pitch>();
+		for (let i = 0; i < 500; i++) {
+			const drawn = drawWeighted(pool, previous, weight, () => i / 500);
+			expect(drawn).not.toBe(previous);
+			seen.add(drawn);
+		}
+		expect(seen.size).toBe(pool.length - 1);
+	});
+
+	test("AC6: a random just below 1 gives the last candidate", () => {
+		const weight = (p: Pitch): number => 1 + (p % 3);
+		expect(drawWeighted(pool, null, weight, () => 0.9999999999999999)).toBe(
+			pool[pool.length - 1],
+		);
+	});
+
+	test("AC7: a pool of one returns it, even as previous", () => {
+		const single = [pitch("C4")];
+		expect(drawWeighted(single, pitch("C4"), one, () => 0.5)).toBe(pitch("C4"));
+		expect(drawWeighted(single, null, one, () => 0.5)).toBe(pitch("C4"));
+	});
+
+	test("AC7: an empty pool throws DrillError", () => {
+		expect(() => drawWeighted([], null, one, () => 0)).toThrow(DrillError);
+	});
+
+	test("AC7: a weight that is not finite and positive throws DrillError", () => {
+		for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+			expect(() =>
+				drawWeighted(
+					pool,
+					null,
+					() => bad,
+					() => 0,
+				),
+			).toThrow(DrillError);
+		}
+	});
+
+	test("AC8: equal weights match drawPitch for any random value", () => {
+		const randoms = [0, 0.001, 0.25, 0.5, 0.77, 0.9999999999999999];
+		for (const previous of [null, pool[3] as Pitch]) {
+			for (const r of randoms) {
+				expect(
+					drawWeighted(
+						pool,
+						previous,
+						() => 0.4,
+						() => r,
+					),
+				).toBe(drawPitch(pool, previous, () => r));
+			}
+		}
+	});
+});
+
 describe("AC10: imports and randomness", () => {
 	test("imports exactly ../pitch and ../instrument", () => {
 		const specifiers = [...drillSource.matchAll(/from\s+["']([^"']+)["']/g)]
@@ -177,6 +257,7 @@ describe("AC10: imports and randomness", () => {
 			.sort();
 		expect(specifiers).toEqual(["../instrument", "../pitch"]);
 		expect(drillSource).not.toContain("../song");
+		expect(drillSource).not.toContain("../progress");
 	});
 
 	test("never calls Math.random", () => {

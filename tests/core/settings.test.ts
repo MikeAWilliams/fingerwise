@@ -18,6 +18,7 @@ import {
 	setIncludeSharps,
 	setSoundEnabled,
 	setTimings,
+	smartSamplingApplies,
 	snapToNaturals,
 	soundFits,
 	soundTooLongReason,
@@ -53,6 +54,7 @@ function settings(
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -73,6 +75,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -746,4 +749,61 @@ describe("song fields", () => {
 
 test("the module does not import JSON", () => {
 	expect(source).not.toMatch(/\.json["']/);
+});
+
+describe("smart sampling field (F06-S02)", () => {
+	test("the defaults file must hold a boolean", () => {
+		for (const smartSampling of [undefined, "false", 0, null]) {
+			expect(() => parseDefaults(json({ smartSampling }), instrument)).toThrow(
+				"smartSampling",
+			);
+		}
+		expect(parseDefaults(json(), instrument).smartSampling).toBe(false);
+	});
+
+	test("a valid value is kept and round trips through the JSON form", () => {
+		const input = { ...DEFAULTS, smartSampling: true };
+		expect(toSettingsJson(input).smartSampling).toBe(true);
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
+	test("old data without it gets false and keeps every other field", () => {
+		const { smartSampling: _s, ...old } = json({ delaySeconds: 5 });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 5,
+			smartSampling: false,
+		});
+	});
+
+	test("a non-boolean value resets alone", () => {
+		for (const smartSampling of ["true", 1, null]) {
+			expect(
+				validateSettings(
+					json({ smartSampling, delaySeconds: 5 }),
+					instrument,
+					DEFAULTS,
+				),
+			).toEqual({ ...DEFAULTS, delaySeconds: 5, smartSampling: false });
+		}
+	});
+
+	test("smartSamplingApplies needs the setting, judging and no song", () => {
+		for (const smartSampling of [false, true]) {
+			for (const judgeEnabled of [false, true]) {
+				for (const useSong of [false, true]) {
+					expect(
+						smartSamplingApplies({
+							...DEFAULTS,
+							smartSampling,
+							judgeEnabled,
+							useSong,
+						}),
+					).toBe(smartSampling && judgeEnabled && !useSong);
+				}
+			}
+		}
+	});
 });

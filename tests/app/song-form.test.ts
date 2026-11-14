@@ -30,6 +30,7 @@ const SETTINGS: Settings = {
 	soundDelaySeconds: 0.5,
 	soundDurationSeconds: 1.5,
 	judgeEnabled: false,
+	smartSampling: false,
 	toleranceCents: 40,
 	useSong: false,
 	songAbc: "",

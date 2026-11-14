@@ -9,6 +9,9 @@ import {
 	highestOptions,
 	lowestOptions,
 	micSummary,
+	SONG_IN_USE,
+	smartSamplingDisabled,
+	smartSamplingNote,
 	soundSummary,
 } from "../../src/app/settings-form";
 import { loadInstrument } from "../../src/core/instrument";
@@ -38,6 +41,7 @@ function settings(
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
 		judgeEnabled: false,
+		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
 		songAbc: "",
@@ -232,5 +236,41 @@ describe("editTiming", () => {
 				settings: { soundDurationSeconds: 30 },
 			});
 		}
+	});
+});
+
+describe("smart sampling control (F06-S02 AC4, AC5)", () => {
+	const base = settings("A3", "F5");
+
+	test("disabled while judging is off or a song is in use, enabled otherwise", () => {
+		for (const judgeEnabled of [false, true]) {
+			for (const useSong of [false, true]) {
+				expect(smartSamplingDisabled({ ...base, judgeEnabled, useSong })).toBe(
+					!judgeEnabled || useSong,
+				);
+			}
+		}
+	});
+
+	test("the note shows only while judging is off", () => {
+		expect(smartSamplingNote({ ...base, judgeEnabled: false })).toBe(
+			"Needs Judge my playing",
+		);
+		expect(smartSamplingNote({ ...base, judgeEnabled: true })).toBeNull();
+		expect(
+			smartSamplingNote({ ...base, judgeEnabled: true, useSong: true }),
+		).toBeNull();
+	});
+
+	test("the value is kept whatever the state", () => {
+		const s = { ...base, smartSampling: true, judgeEnabled: false };
+		expect(smartSamplingDisabled(s)).toBe(true);
+		expect(s.smartSampling).toBe(true);
+	});
+
+	test("the song line names the three controls", () => {
+		expect(SONG_IN_USE).toBe(
+			"A song is in use, so the note range, sharps and smart sampling do not apply.",
+		);
 	});
 });
