@@ -23,13 +23,32 @@ export interface OscillatorLike {
 	stop(when?: number): void;
 }
 
+export interface AnalyserLike {
+	fftSize: number;
+	getFloatTimeDomainData(array: Float32Array<ArrayBuffer>): void;
+	disconnect(): void;
+}
+
+/** A microphone stream: only its tracks are used, to release it. */
+export interface StreamLike {
+	getTracks(): { stop(): void }[];
+}
+
+export interface SourceLike {
+	connect(destination: unknown): unknown;
+	disconnect(): void;
+}
+
 export interface AudioContextLike {
 	readonly state: string;
 	readonly currentTime: number;
+	readonly sampleRate: number;
 	readonly destination: unknown;
 	resume(): Promise<void>;
 	createOscillator(): OscillatorLike;
 	createGain(): GainLike;
+	createAnalyser(): AnalyserLike;
+	createMediaStreamSource(stream: StreamLike): SourceLike;
 }
 
 export interface Audio {

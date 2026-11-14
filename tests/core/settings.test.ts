@@ -7,6 +7,9 @@ import {
 	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
 	canTurnSoundOn,
+	isValidTolerance,
+	MAX_TOLERANCE_CENTS,
+	MIN_TOLERANCE_CENTS,
 	parseDefaults,
 	type Settings,
 	SettingsError,
@@ -48,6 +51,8 @@ function settings(
 		soundEnabled: false,
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
+		judgeEnabled: false,
+		toleranceCents: 40,
 	};
 }
 
@@ -64,6 +69,8 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		soundEnabled: false,
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
+		judgeEnabled: false,
+		toleranceCents: 40,
 		...over,
 	};
 }
@@ -537,6 +544,102 @@ describe("sound in the defaults file", () => {
 			soundDelaySeconds: 0.5,
 			soundDurationSeconds: 1.5,
 		});
+	});
+});
+
+describe("judge fields", () => {
+	test("bounds are 10 to 45", () => {
+		expect(MIN_TOLERANCE_CENTS).toBe(10);
+		expect(MAX_TOLERANCE_CENTS).toBe(45);
+		for (const v of [10, 10.5, 40, 45]) expect(isValidTolerance(v)).toBe(true);
+		for (const v of [9.9, 45.1, Number.NaN, Infinity, -Infinity, "40", null]) {
+			expect(isValidTolerance(v)).toBe(false);
+		}
+	});
+
+	test("valid values are kept", () => {
+		for (const toleranceCents of [10, 25.5, 45]) {
+			const result = validateSettings(
+				json({ judgeEnabled: true, toleranceCents }),
+				instrument,
+				DEFAULTS,
+			);
+			expect(result.judgeEnabled).toBe(true);
+			expect(result.toleranceCents).toBe(toleranceCents);
+		}
+	});
+
+	test("a bad judge flag resets alone", () => {
+		for (const judgeEnabled of [undefined, "true", 1, null]) {
+			const result = validateSettings(
+				json({ judgeEnabled, toleranceCents: 20, delaySeconds: 5 }),
+				instrument,
+				DEFAULTS,
+			);
+			expect(result).toEqual({
+				...DEFAULTS,
+				delaySeconds: 5,
+				toleranceCents: 20,
+			});
+		}
+	});
+
+	test("a bad tolerance resets alone", () => {
+		for (const toleranceCents of [
+			undefined,
+			"40",
+			Number.NaN,
+			Infinity,
+			-Infinity,
+			9.9,
+			45.1,
+		]) {
+			const result = validateSettings(
+				json({ judgeEnabled: true, toleranceCents, delaySeconds: 5 }),
+				instrument,
+				DEFAULTS,
+			);
+			expect(result).toEqual({
+				...DEFAULTS,
+				delaySeconds: 5,
+				judgeEnabled: true,
+			});
+		}
+	});
+
+	test("old data without the fields gets judge off and 40 cents", () => {
+		const {
+			judgeEnabled: _j,
+			toleranceCents: _t,
+			...old
+		} = json({
+			delaySeconds: 5,
+		});
+		const result = validateSettings(old, instrument, DEFAULTS);
+		expect(result).toEqual({ ...DEFAULTS, delaySeconds: 5 });
+	});
+
+	test("the defaults file must hold both fields", () => {
+		const bad: [Record<string, unknown>, string][] = [
+			[{ judgeEnabled: undefined }, "judgeEnabled"],
+			[{ judgeEnabled: "false" }, "judgeEnabled"],
+			[{ toleranceCents: undefined }, "toleranceCents"],
+			[{ toleranceCents: 9.9 }, "toleranceCents"],
+			[{ toleranceCents: 45.1 }, "toleranceCents"],
+			[{ toleranceCents: "40" }, "toleranceCents"],
+		];
+		for (const [over, fragment] of bad) {
+			expect(() => parseDefaults(json(over), instrument)).toThrow(
+				SettingsError,
+			);
+			expect(() => parseDefaults(json(over), instrument)).toThrow(fragment);
+		}
+	});
+
+	test("toSettingsJson includes the judge fields", () => {
+		expect(
+			toSettingsJson({ ...DEFAULTS, judgeEnabled: true, toleranceCents: 15 }),
+		).toMatchObject({ judgeEnabled: true, toleranceCents: 15 });
 	});
 });
 

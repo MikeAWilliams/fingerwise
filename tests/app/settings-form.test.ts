@@ -3,10 +3,12 @@ import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
 	applyAdvanceDelayInput,
 	applyDelayInput,
+	applyToleranceInput,
 	cardsSummary,
 	editTiming,
 	highestOptions,
 	lowestOptions,
+	micSummary,
 	soundSummary,
 } from "../../src/app/settings-form";
 import { loadInstrument } from "../../src/core/instrument";
@@ -35,6 +37,8 @@ function settings(
 		soundEnabled: false,
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
+		judgeEnabled: false,
+		toleranceCents: 40,
 	};
 }
 
@@ -141,6 +145,34 @@ describe("soundSummary", () => {
 	});
 	test("off says off", () => {
 		expect(soundSummary(settings("A3", "F5"))).toBe("off");
+	});
+});
+
+describe("micSummary", () => {
+	test("off says off", () => {
+		expect(micSummary(settings("A3", "F5"))).toBe("off");
+	});
+	test("on shows the tolerance", () => {
+		const s = { ...settings("A3", "F5"), judgeEnabled: true };
+		expect(micSummary(s)).toBe("on, within 40¢");
+		expect(micSummary({ ...s, toleranceCents: 12.5 })).toBe("on, within 12.5¢");
+	});
+});
+
+describe("applyToleranceInput", () => {
+	const base = settings("A3", "F5");
+	test("accepts 10, 45 and values between, leaving the rest alone", () => {
+		for (const v of [10, 25, 45]) {
+			expect(applyToleranceInput(base, v)).toEqual({
+				...base,
+				toleranceCents: v,
+			});
+		}
+	});
+	test("rejects 9.9, 45.1, NaN and Infinity by returning the settings unchanged", () => {
+		for (const v of [9.9, 45.1, Number.NaN, Infinity]) {
+			expect(applyToleranceInput(base, v)).toBe(base);
+		}
 	});
 });
 

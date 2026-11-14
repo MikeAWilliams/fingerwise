@@ -1,6 +1,6 @@
 # F04: Record and judge a single note
 
-- **Status:** designed
+- **Status:** done
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
