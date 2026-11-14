@@ -209,6 +209,7 @@ export function App() {
 					}
 				: null,
 			listen: listenFor(settings),
+			wait: settings.useSong && settings.judgeEnabled,
 			onGraded: smart ? onGraded : null,
 			onChange,
 		});

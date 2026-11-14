@@ -28,7 +28,11 @@ export type Listening =
 export interface CardState {
 	pitch: Pitch;
 	revealed: boolean;
-	/** Null while the card is hidden. */
+	/**
+	 * Null while the card is hidden. A card waiting for the correct note (see
+	 * `wait`) stays hidden and may carry a passing `incorrect` verdict, which clears
+	 * after `WRONG_VERDICT_MS`.
+	 */
 	verdict: Verdict | null;
 	listening: Listening;
 }
@@ -93,6 +97,9 @@ export function songSource(pitches: readonly Pitch[]): PitchSource {
 	};
 }
 
+/** How long a wrong-note verdict shows on a waiting card before it clears. */
+export const WRONG_VERDICT_MS = 1000;
+
 export interface CardFlowOptions {
 	next: PitchSource;
 	delayMs: number;
@@ -102,6 +109,12 @@ export interface CardFlowOptions {
 	tone?: CardTone | null;
 	/** Judges each card before its reveal; null or absent turns judging off. */
 	listen?: CardListen | null;
+	/**
+	 * Wait for the correct note: while listening runs with its window open, an
+	 * incorrect tone shows its verdict briefly instead of revealing the card, and
+	 * the reveal delay and taps do not reveal it. Needs `listen`; false by default.
+	 */
+	wait?: boolean;
 	/**
 	 * Called once for a card revealed while the stream runs: `correct` for a correct
 	 * verdict, `miss` for an incorrect one or none. Not called in any other state.
@@ -127,12 +140,15 @@ export function createCardFlow({
 	advanceDelayMs,
 	tone = null,
 	listen = null,
+	wait = false,
 	onGraded = null,
 	onChange,
 }: CardFlowOptions): CardFlow {
 	let state: CardState | null = null;
 	let cancelTimer: (() => void) | null = null;
 	let cancelSound: (() => void) | null = null;
+	// Clears a wrong verdict; apart from `cancelTimer` so the reveal delay still runs.
+	let cancelMiss: (() => void) | null = null;
 	// Bumped on every deal and on stop, so a late listener result knows its card is gone.
 	let dealt = 0;
 	let stopped = false;
@@ -143,6 +159,23 @@ export function createCardFlow({
 	function cancel() {
 		cancelTimer?.();
 		cancelTimer = null;
+	}
+
+	function cancelClear() {
+		cancelMiss?.();
+		cancelMiss = null;
+	}
+
+	/** True while the card is hidden and only the correct note moves it on. */
+	function waiting(): boolean {
+		return (
+			wait &&
+			listen !== null &&
+			state !== null &&
+			!state.revealed &&
+			state.listening === "running" &&
+			windowOpen
+		);
 	}
 
 	function cancelTone() {
@@ -180,6 +213,7 @@ export function createCardFlow({
 
 	function reveal(verdict: Verdict = NONE) {
 		cancel();
+		cancelClear();
 		windowOpen = false;
 		if (state === null || state.revealed) return;
 		const graded = listen !== null && state.listening === "running";
@@ -195,8 +229,14 @@ export function createCardFlow({
 		}
 	}
 
+	// While waiting, the reveal delay does nothing (the hint, F07-S02).
+	function timedReveal() {
+		if (waiting()) return;
+		reveal();
+	}
+
 	function startRevealDelay() {
-		cancelTimer = startRevealTimer(delayMs, () => reveal());
+		cancelTimer = startRevealTimer(delayMs, timedReveal);
 	}
 
 	function openWindow(active: CardListen) {
@@ -214,6 +254,18 @@ export function createCardFlow({
 			const hz = listen.tracker.push(reading);
 			if (hz === null) return;
 			const grade = listen.grade(state.pitch, hz);
+			if (grade === "incorrect" && waiting()) {
+				const shown = state;
+				show({ ...shown, verdict: { grade, frequency: hz } });
+				listen.tracker.reset(listen.now());
+				cancelClear();
+				cancelMiss = startRevealTimer(WRONG_VERDICT_MS, () => {
+					cancelMiss = null;
+					// Reveal, deal and stop cancel this timer, so the card is still the same.
+					show({ ...shown, verdict: null });
+				});
+				return;
+			}
 			reveal({ grade, frequency: hz });
 		} catch {
 			// A failing judge leaves the card to its reveal timer.
@@ -253,6 +305,7 @@ export function createCardFlow({
 
 	function deal(previous: Pitch | null) {
 		cancel();
+		cancelClear();
 		cancelTone();
 		windowOpen = false;
 		dealt++;
@@ -283,13 +336,14 @@ export function createCardFlow({
 		step() {
 			if (state === null) return;
 			if (state.revealed) deal(state.pitch);
-			else reveal();
+			else if (!waiting()) reveal();
 		},
 		stop() {
 			stopped = true;
 			dealt++;
 			windowOpen = false;
 			cancel();
+			cancelClear();
 			cancelTone();
 			if (!listen) return;
 			try {

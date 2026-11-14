@@ -64,14 +64,14 @@ export function Card({
 						{view?.kind === "placeholder" && (
 							<div class="card-glyph card-placeholder">{view.message}</div>
 						)}
-						{judging && verdict && listening !== "unavailable" && (
-							<VerdictView
-								verdict={verdict}
-								pitch={pitch}
-								instrument={instrument}
-							/>
-						)}
 					</>
+				)}
+				{judging && verdict && listening !== "unavailable" && (
+					<VerdictView
+						verdict={verdict}
+						pitch={pitch}
+						instrument={instrument}
+					/>
 				)}
 			</div>
 		</div>
