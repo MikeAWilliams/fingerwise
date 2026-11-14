@@ -28,7 +28,7 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Settle time**                | How long a detected pitch must stay clear, loud enough and steady before it counts as a played tone. 200 ms, from the [F04 spike](research/pitch-detection-spike.md). |
 | **Hold-off**                   | A short time at the start of each listening window when readings are ignored, so the room tail of the previous tone is not judged. 500 ms from the card's appearance. |
 | **Cents**                      | A hundredth of a semitone, the unit for how far a tone is from a note.                           |
-| **Song**                       | One tune, an ordered list of written pitches, read from the player's ABC text ([F05](features/05-songs/design.md)). |
+| **Song**                       | One tune, an ordered list of notes (written pitch, start and length in quarter-note beats) with its tempo and meter, read from the player's ABC text ([F05](features/05-songs/design.md), [ADR 0008](architecture/decisions/0008-songs-keep-rhythm.md)). |
 | **Use song**                   | A setting: cards follow the saved song in order instead of the random pool. Default off; disabled with no valid song. |
 | **Example song**               | "Mary Had a Little Lamb", the song text in the defaults, so use song works without pasting a tune. An empty stored song text loads as it ([F07](features/07-song-practice/design.md)). |
 | **Waiting**                    | A song card's state, with use song and judging on, until the correct note is played or the player skips. A wrong note does not end it ([F07](features/07-song-practice/design.md)). |

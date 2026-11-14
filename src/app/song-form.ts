@@ -1,7 +1,7 @@
 import defaultsJson from "../../data/settings/defaults.json";
 import type { AbcProblem, AbcResult } from "../abc";
 import type { Settings } from "../core/settings";
-import type { Song } from "../core/song";
+import { DEFAULT_TEMPO, type Song } from "../core/song";
 
 /** What the app holds of the player's song, apart from the saved text. */
 export interface SongState {
@@ -51,6 +51,9 @@ export function songStatus(result: AbcResult): {
 	}
 	return { ok: false, lines: result.problems.map(problemLine) };
 }
+
+/** Shown in the Song section while the held song has no `Q:` line. */
+export const NO_TEMPO_NOTE = `No tempo in the tune, using ♩ = ${DEFAULT_TEMPO}`;
 
 /** The state a passing result gives. */
 export function songStateFrom(result: AbcResult): SongState {

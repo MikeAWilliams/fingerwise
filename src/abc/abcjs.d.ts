@@ -12,6 +12,9 @@ declare module "abcjs/src/api/abc_tunebook.js" {
 		rest?: unknown;
 		gracenotes?: unknown[];
 		decoration?: string[];
+		/** For `el_type: "tempo"`: the beat length in whole notes (as `duration[]`) and the rate. */
+		duration?: number[];
+		bpm?: number;
 	}
 
 	export interface AbcStaff {
@@ -27,11 +30,21 @@ declare module "abcjs/src/api/abc_tunebook.js" {
 		pitch?: number;
 		style?: string;
 		startChar?: number;
+		/** Whole-note units from the start of the tune: an eighth is 0.125. */
+		start?: number;
+		duration?: number;
+	}
+
+	export interface AbcMeter {
+		type: string;
+		value?: { num: string; den: string }[];
 	}
 
 	export interface AbcTune {
 		warnings?: string[];
 		lines: AbcLine[];
+		metaText: { tempo?: { duration?: number[]; bpm?: number } };
+		getMeter(): AbcMeter;
 		setUpAudio(options: object): { tracks: AbcNoteEvent[][] };
 	}
 

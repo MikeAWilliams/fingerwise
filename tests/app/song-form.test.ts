@@ -5,6 +5,7 @@ import {
 	applySongText,
 	canUseSong,
 	NO_SONG,
+	NO_TEMPO_NOTE,
 	problemLine,
 	songSectionSummary,
 	songStateFrom,
@@ -14,7 +15,7 @@ import {
 import { loadInstrument } from "../../src/core/instrument";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
 import type { Settings } from "../../src/core/settings";
-import { createSong } from "../../src/core/song";
+import { createSong, DEFAULT_METER } from "../../src/core/song";
 
 const C4 = parsePitch("C4") as Pitch;
 
@@ -35,7 +36,10 @@ const SETTINGS: Settings = {
 	songAbc: "",
 };
 
-const song = createSong([C4]);
+const song = createSong([{ pitch: C4, start: 0, beats: 1 }], {
+	tempo: null,
+	meter: DEFAULT_METER,
+});
 const passing: AbcResult = { ok: true, song, notes: 21, converted: 2 };
 const failing: AbcResult = {
 	ok: false,
@@ -141,5 +145,11 @@ describe("state", () => {
 	test("the closed section says on or off", () => {
 		expect(songSectionSummary(SETTINGS)).toBe("off");
 		expect(songSectionSummary({ ...SETTINGS, useSong: true })).toBe("on");
+	});
+});
+
+describe("NO_TEMPO_NOTE (F08-S01 AC5)", () => {
+	test("names the default tempo", () => {
+		expect(NO_TEMPO_NOTE).toBe("No tempo in the tune, using ♩ = 90");
 	});
 });

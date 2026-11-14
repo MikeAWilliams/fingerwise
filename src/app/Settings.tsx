@@ -39,6 +39,7 @@ import {
 	applySongText,
 	canUseSong,
 	isEmptySong,
+	NO_TEMPO_NOTE,
 	problemLine,
 	SONG_EXAMPLE,
 	type SongState,
@@ -384,6 +385,9 @@ export function Settings({
 						</ul>
 					) : (
 						songSummary !== null && <p class="settings-note">{songSummary}</p>
+					)}
+					{songState.song?.tempo === null && (
+						<p class="settings-note">{NO_TEMPO_NOTE}</p>
 					)}
 				</div>
 				<label>
