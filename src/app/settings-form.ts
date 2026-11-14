@@ -20,6 +20,9 @@ import { formatSeconds } from "./section";
 export const SONG_IN_USE =
 	"A song is in use, so the note range, sharps and smart sampling do not apply.";
 
+/** Asked before progress is cleared. */
+export const RESET_CONFIRM = "Reset progress? This can't be undone.";
+
 /** The smart sampling checkbox is off-limits without judging or with a song. */
 export function smartSamplingDisabled(settings: Settings): boolean {
 	return !settings.judgeEnabled || settings.useSong;

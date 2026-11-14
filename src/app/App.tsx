@@ -34,7 +34,7 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { loadProgress, saveProgress } from "./progress-store";
+import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
@@ -244,6 +244,9 @@ export function App() {
 					onClose={() => setOpen(false)}
 					judgeUnavailable={judgeUnavailable}
 					songState={songState}
+					onResetProgress={() => {
+						scoresRef.current = resetProgress(browserStorage(), instrument);
+					}}
 					onSong={(state) => {
 						songEdited.current = true;
 						setSongState(state);

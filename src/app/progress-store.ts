@@ -2,6 +2,7 @@ import type { Instrument } from "../core/instrument";
 import {
 	emptyScores,
 	fromProgressJson,
+	resetScores,
 	type Scores,
 	toProgressJson,
 } from "../core/progress";
@@ -47,4 +48,14 @@ export function saveProgress(
 	} catch {
 		// Quota or blocked storage: the app keeps running with in-memory scores.
 	}
+}
+
+/** Clear the instrument's scores, in storage as far as it works, and return the empty scores. Never throws. */
+export function resetProgress(
+	storage: SettingsStorage | null,
+	instrument: Instrument,
+): Scores {
+	const scores = resetScores();
+	saveProgress(storage, instrument, scores);
+	return scores;
 }

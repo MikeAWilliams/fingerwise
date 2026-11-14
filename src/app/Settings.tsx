@@ -28,6 +28,7 @@ import {
 	highestOptions,
 	lowestOptions,
 	micSummary,
+	RESET_CONFIRM,
 	SONG_IN_USE,
 	smartSamplingDisabled,
 	smartSamplingNote,
@@ -53,6 +54,8 @@ interface SettingsProps {
 	judgeUnavailable?: boolean;
 	/** The song the app holds and the problems of the saved text, from the load-time parse. */
 	songState: SongState;
+	/** The player confirmed the reset: clear the scores. Settings are not touched. */
+	onResetProgress: () => void;
 	/** A passing or emptied text replaces the app's song; a failing text does not call it. */
 	onSong: (state: SongState) => void;
 }
@@ -65,6 +68,7 @@ export function Settings({
 	judgeUnavailable = false,
 	songState,
 	onSong,
+	onResetProgress,
 }: SettingsProps) {
 	// The box starts from the saved text, so reopening drops a failing one.
 	const [draft, setDraft] = useState(settings.songAbc);
@@ -244,6 +248,14 @@ export function Settings({
 				{smartSamplingNote(settings) !== null && (
 					<p class="settings-note">{smartSamplingNote(settings)}</p>
 				)}
+				<button
+					type="button"
+					onClick={() => {
+						if (window.confirm(RESET_CONFIRM)) onResetProgress();
+					}}
+				>
+					Reset progress
+				</button>
 			</Section>
 			<Section
 				title="Sound"

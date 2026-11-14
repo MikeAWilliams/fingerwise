@@ -3,6 +3,7 @@ import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
 	loadProgress,
 	PROGRESS_KEY,
+	resetProgress,
 	saveProgress,
 } from "../../src/app/progress-store";
 import {
@@ -111,5 +112,37 @@ describe("progress store (F06-S03)", () => {
 	test("null storage loads nothing and saves nothing", () => {
 		expect(loadProgress(null, instrument).size).toBe(0);
 		expect(() => saveProgress(null, instrument, SCORES)).not.toThrow();
+	});
+});
+
+describe("reset progress (F06-S05)", () => {
+	test("clears the current instrument and keeps another's entry", () => {
+		const other = { C4: 0.5 };
+		const { storage, data } = fakeStorage({
+			[PROGRESS_KEY]: JSON.stringify({ "6-hole pendant": other }),
+		});
+		saveProgress(storage, instrument, SCORES);
+		const scores = resetProgress(storage, instrument);
+		expect(scores.size).toBe(0);
+		expect(loadProgress(storage, instrument).size).toBe(0);
+		expect(JSON.parse(data.get(PROGRESS_KEY) as string)).toEqual({
+			"6-hole pendant": other,
+			[instrument.name]: {},
+		});
+	});
+
+	test("with null, throwing getItem or throwing setItem it returns empty scores and does not throw", () => {
+		const throwing: SettingsStorage = {
+			getItem: () => {
+				throw new Error("blocked");
+			},
+			setItem: () => {
+				throw new Error("quota");
+			},
+		};
+		for (const storage of [null, throwing]) {
+			expect(() => resetProgress(storage, instrument)).not.toThrow();
+			expect(resetProgress(storage, instrument).size).toBe(0);
+		}
 	});
 });
