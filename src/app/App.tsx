@@ -15,7 +15,12 @@ import {
 	judge,
 } from "../core/judge";
 import type { Pitch } from "../core/pitch";
-import { parseDefaults, type Settings } from "../core/settings";
+import { applyGrade, type ProgressGrade, type Scores } from "../core/progress";
+import {
+	parseDefaults,
+	type Settings,
+	smartSamplingApplies,
+} from "../core/settings";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
@@ -23,11 +28,13 @@ import {
 	type CardListen,
 	type CardState,
 	createCardFlow,
+	needSource,
 	type PitchSource,
 	randomSource,
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
+import { loadProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
@@ -85,6 +92,11 @@ export function App() {
 	const [settings, setSettings] = useState<Settings>(() =>
 		loadSettings(browserStorage(), instrument, DEFAULT_SETTINGS),
 	);
+	// A ref, not state: a grade must not re-run the flow effect, which deals a new card.
+	const scoresRef = useRef<Scores | null>(null);
+	if (scoresRef.current === null) {
+		scoresRef.current = loadProgress(browserStorage(), instrument);
+	}
 	const settingsRef = useRef(settings);
 	settingsRef.current = settings;
 	const songEdited = useRef(false);
@@ -147,6 +159,7 @@ export function App() {
 		if (open || !visibleKey) return;
 		// With use song on, the song is still parsing until `song` arrives; load
 		// turns use song off for a text that fails. No flow and no card meanwhile.
+		const smart = smartSamplingApplies(settings);
 		let next: PitchSource;
 		if (settings.useSong) {
 			if (song === null) {
@@ -155,12 +168,20 @@ export function App() {
 			}
 			next = songSource(song.pitches);
 		} else {
-			next = randomSource(poolFor(settings), Math.random);
+			const pool = poolFor(settings);
+			next = smart
+				? needSource(pool, () => scoresRef.current as Scores, Math.random)
+				: randomSource(pool, Math.random);
 		}
 		const onChange = (state: CardState) => {
 			setCard(state);
 			if (state.listening === "unavailable") setJudgeUnavailable(true);
 			else if (state.listening === "running") setJudgeUnavailable(false);
+		};
+		const onGraded = (pitch: Pitch, grade: ProgressGrade) => {
+			const scores = applyGrade(scoresRef.current as Scores, pitch, grade);
+			scoresRef.current = scores;
+			saveProgress(browserStorage(), instrument, scores);
 		};
 		const flow = createCardFlow({
 			next,
@@ -180,6 +201,7 @@ export function App() {
 					}
 				: null,
 			listen: listenFor(settings),
+			onGraded: smart ? onGraded : null,
 			onChange,
 		});
 		const onClick = (event: MouseEvent) => {

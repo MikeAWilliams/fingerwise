@@ -20,7 +20,7 @@ How much work each pitch needs, as a score from 0 (known) to 1 (needs work), and
 
 ## Dependencies
 
-`src/core/pitch`, and `src/core/instrument` for the `Instrument` type only. The [drill](drill.md) does not import it; the caller passes `drawWeight` as the weight function.
+`src/core/pitch`, and `src/core/instrument` for the `Instrument` type only. The [drill](drill.md) does not import it; the caller (`needSource` in `card-flow.ts`) passes `drawWeight` as the weight function.
 
 ## Tests
 

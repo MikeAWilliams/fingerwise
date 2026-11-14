@@ -1,7 +1,13 @@
 import type { ListenResult, PitchReading } from "../audio/listener";
-import { drawPitch, nextInOrder, type RandomSource } from "../core/drill";
+import {
+	drawPitch,
+	drawWeighted,
+	nextInOrder,
+	type RandomSource,
+} from "../core/drill";
 import type { Grade, ToneTracker } from "../core/judge";
 import type { Pitch } from "../core/pitch";
+import { drawWeight, type ProgressGrade, type Scores } from "../core/progress";
 import { startRevealTimer } from "./reveal";
 
 /** The judge's answer for a revealed card; `none` when nothing was heard or judging is off. */
@@ -60,6 +66,20 @@ export function randomSource(
 }
 
 /**
+ * Random cards from `pool` weighted by need, never the same twice in a row (unless
+ * the pool is one pitch). `scores` is read on every draw, so a grade applied since
+ * the last card counts.
+ */
+export function needSource(
+	pool: readonly Pitch[],
+	scores: () => Scores,
+	random: RandomSource,
+): PitchSource {
+	return (previous) =>
+		drawWeighted(pool, previous, (p) => drawWeight(scores(), p), random);
+}
+
+/**
  * The notes of a song in order, looping after the last. It keeps its own
  * position, so a repeated note is shown again; each flow builds a new one and
  * so starts at the first note. It draws nothing at random.
@@ -82,6 +102,11 @@ export interface CardFlowOptions {
 	tone?: CardTone | null;
 	/** Judges each card before its reveal; null or absent turns judging off. */
 	listen?: CardListen | null;
+	/**
+	 * Called once for a card revealed while the stream runs: `correct` for a correct
+	 * verdict, `miss` for an incorrect one or none. Not called in any other state.
+	 */
+	onGraded?: ((pitch: Pitch, grade: ProgressGrade) => void) | null;
 	onChange: (state: CardState) => void;
 }
 
@@ -102,6 +127,7 @@ export function createCardFlow({
 	advanceDelayMs,
 	tone = null,
 	listen = null,
+	onGraded = null,
 	onChange,
 }: CardFlowOptions): CardFlow {
 	let state: CardState | null = null;
@@ -144,12 +170,22 @@ export function createCardFlow({
 		onChange(next);
 	}
 
+	function grade(pitch: Pitch, verdict: Verdict) {
+		try {
+			onGraded?.(pitch, verdict.grade === "correct" ? "correct" : "miss");
+		} catch {
+			// Progress that fails to save must not break the cards.
+		}
+	}
+
 	function reveal(verdict: Verdict = NONE) {
 		cancel();
 		windowOpen = false;
 		if (state === null || state.revealed) return;
+		const graded = listen !== null && state.listening === "running";
 		show({ ...state, revealed: true, verdict });
 		const shown = state.pitch;
+		if (graded) grade(shown, verdict);
 		if (tone) {
 			if (tone.delayMs === 0) playTone(shown);
 			else cancelSound = startRevealTimer(tone.delayMs, () => playTone(shown));
