@@ -22,7 +22,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 03  | Play the note                  | done          |
 | 04  | Record and judge a single note | done          |
 | 05  | Songs as note order            | done          |
-| 06  | Smarter flashcard sampling     | not started   |
+| 06  | Smart sampling                 | designed      |
 | 07  | Song practice                  | designed      |
 | 08  | Timed play-along               | not started   |
 | 09  | Other instruments and clefs    | not started   |

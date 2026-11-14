@@ -17,6 +17,7 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 | [0004](0004-pwa-with-vite-plugin-pwa.md) | PWA with vite-plugin-pwa; silent updates; tested targets | accepted |
 | [0005](0005-yin-pitch-detector.md) | Hand-written YIN pitch detector for the judge; no dependency | accepted |
 | [0006](0006-abcjs-for-songs.md) | abcjs reads songs through its audio sequence; deep import, exact pin | accepted |
+| [0007](0007-smart-sampling-by-need.md) | Smart sampling by need score, from judge grades only | accepted |
 
 ## Likely next ADRs
 

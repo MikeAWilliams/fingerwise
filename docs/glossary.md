@@ -36,6 +36,8 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Skip**                       | A tap on a card showing the hint: the next song note is dealt at once, with no tone. |
 | **ABC notation**               | A plain-text format for tunes, used by tune books and online editors. Only its pitches are used. |
 | **Pool**                       | The set of pitches a card can be drawn from: the naturals between the low and high bounds, plus the sharps between them if sharps are included. |
+| **Smart sampling**             | A setting: with judging on, random cards are drawn weighted by need instead of uniformly ([F06](features/06-smart-sampling/design.md)). Default off. |
+| **Need**                       | A pitch's score from 0 to 1 for how much work it needs; 1 when never graded. Moved towards 1 by a miss and towards 0 by a correct answer ([ADR 0007](architecture/decisions/0007-smart-sampling-by-need.md)). |
 | **Drill engine**               | The code that builds the pool and draws the next pitch. Knows only pitch and instrument definitions, never clef, staff, audio or UI. |
 | **PWA**                        | Progressive Web App: a website that can be installed to the home screen and run offline ([ADR 0004](architecture/decisions/0004-pwa-with-vite-plugin-pwa.md)). |
 | **Service worker**             | A script the browser keeps that serves cached files when there is no network. Exists only in the production build. |

@@ -34,7 +34,7 @@ As of Oct 2026. Nothing found does this exact loop.
 - **Tablature:** panzi's font 1, decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
 - **Audio:** Web Audio API. The sine-wave tone is built; see [`modules/audio.md`](../architecture/modules/audio.md). Sampled sounds are a possible later idea.
 - **Pitch detection:** decided in [ADR 0005](../architecture/decisions/0005-yin-pitch-detector.md); built, see [`modules/audio.md`](../architecture/modules/audio.md).
-- **Storage:** localStorage. Settings are stored today; see [data-formats](../architecture/data-formats.md#storage). Progress and sampling state (feature 6) and an export/import button for sync are not built.
+- **Storage:** localStorage. Settings are stored today; see [data-formats](../architecture/data-formats.md#storage). Progress for sampling is designed in [feature 6](../features/06-smart-sampling/design.md), not built. An export/import button for sync is not planned yet.
 - **Hosting:** GitHub Pages (free, HTTPS included, which the mic requires) via GitHub Actions. See [deployment](../architecture/deployment.md).
 - **WASM (C++/Rust):** not needed; the workloads are tiny and DOM/Web Audio access goes through JS anyway. Keep only as an optional escape hatch for the pitch detector.
 - **Native later (optional):** Tauri wrapper for Linux/Mac/Windows. Same web code. Mac needs signing/notarization ($99/yr); Windows shows SmartScreen warnings unless signed.
@@ -65,17 +65,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 4. **Record and judge a single note:** done. With judging on, the app listens before the reveal, grades the card from the first stable tone, and reveals at once with a verdict and a pitch graph. See [`features/04-record-and-judge`](../features/04-record-and-judge/design.md).
    - **Research spike:** done; detector in [ADR 0005](../architecture/decisions/0005-yin-pitch-detector.md), thresholds in the [research note](../research/pitch-detection-spike.md).
 5. **Songs as note order:** done. One tune pasted as ABC notation in the settings, validated, and its notes shown as cards in order, looping. Tunes come from sources such as thesession.org and abcnotation.com; the settings link to an online editor. Parsed with abcjs ([ADR 0006](../architecture/decisions/0006-abcjs-for-songs.md)); no song drawing in the app. Plain note lists and MusicXML import later. Ordered after play and judge so those exist before the player enters their own notes. See [`features/05-songs`](../features/05-songs/design.md).
-6. **Smarter flashcard sampling:** replace feature 1's uniform pick with a scheduler that chooses which card comes next, based on how the player did before. Song cards stay in tune order and are not scheduled. Today the only grade is the judge's (feature 4): each card ends `correct`, `incorrect` or `none`, shown but not stored. With judging off there is no grade at all, since there are no self-grade buttons. Two candidate approaches:
-   - **Leitner boxes:** cards sit in numbered boxes. A correct answer moves a card up a box, a miss drops it to box 1, and higher boxes are reviewed less often. State per card is just a box and a due date.
-   - **SM-2:** each card carries its own ease value, and the next interval is computed from its grade history. Adapts better but has more parameters to tune.
-
-   Open questions (the sampling behavior must be described by the user before this feature can be designed):
-   - **Card unit:** is a card one pitch on one instrument, so each instrument has its own progress?
-   - **Grades with judging off:** add self-grade buttons (got it / missed it, or three)? Without them, sampling works only with judging on.
-   - **Grade `none`:** nothing heard, or a timed or tapped reveal. Does it count as a miss, or is it ignored?
-   - **New cards:** start with a few notes and add more as they settle, or draw from the whole note-range setting from the start?
-   - **Misses:** does a missed card come back later in the same session?
-   - **Grade source:** the scheduler takes grades from any source, so the judge and any self-grade buttons both feed it.
+6. **Smarter flashcard sampling:** with judging on, random cards are drawn weighted by how much work each note needs, learned from the judge's verdicts. Designed in [`features/06-smart-sampling`](../features/06-smart-sampling/design.md); rules decided in [ADR 0007](../architecture/decisions/0007-smart-sampling-by-need.md).
 7. **Song practice:** small follow-ups to feature 5. Designed in [`features/07-song-practice`](../features/07-song-practice/design.md).
    - **Wait for the correct note:** with use song and judging both on, a song card waits until the correct note is played. A wrong note shows its verdict briefly and the card keeps listening; after the reveal delay the letter and tablature show as a hint while it still listens; a tap can skip. No timing judgment. Random cards are unchanged.
    - **Example song by default:** the defaults ship "Mary Had a Little Lamb" as the song text, with use song off, so use song can be turned on at once. An empty stored song text loads as the example. This replaces feature 5's empty default and placeholder-only example.
@@ -109,4 +99,4 @@ Main value is to ocarina players using the app.
 
 ### Open questions
 
-- Open questions for features 6 to 9 sit under their entries in [Feature order](#feature-order).
+- Open questions for features 8 and 9 sit under their entries in [Feature order](#feature-order).
