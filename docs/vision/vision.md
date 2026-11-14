@@ -49,7 +49,7 @@ Design these in from the start. Keep them as separate, swappable layers so nothi
 - **Instrument:** a data-driven definition, not code. Built: see [`modules/instrument.md`](../architecture/modules/instrument.md) and [`data-formats.md`](../architecture/data-formats.md).
 - **Fingering/tab renderer:** draws the glyph the instrument definition holds for a pitch. Built: see [`modules/tab.md`](../architecture/modules/tab.md) and [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
 - **Drill engine:** operates only on pitches and instrument definitions; knows nothing about clef, staff, or hole count. Built: see [`modules/drill.md`](../architecture/modules/drill.md).
-- **Audio and judging:** synth and pitch detection work in sounding pitch, with the instrument's transposition applied at the boundary.
+- **Audio and judging:** synth and pitch detection work in sounding pitch, with the instrument's transposition applied at the boundary. Judging rules built: see [`modules/judge.md`](../architecture/modules/judge.md).
 
 Instrument definitions live as JSON files (`data/instruments/`) so contributors can add instruments without writing code.
 
