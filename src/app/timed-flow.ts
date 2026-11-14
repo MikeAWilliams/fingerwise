@@ -7,6 +7,7 @@ import {
 	type SongNote,
 	songSlotsMs,
 } from "../core/song";
+import type { NoteMark } from "../render/staff";
 import type { CardListen, Listening, Verdict } from "./card-flow";
 
 /** Time between the start tap and the first click, so a resuming audio context is running by then. */
@@ -42,6 +43,12 @@ export interface TimedSummary {
 	graded: number;
 }
 
+/**
+ * How a graded note came out once its slot ended: a correct tone heard, only
+ * wrong tones heard, or nothing heard.
+ */
+export type NoteResult = "correct" | "incorrect" | "missed";
+
 export interface TimedState {
 	/** The index in the song of the note on the staff. */
 	index: number;
@@ -58,6 +65,8 @@ export interface TimedState {
 	listening: Listening;
 	/** The summary once the last slot ends, otherwise null. */
 	summary: TimedSummary | null;
+	/** Each note's result by its index in the song; null until its slot ends, and for a note not graded. */
+	results: readonly (NoteResult | null)[];
 }
 
 export interface TimedFlowOptions {
@@ -80,6 +89,25 @@ export interface TimedFlow {
 	step(): void;
 	/** Cancel the timer and every click. */
 	stop(): void;
+}
+
+/**
+ * The marks the staff shows: each result so far, a miss marked as incorrect,
+ * and the note playing in its verdict's colour as soon as it is heard.
+ */
+export function songMarks(state: TimedState): Map<number, NoteMark> {
+	const marks = new Map<number, NoteMark>();
+	for (const [index, result] of state.results.entries()) {
+		if (result === null) continue;
+		marks.set(index, result === "correct" ? "correct" : "incorrect");
+	}
+	const grade = state.verdict?.grade;
+	if (
+		state.phase === "playing" &&
+		(grade === "correct" || grade === "incorrect")
+	)
+		marks.set(state.index, grade);
+	return marks;
 }
 
 export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
@@ -111,6 +139,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	let verdict: Verdict | null = null;
 	let correct = 0;
 	let graded = 0;
+	let results: (NoteResult | null)[] = notes.map(() => null);
 	// The note on the staff, for judging a reading against.
 	let currentIndex = 0;
 	let currentPitch = notes[0]?.pitch as Pitch;
@@ -127,6 +156,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			verdict,
 			listening,
 			summary,
+			results,
 		});
 	}
 
@@ -161,6 +191,13 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		if (slotGraded) {
 			graded++;
 			if (slotCorrect) correct++;
+			// A new array, so a change shows to whoever keeps the last one.
+			results = results.slice();
+			results[currentIndex] = slotCorrect
+				? "correct"
+				: verdict?.grade === "incorrect"
+					? "incorrect"
+					: "missed";
 		}
 		windowOpen = false;
 		slotGraded = false;
@@ -210,6 +247,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		clicker?.stop();
 		correct = 0;
 		graded = 0;
+		results = notes.map(() => null);
 		verdict = null;
 		const t0 = clock.now() + LEAD_SECONDS;
 		for (let i = 0; i < bar.beats; i++) {

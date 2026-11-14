@@ -5,6 +5,7 @@ import {
 	LEAD_SECONDS,
 	METRONOME_LOOKAHEAD_SECONDS,
 	MIN_GRADED_SLOT_MS,
+	songMarks,
 	TIMED_HOLD_OFF_MS,
 	type TimedFlow,
 	type TimedState,
@@ -93,6 +94,7 @@ describe("ready (AC3)", () => {
 			verdict: null,
 			listening: "off",
 			summary: null,
+			results: [null, null, null],
 		});
 		vi.advanceTimersByTime(60000);
 		expect(states).toHaveLength(1);
@@ -236,6 +238,7 @@ describe("the end (AC7)", () => {
 			verdict: null,
 			listening: "off",
 			summary: { correct: 0, graded: 0 },
+			results: [null, null, null],
 		});
 		const count = states.length;
 		vi.advanceTimersByTime(60000);
@@ -593,6 +596,34 @@ describe("grading within the slot (F08-S03)", () => {
 			expect(last().verdict).toMatchObject({ grade: "correct" });
 			vi.advanceTimersByTime(600);
 			expect(last().summary).toEqual({ correct: 1, graded: 3 });
+		});
+
+		test("each note keeps its result once its slot ends, and a restart clears them", async () => {
+			const { flow, listener } = await playing(songOf([1, 1, 1]));
+			play(listener, RIGHT, 300);
+			expect(last().results).toEqual([null, null, null]);
+			vi.advanceTimersByTime(200);
+			play(listener, WRONG, 300);
+			vi.advanceTimersByTime(200);
+			vi.advanceTimersByTime(500);
+			expect(last().phase).toBe("summary");
+			expect(last().results).toEqual(["correct", "incorrect", "missed"]);
+			flow.step();
+			expect(last().results).toEqual([null, null, null]);
+		});
+
+		test("the staff marks results and the note playing, and a miss as incorrect", async () => {
+			const { listener } = await playing(songOf([4, 1]));
+			play(listener, WRONG, 300);
+			expect([...songMarks(last())]).toEqual([[0, "incorrect"]]);
+			play(listener, RIGHT, 300);
+			expect([...songMarks(last())]).toEqual([[0, "correct"]]);
+			vi.advanceTimersByTime(2000);
+			expect(last().phase).toBe("summary");
+			expect([...songMarks(last())]).toEqual([
+				[0, "correct"],
+				[1, "incorrect"],
+			]);
 		});
 
 		test("readings after the last slot's end do not count", async () => {

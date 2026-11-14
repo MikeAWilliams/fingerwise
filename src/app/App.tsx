@@ -50,6 +50,7 @@ import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
 import {
 	createTimedFlow,
+	songMarks,
 	TIMED_HOLD_OFF_MS,
 	type TimedState,
 } from "./timed-flow";
@@ -190,6 +191,10 @@ export function App() {
 	);
 	// Waiting for the tap or counting in: no note is lit yet.
 	const counting = timed?.phase === "ready" || timed?.phase === "count-in";
+	const marks = useMemo(
+		() => (timed === null ? new Map() : songMarks(timed)),
+		[timed],
+	);
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
@@ -338,6 +343,7 @@ export function App() {
 									// Before the first slot the first rest is lit, then each beat's.
 									current: counting ? -1 : timed.index,
 									countBeat: counting ? (timed.countBeat ?? 0) : null,
+									marks,
 								}
 					}
 					instrument={instrument}
