@@ -41,12 +41,16 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { END_OF_SONG } from "./judge-text";
+import { summaryText } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
-import { createTimedFlow, type TimedState } from "./timed-flow";
+import {
+	createTimedFlow,
+	TIMED_HOLD_OFF_MS,
+	type TimedState,
+} from "./timed-flow";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -75,11 +79,15 @@ const clicker = createClicker(audio);
 const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
 
-function listenFor(settings: Settings): CardListen | null {
+function listenFor(settings: Settings, holdOffMs?: number): CardListen | null {
 	if (!settings.judgeEnabled) return null;
 	return {
 		listener,
-		tracker: createToneTracker({ ...DEFAULT_THRESHOLDS, band: BAND }),
+		tracker: createToneTracker({
+			...DEFAULT_THRESHOLDS,
+			...(holdOffMs === undefined ? {} : { holdOffMs }),
+			band: BAND,
+		}),
 		grade: (p, hz) =>
 			judge(soundingPitch(instrument, p), hz, settings.toleranceCents),
 		// The same clock as the requestAnimationFrame timestamps on readings.
@@ -208,7 +216,14 @@ export function App() {
 						song,
 						clock: timedClock,
 						clicker,
-						onChange: (state) => setTimed(state),
+						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
+						listen: listenFor(settings, TIMED_HOLD_OFF_MS),
+						onChange: (state) => {
+							setTimed(state);
+							if (state.listening === "unavailable") setJudgeUnavailable(true);
+							else if (state.listening === "running")
+								setJudgeUnavailable(false);
+						},
 					})
 				: createCardFlow({
 						next,
@@ -289,8 +304,13 @@ export function App() {
 					pitch={timed.pitch}
 					revealed={false}
 					judging={settings.judgeEnabled}
-					timed={timed.phase === "count-in" ? "playing" : timed.phase}
-					timedSummary={END_OF_SONG}
+					verdict={timed.verdict}
+					timed={
+						timed.phase === "count-in" || timed.listening === "opening"
+							? "playing"
+							: timed.phase
+					}
+					timedSummary={summaryText(timed.summary ?? { correct: 0, graded: 0 })}
 					instrument={instrument}
 					staffOptions={STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}

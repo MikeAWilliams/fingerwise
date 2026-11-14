@@ -1,9 +1,22 @@
+import type { ListenResult, PitchReading } from "../audio/listener";
 import type { Pitch } from "../core/pitch";
 import { countIn, DEFAULT_TEMPO, type Song, songSlotsMs } from "../core/song";
-import type { Verdict } from "./card-flow";
+import type { CardListen, Listening, Verdict } from "./card-flow";
 
 /** Time between the start tap and the first click, so a resuming audio context is running by then. */
 export const LEAD_SECONDS = 0.1;
+
+/**
+ * How long after a slot starts a tone must hold before it is judged. Provisional:
+ * to be tuned in the live check with an ocarina (F08-S03).
+ */
+export const TIMED_HOLD_OFF_MS = 0;
+
+/**
+ * A slot shorter than this is shown in time but not listened to, as a tone
+ * cannot settle in it. Provisional, like `TIMED_HOLD_OFF_MS`.
+ */
+export const MIN_GRADED_SLOT_MS = 300;
 
 /** Seconds of slack when checking a boundary against the clock, for rounding in the sums. */
 const CLOCK_EPSILON = 1e-9;
@@ -24,8 +37,10 @@ export interface TimedState {
 	/** The note on the staff: the first one before and during the count-in, the last one in the summary. */
 	pitch: Pitch;
 	phase: TimedPhase;
-	/** The judge's answer for the note playing; null until the flow listens. */
+	/** The judge's answer for the note playing; null when none has been heard or it is not listened to. */
 	verdict: Verdict | null;
+	/** Where listening stands; `off` without judging. */
+	listening: Listening;
 	/** The summary once the last slot ends, otherwise null. */
 	summary: TimedSummary | null;
 }
@@ -36,6 +51,8 @@ export interface TimedFlowOptions {
 	clock: { now(): number };
 	/** Plays clicks on that clock; null keeps the flow silent but in time. */
 	clicker: { click(atSeconds: number): void; stop(): void } | null;
+	/** Judges each slot from the microphone; null or absent turns judging off. */
+	listen?: CardListen | null;
 	onChange: (state: TimedState) => void;
 }
 
@@ -50,6 +67,7 @@ export interface TimedFlow {
 
 export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const { song, clock, clicker, onChange } = options;
+	const listen = options.listen ?? null;
 	const notes = song.notes;
 	const last = notes.length - 1;
 	const tempo = song.tempo ?? DEFAULT_TEMPO;
@@ -60,12 +78,31 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let stopped = false;
 
+	let listening: Listening = listen ? "locked" : "off";
+	let streamRunning = false;
+	let unavailable = false;
+	/** True from the start tap until the stream's start settles. */
+	let opening = false;
+	// Bumped on every start of the stream and on stop, so a late result knows it is stale.
+	let attempt = 0;
+	// The slot being listened to: whether the window is open, and what it has heard.
+	let windowOpen = false;
+	let slotGraded = false;
+	let slotCorrect = false;
+	let verdict: Verdict | null = null;
+	let correct = 0;
+	let graded = 0;
+	// The note on the staff, for judging a reading against.
+	let currentIndex = 0;
+	let currentPitch = notes[0]?.pitch as Pitch;
+
 	function emit(index: number, summary: TimedSummary | null = null): void {
 		if (stopped) return;
 		onChange({
 			pitch: (notes[index] ?? notes[0])?.pitch as Pitch,
 			phase,
-			verdict: null,
+			verdict,
+			listening,
 			summary,
 		});
 	}
@@ -96,15 +133,69 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		arm();
 	}
 
-	function begin(): void {
+	/** Close the slot's window: it counts as graded only if it opened and nothing failed. */
+	function closeSlot(): void {
+		if (slotGraded) {
+			graded++;
+			if (slotCorrect) correct++;
+		}
+		windowOpen = false;
+		slotGraded = false;
+		slotCorrect = false;
+		verdict = null;
+	}
+
+	/** Open the listening window for a slot, when the stream runs and the slot is long enough. */
+	function openSlot(index: number): void {
+		windowOpen = false;
+		slotGraded = false;
+		slotCorrect = false;
+		verdict = null;
+		if (!listen || listening !== "running") return;
+		if ((slotsMs[index] as number) < MIN_GRADED_SLOT_MS) return;
+		try {
+			listen.tracker.reset(listen.now());
+			windowOpen = true;
+			slotGraded = true;
+		} catch {
+			// A tracker that fails leaves the slot ungraded.
+		}
+	}
+
+	function onReading(reading: PitchReading): void {
+		if (!listen || !windowOpen || slotCorrect || phase !== "playing") return;
+		try {
+			const hz = listen.tracker.push(reading);
+			if (hz === null) return;
+			const pitch = currentPitch;
+			const grade = listen.grade(pitch, hz);
+			verdict = { grade, frequency: hz };
+			if (grade === "correct") slotCorrect = true;
+			else listen.tracker.reset(listen.now());
+			emit(currentIndex);
+		} catch {
+			// A failing judge leaves the slot ungraded.
+			windowOpen = false;
+			slotGraded = false;
+			slotCorrect = false;
+		}
+	}
+
+	/** The count-in, then the slots. */
+	function run(): void {
 		cancel();
 		clicker?.stop();
+		correct = 0;
+		graded = 0;
+		verdict = null;
 		const t0 = clock.now() + LEAD_SECONDS;
 		for (let i = 0; i < bar.beats; i++) {
 			clicker?.click(t0 + (i * bar.beatMs) / 1000);
 		}
 		const firstSlot = t0 + (bar.beats * bar.beatMs) / 1000;
 		phase = "count-in";
+		currentIndex = 0;
+		currentPitch = notes[0]?.pitch as Pitch;
 		emit(0);
 
 		// Each boundary is the first slot's start plus the summed slots so far,
@@ -115,16 +206,53 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			return firstSlot + elapsedMs / 1000;
 		});
 		const show = (index: number): void => {
+			closeSlot();
 			if (index > last) {
 				phase = "summary";
-				emit(last, { correct: 0, graded: 0 });
+				emit(last, { correct, graded });
 				return;
 			}
 			phase = "playing";
+			currentIndex = index;
+			currentPitch = notes[index]?.pitch as Pitch;
+			openSlot(index);
 			emit(index);
 			at(boundaries[index] as number, () => show(index + 1));
 		};
 		at(firstSlot, () => show(0));
+	}
+
+	/** The first tap opens the stream, if judging; the count-in starts when that settles, whatever it says. */
+	function begin(): void {
+		if (!listen || streamRunning || unavailable) {
+			run();
+			return;
+		}
+		opening = true;
+		listening = "opening";
+		emit(0);
+		const mine = ++attempt;
+		let started: Promise<ListenResult>;
+		try {
+			started = Promise.resolve(listen.listener.start(onReading));
+		} catch {
+			started = Promise.resolve({
+				status: "unavailable",
+				reason: "unsupported",
+			});
+		}
+		started
+			.catch(
+				(): ListenResult => ({ status: "unavailable", reason: "unsupported" }),
+			)
+			.then((result) => {
+				if (stopped || mine !== attempt) return;
+				opening = false;
+				listening = result.status;
+				if (result.status === "running") streamRunning = true;
+				if (result.status === "unavailable") unavailable = true;
+				run();
+			});
 	}
 
 	return {
@@ -134,13 +262,21 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			emit(0);
 		},
 		step() {
-			if (stopped) return;
+			if (stopped || opening) return;
 			if (phase === "ready" || phase === "summary") begin();
 		},
 		stop() {
 			stopped = true;
+			attempt++;
+			windowOpen = false;
 			cancel();
 			clicker?.stop();
+			if (!listen) return;
+			try {
+				listen.listener.stop();
+			} catch {
+				// Nothing more can be done; the flow is over.
+			}
 		},
 	};
 }

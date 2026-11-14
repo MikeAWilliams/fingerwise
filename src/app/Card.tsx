@@ -86,6 +86,7 @@ export function Card({
 						verdict={verdict}
 						pitch={pitch}
 						instrument={instrument}
+						graph={timed === undefined}
 					/>
 				)}
 			</div>
@@ -103,10 +104,13 @@ function VerdictView({
 	verdict,
 	pitch,
 	instrument,
+	graph,
 }: {
 	verdict: Verdict;
 	pitch: Pitch;
 	instrument: Instrument;
+	/** Draw the pitch graph; a timed song has no room for it. */
+	graph: boolean;
 }) {
 	const { icon, label } = VERDICT_TEXT[verdict.grade];
 	const heard =
@@ -125,7 +129,7 @@ function VerdictView({
 				{label}
 				{heard && <span class="card-judged">{heard.note.label}</span>}
 			</div>
-			{heard && (
+			{heard && graph && (
 				<PitchGraph
 					expected={pitch}
 					cents={heard.cents}
