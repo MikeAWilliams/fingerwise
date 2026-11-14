@@ -8,6 +8,7 @@ import {
 	canTurnSharpsOff,
 	canTurnSoundOn,
 	isValidTolerance,
+	keepTempoApplies,
 	MAX_SONG_CHARS,
 	MAX_TOLERANCE_CENTS,
 	MIN_TOLERANCE_CENTS,
@@ -57,6 +58,7 @@ function settings(
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	};
 }
@@ -78,6 +80,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 		...over,
 	};
@@ -589,6 +592,7 @@ describe("judge fields", () => {
 				delaySeconds: 5,
 				toleranceCents: 20,
 				useSong: false,
+				keepTempo: false,
 				songAbc: "",
 			});
 		}
@@ -664,6 +668,7 @@ describe("song fields", () => {
 		const input = { ...DEFAULTS, useSong: true, songAbc: tune };
 		expect(toSettingsJson(input)).toMatchObject({
 			useSong: true,
+			keepTempo: false,
 			songAbc: tune,
 		});
 		expect(
@@ -694,6 +699,7 @@ describe("song fields", () => {
 				...DEFAULTS,
 				delaySeconds: 5,
 				useSong: false,
+				keepTempo: false,
 				songAbc: tune,
 			});
 		}
@@ -710,6 +716,7 @@ describe("song fields", () => {
 				...DEFAULTS,
 				delaySeconds: 5,
 				useSong: true,
+				keepTempo: false,
 				songAbc: "",
 			});
 		}
@@ -721,6 +728,7 @@ describe("song fields", () => {
 			...DEFAULTS,
 			delaySeconds: 7,
 			useSong: false,
+			keepTempo: false,
 			songAbc: "",
 		});
 	});
@@ -738,6 +746,7 @@ describe("song fields", () => {
 				...withTune,
 				delaySeconds: 5,
 				useSong: true,
+				keepTempo: false,
 				songAbc: tune,
 			});
 		}
@@ -759,6 +768,7 @@ describe("song fields", () => {
 	test("the strict parse accepts a song text and rejects use song on or a bad text", () => {
 		expect(parseDefaults(json({ songAbc: tune }), instrument)).toMatchObject({
 			useSong: false,
+			keepTempo: false,
 			songAbc: tune,
 		});
 		expect(parseDefaults(json(), instrument)).toMatchObject({ songAbc: "" });
@@ -835,6 +845,68 @@ describe("smart sampling field (F06-S02)", () => {
 						}),
 					).toBe(smartSampling && judgeEnabled && !useSong);
 				}
+			}
+		}
+	});
+});
+
+describe("keep tempo (F08-S02 AC1)", () => {
+	test("is off in the test defaults and round trips", () => {
+		expect(DEFAULTS.keepTempo).toBe(false);
+		const input = { ...DEFAULTS, useSong: true, keepTempo: true };
+		expect(toSettingsJson(input)).toMatchObject({ keepTempo: true });
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
+	test("old data without it loads false and keeps every other field", () => {
+		const { keepTempo, ...old } = json({ delaySeconds: 7, useSong: true });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+			useSong: true,
+			keepTempo: false,
+		});
+	});
+
+	test("a non-boolean resets alone", () => {
+		for (const keepTempo of ["true", 1, null]) {
+			expect(
+				validateSettings(
+					json({ keepTempo, useSong: true, delaySeconds: 5 }),
+					instrument,
+					DEFAULTS,
+				),
+			).toEqual({
+				...DEFAULTS,
+				useSong: true,
+				delaySeconds: 5,
+				keepTempo: false,
+			});
+		}
+	});
+
+	test("the strict parse requires a boolean", () => {
+		expect(parseDefaults(json({ keepTempo: false }), instrument)).toMatchObject(
+			{ keepTempo: false },
+		);
+		for (const keepTempo of [undefined, "no", 1, null]) {
+			expect(() => parseDefaults(json({ keepTempo }), instrument)).toThrow(
+				SettingsError,
+			);
+			expect(() => parseDefaults(json({ keepTempo }), instrument)).toThrow(
+				"keepTempo",
+			);
+		}
+	});
+
+	test("keepTempoApplies needs use song and keep tempo", () => {
+		for (const useSong of [false, true]) {
+			for (const keepTempo of [false, true]) {
+				expect(keepTempoApplies({ ...DEFAULTS, useSong, keepTempo })).toBe(
+					useSong && keepTempo,
+				);
 			}
 		}
 	});

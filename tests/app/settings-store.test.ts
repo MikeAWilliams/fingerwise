@@ -8,7 +8,7 @@ import {
 } from "../../src/app/settings-store";
 import { loadInstrument } from "../../src/core/instrument";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
-import type { Settings } from "../../src/core/settings";
+import { type Settings, toSettingsJson } from "../../src/core/settings";
 
 const instrument = loadInstrument(alto);
 
@@ -30,6 +30,7 @@ const DEFAULTS: Settings = {
 	smartSampling: false,
 	toleranceCents: 40,
 	useSong: false,
+	keepTempo: false,
 	songAbc: "",
 };
 
@@ -60,6 +61,7 @@ test("saved settings load back unchanged", () => {
 		smartSampling: true,
 		toleranceCents: 25.5,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	};
 	saveSettings(storage, settings);
@@ -78,6 +80,7 @@ test("saved settings load back unchanged", () => {
 		smartSampling: true,
 		toleranceCents: 25.5,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
@@ -132,6 +135,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	});
 });
@@ -161,6 +165,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	});
 });
@@ -190,6 +195,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	});
 });
@@ -215,6 +221,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	});
 });
@@ -249,11 +256,13 @@ test("a song and its switch save and load back", () => {
 	const settings: Settings = {
 		...DEFAULTS,
 		useSong: true,
+		keepTempo: false,
 		songAbc: "X:1\nK:C\nC D E|",
 	};
 	saveSettings(storage, settings);
 	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
 		useSong: true,
+		keepTempo: false,
 		songAbc: "X:1\nK:C\nC D E|",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
@@ -280,6 +289,7 @@ test("settings saved before songs load with use song off and no text", () => {
 		judgeEnabled: true,
 		toleranceCents: 30,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	});
 });
@@ -298,6 +308,7 @@ test("settings saved before smart sampling load with it off and keep their field
 		judgeEnabled: true,
 		toleranceCents: 30,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	};
 	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
@@ -306,5 +317,41 @@ test("settings saved before smart sampling load with it off and keep their field
 		judgeEnabled: true,
 		toleranceCents: 30,
 		smartSampling: false,
+	});
+});
+
+test("keep tempo saves and loads back", () => {
+	const { storage, data } = fakeStorage();
+	const settings: Settings = { ...DEFAULTS, useSong: true, keepTempo: true };
+	saveSettings(storage, settings);
+	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
+		keepTempo: true,
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
+});
+
+test("settings saved before keep tempo load with it off and keep their fields", () => {
+	const { keepTempo, ...old } = {
+		...toSettingsJson({ ...DEFAULTS, delaySeconds: 4, useSong: true }),
+	};
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		...DEFAULTS,
+		delaySeconds: 4,
+		useSong: true,
+		keepTempo: false,
+	});
+});
+
+test("a non-boolean keep tempo resets alone", () => {
+	const bad = {
+		...toSettingsJson({ ...DEFAULTS, delaySeconds: 4 }),
+		keepTempo: "yes",
+	};
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(bad) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		...DEFAULTS,
+		delaySeconds: 4,
+		keepTempo: false,
 	});
 });

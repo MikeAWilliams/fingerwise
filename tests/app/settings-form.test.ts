@@ -44,6 +44,7 @@ function settings(
 		smartSampling: false,
 		toleranceCents: 40,
 		useSong: false,
+		keepTempo: false,
 		songAbc: "",
 	};
 }

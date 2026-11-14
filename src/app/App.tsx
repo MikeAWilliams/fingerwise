@@ -3,6 +3,7 @@ import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
 import { parseAbc } from "../abc";
+import { createClicker } from "../audio/click";
 import { browserAudioFactory, createAudio } from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer } from "../audio/tone";
@@ -22,6 +23,7 @@ import {
 	type Scores,
 } from "../core/progress";
 import {
+	keepTempoApplies,
 	parseDefaults,
 	type Settings,
 	smartSamplingApplies,
@@ -39,10 +41,12 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
+import { END_OF_SONG } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
+import { createTimedFlow, type TimedState } from "./timed-flow";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -66,6 +70,9 @@ const STAFF_OPTIONS: StaffOptions = {
 const audio = createAudio(browserAudioFactory());
 const player = createTonePlayer(audio);
 const listener = createListener(audio, browserListenerEnv());
+const clicker = createClicker(audio);
+/** The audio clock, or the page clock when there is no audio context (the song then runs silent but in time). */
+const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
 
 function listenFor(settings: Settings): CardListen | null {
@@ -110,6 +117,7 @@ export function App() {
 	const [songState, setSongState] = useState<SongState>(NO_SONG);
 	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
+	const [timed, setTimed] = useState<TimedState | null>(null);
 	const [visible, setVisible] = useState(pageVisible);
 	const [judgeUnavailable, setJudgeUnavailable] = useState(false);
 	const changeSettings = (next: Settings) => {
@@ -159,7 +167,9 @@ export function App() {
 	}, []);
 	// With judging on, a hidden page has no flow, so the microphone is released;
 	// showing it again deals a fresh card. With judging off visibility is ignored.
-	const visibleKey = settings.judgeEnabled ? visible : true;
+	// A timed song stops when the page is hidden, whether or not it judges.
+	const timedSong = keepTempoApplies(settings);
+	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
 	const song = songState.song;
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
@@ -171,6 +181,7 @@ export function App() {
 		if (settings.useSong) {
 			if (song === null) {
 				setCard(null);
+				setTimed(null);
 				return;
 			}
 			next = songSource(song.pitches);
@@ -191,28 +202,39 @@ export function App() {
 			saveProgress(browserStorage(), instrument, scores);
 			setScoreTick((t) => t + 1);
 		};
-		const flow = createCardFlow({
-			next,
-			delayMs: settings.delaySeconds * 1000,
-			advanceDelayMs: settings.autoAdvance
-				? settings.advanceDelaySeconds * 1000
-				: null,
-			tone: settings.soundEnabled
-				? {
-						delayMs: settings.soundDelaySeconds * 1000,
-						play: (p) =>
-							player.play(
-								soundingPitch(instrument, p),
-								settings.soundDurationSeconds,
-							),
-						stop: () => player.stop(),
-					}
-				: null,
-			listen: listenFor(settings),
-			wait: settings.useSong && settings.judgeEnabled,
-			onGraded: smart ? onGraded : null,
-			onChange,
-		});
+		const flow =
+			timedSong && song !== null
+				? createTimedFlow({
+						song,
+						clock: timedClock,
+						clicker,
+						onChange: (state) => setTimed(state),
+					})
+				: createCardFlow({
+						next,
+						delayMs: settings.delaySeconds * 1000,
+						advanceDelayMs: settings.autoAdvance
+							? settings.advanceDelaySeconds * 1000
+							: null,
+						tone: settings.soundEnabled
+							? {
+									delayMs: settings.soundDelaySeconds * 1000,
+									play: (p) =>
+										player.play(
+											soundingPitch(instrument, p),
+											settings.soundDurationSeconds,
+										),
+									stop: () => player.stop(),
+								}
+							: null,
+						listen: listenFor(settings),
+						wait: settings.useSong && settings.judgeEnabled,
+						onGraded: smart ? onGraded : null,
+						onChange,
+					});
+		// A card and a timed song never show together.
+		if (timedSong) setCard(null);
+		else setTimed(null);
 		const onClick = (event: MouseEvent) => {
 			if (
 				event.target instanceof Element &&
@@ -262,7 +284,19 @@ export function App() {
 					}}
 				/>
 			)}
-			{!open && card && (
+			{!open && timedSong && timed && (
+				<Card
+					pitch={timed.pitch}
+					revealed={false}
+					judging={settings.judgeEnabled}
+					timed={timed.phase === "count-in" ? "playing" : timed.phase}
+					timedSummary={END_OF_SONG}
+					instrument={instrument}
+					staffOptions={STAFF_OPTIONS}
+					font={{ family: FONT_FAMILY, status: fontStatus }}
+				/>
+			)}
+			{!open && !timedSong && card && (
 				<Card
 					pitch={card.pitch}
 					revealed={card.revealed}

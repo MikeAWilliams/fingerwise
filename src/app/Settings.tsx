@@ -401,6 +401,17 @@ export function Settings({
 					/>
 					Use song
 				</label>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.keepTempo}
+						disabled={!settings.useSong}
+						onChange={(e) =>
+							onChange({ ...settings, keepTempo: e.currentTarget.checked })
+						}
+					/>
+					Keep tempo
+				</label>
 			</Section>
 			<div class="settings-footer">
 				<button type="button" onClick={onClose}>

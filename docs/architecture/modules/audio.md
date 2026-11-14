@@ -9,7 +9,7 @@ Plays a sine tone for a pitch through Web Audio, and listens to the microphone, 
 ## Public interface
 
 - `context.ts`:
-  - Structural types for the Web Audio calls used (`AudioContextLike` with `sampleRate`, `createAnalyser()` and `createMediaStreamSource(stream)`; `OscillatorLike`, `GainLike`, `AudioParamLike`, `AnalyserLike` with `fftSize`, `getFloatTimeDomainData` and `disconnect`; `SourceLike`; `StreamLike`, of which only `getTracks()` is used), so a fake implements them in Node tests and a real `AudioContext` satisfies them.
+  - Structural types for the Web Audio calls used (`AudioContextLike` with `sampleRate`, `createAnalyser()` and `createMediaStreamSource(stream)`; `OscillatorLike`, `GainLike`, `BufferLike` and `BufferSourceLike` (with `createBuffer(channels, length, rate)` and `createBufferSource()` on the context, for the click), `AudioParamLike`, `AnalyserLike` with `fftSize`, `getFloatTimeDomainData` and `disconnect`; `SourceLike`; `StreamLike`, of which only `getTracks()` is used), so a fake implements them in Node tests and a real `AudioContext` satisfies them.
   - `createAudio(create): Audio`: `create` is a factory or null. `context()` creates the context on first call and caches it (a null factory or a throwing constructor gives null, cached, never retried). `unlock()` sets `unlockRequested`, gets the context and calls `resume()` only when its state is `"suspended"`; a throwing `resume()` or a rejected promise is swallowed. `unlockRequested` is true once `unlock()` has been called. Nothing runs at import time.
   - `browserAudioFactory()`: `() => new AudioContext()` when `globalThis.AudioContext` exists, otherwise null.
 - `tone.ts`:
@@ -17,6 +17,11 @@ Plays a sine tone for a pitch through Web Audio, and listens to the microphone, 
   - `play` stops any tone first, so at most one sounds, then starts a sine oscillator at `toFrequency(pitch)` through a gain node: gain 0, ramp to `PEAK_GAIN` over the fade, hold, ramp to 0 so it ends at `seconds`; the oscillator starts now and stops at `seconds`. The fade is `min(FADE_SECONDS, seconds / 2)`, so a short duration still gives a valid envelope.
   - `stop` fades the current tone out over `FADE_SECONDS` and stops it; it does nothing when no tone is current. The oscillator's `onended` forgets the tone.
   - Every Web Audio call is in a `try/catch`; nothing throws or rejects, and a failure plays nothing.
+- `click.ts` (F08-S02):
+  - `createClicker(audio): Clicker` with `now()`, `click(atSeconds)` and `stop()`. Constants `CLICK_SECONDS` (0.015) and `CLICK_GAIN` (0.5).
+  - `now()` is the context's `currentTime` in seconds (creating the context if needed), or null with no context or a throwing clock. It is the clock the timed song keeps time on.
+  - `click(atSeconds)` follows the lock rule, then starts a buffer source (not an oscillator, so there is no pitch for the judge to settle on) through a gain node at `atSeconds` on the audio clock. The buffer is about 15 ms of decaying noise from a fixed linear congruential generator, built once per context, so every click sounds the same. Scheduled sources are kept until their `onended`.
+  - `stop()` stops every pending and sounding click. Every Web Audio call is in a `try/catch`; nothing throws.
 
 - `detector.ts` ([ADR 0005](../decisions/0005-yin-pitch-detector.md)):
   - `detectPitch(samples, sampleRate, range = { minHz: 200, maxHz: 3000 }): { frequency, clarity }`: YIN with the difference function, cumulative mean normalization, absolute threshold `YIN_THRESHOLD` (0.15) followed down to its local minimum (or the lowest value in the range when nothing dips under it) and parabolic interpolation, over lags `sampleRate / maxHz` to `sampleRate / minHz`. Clarity is `1 - d'(τ)` clamped to [0, 1]. Silence or a constant buffer (all-zero difference), or a buffer too short for the range, gives frequency null and clarity 0, never NaN.
@@ -34,7 +39,7 @@ Plays a sine tone for a pitch through Web Audio, and listens to the microphone, 
 
 ## The lock rule
 
-`play` does nothing when there is no context, or when the context is not `"running"` and `unlock()` has not been called, and nothing is queued for later. After `unlock()`, a context that is still resuming gets the tone scheduled on its frozen clock, so a tone requested on the unlocking gesture sounds once the context runs.
+`play` (and `click`) does nothing when there is no context, or when the context is not `"running"` and `unlock()` has not been called, and nothing is queued for later. After `unlock()`, a context that is still resuming gets the tone scheduled on its frozen clock, so a tone requested on the unlocking gesture sounds once the context runs.
 
 The listener follows the same rule: while the context is locked, `start` resolves `locked` without requesting the microphone. After `unlock()`, a context still resuming proceeds.
 
@@ -55,6 +60,7 @@ Browsers keep an audio context suspended until a user gesture. The app calls `un
 - `tests/audio/fake-audio.ts`: a fake context that records nodes, parameter calls, start and stop times and `resume` calls, and can throw or reject on demand; a fake analyser fed from a queue of sample buffers and a fake media stream source.
 - `tests/audio/detector.test.ts`: generated 2048-sample buffers at 48 kHz (fundamental, 2nd harmonic at -24 dB, 3rd at -32 dB), every semitone A4 to F6 at two levels within 10 cents and clarity at least 0.9; a tone between semitones; seeded white noise below clarity 0.5; silence, a constant buffer and a too-short buffer; a custom range; `rmsDb` of a full-scale sine and of silence.
 - `tests/audio/listener.test.ts`: fake media devices, frames and context: constraints, nodes and routing, readings, a throwing or stopping consumer, every error mapping, no context or `getUserMedia`, failing nodes, retry after failure, the lock rule, stop and release, stop twice, restart, stop during an in-flight start, double start (running and in flight), and one context shared with the tone player.
+- `tests/audio/click.test.ts`: a buffer source (not an oscillator) started at the given time, a short decaying noise burst built once and the same every time, the lock rule, `now()` with and without a context, `stop()` stopping scheduled clicks and not ended ones, and failures that never throw.
 - `tests/audio/context.test.ts`: lazy single creation, `unlock()` on suspended, running and null cases, a throwing factory, a throwing and a rejecting `resume`.
 - `tests/audio/tone.test.ts`: frequency and `"sine"`, envelope times, a very short duration, stop and repeated stop, replacement by a second play, the lock rule, and failures that never throw.
 - `tests/audio/audio-imports.test.ts`: `src/audio` imports only relative paths and only `../core/pitch` from core; `src/core` imports nothing with `audio` in its path.

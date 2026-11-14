@@ -33,6 +33,7 @@ const SETTINGS: Settings = {
 	smartSampling: false,
 	toleranceCents: 40,
 	useSong: false,
+	keepTempo: false,
 	songAbc: "",
 };
 
@@ -145,6 +146,13 @@ describe("state", () => {
 	test("the closed section says on or off", () => {
 		expect(songSectionSummary(SETTINGS)).toBe("off");
 		expect(songSectionSummary({ ...SETTINGS, useSong: true })).toBe("on");
+	});
+
+	test("with keep tempo on it says so, and keep tempo alone says off (F08-S02 AC2)", () => {
+		expect(
+			songSectionSummary({ ...SETTINGS, useSong: true, keepTempo: true }),
+		).toBe("on, keep tempo");
+		expect(songSectionSummary({ ...SETTINGS, keepTempo: true })).toBe("off");
 	});
 });
 

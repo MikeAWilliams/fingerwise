@@ -7,3 +7,7 @@ export const JUDGE_UNAVAILABLE =
 	"Judging is unavailable (microphone blocked or missing).";
 
 export const LISTEN_PROMPT = "Tap or press a key to start listening";
+
+export const START_PROMPT = "Tap or press a key to start";
+
+export const END_OF_SONG = "End of song";

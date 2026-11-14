@@ -116,7 +116,8 @@ export function canUseSong(song: Song | null): boolean {
 
 /** One line of the Song section's values, shown while it is closed. */
 export function songSectionSummary(settings: Settings): string {
-	return settings.useSong ? "on" : "off";
+	if (!settings.useSong) return "off";
+	return settings.keepTempo ? "on, keep tempo" : "on";
 }
 
 /** The default song, also shown greyed in the empty box so the format is clear. */

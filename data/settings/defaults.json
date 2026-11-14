@@ -12,5 +12,6 @@
 	"smartSampling": false,
 	"toleranceCents": 40,
 	"useSong": false,
+	"keepTempo": false,
 	"songAbc": "T: Mary Had a Little Lamb\nE D C D | E E E2 | D D D2 | E G G2 |\nE D C D | E E E E | D D E D | C4 ||"
 }

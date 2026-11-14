@@ -23,6 +23,19 @@ export interface OscillatorLike {
 	stop(when?: number): void;
 }
 
+/** An audio buffer: only its first channel is written, to fill it with samples. */
+export interface BufferLike {
+	getChannelData(channel: number): Float32Array<ArrayBuffer>;
+}
+
+export interface BufferSourceLike {
+	buffer: BufferLike | null;
+	onended: ((...args: never[]) => void) | null;
+	connect(destination: unknown): unknown;
+	start(when?: number): void;
+	stop(when?: number): void;
+}
+
 export interface AnalyserLike {
 	fftSize: number;
 	getFloatTimeDomainData(array: Float32Array<ArrayBuffer>): void;
@@ -47,6 +60,8 @@ export interface AudioContextLike {
 	resume(): Promise<void>;
 	createOscillator(): OscillatorLike;
 	createGain(): GainLike;
+	createBuffer(channels: number, length: number, rate: number): BufferLike;
+	createBufferSource(): BufferSourceLike;
 	createAnalyser(): AnalyserLike;
 	createMediaStreamSource(stream: StreamLike): SourceLike;
 }

@@ -6,7 +6,7 @@ import { loadInstrument } from "../../src/core/instrument";
 import { formatPitch } from "../../src/core/pitch";
 import { parseDefaults } from "../../src/core/settings";
 
-test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s, auto-advance on, 3 s, sound on, 0.5 s, 1.5 s, judge off, smart sampling off, 40 cents, use song off and the example song", () => {
+test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s, auto-advance on, 3 s, sound on, 0.5 s, 1.5 s, judge off, smart sampling off, 40 cents, use song off, keep tempo off and the example song", () => {
 	const settings = parseDefaults(defaults, loadInstrument(alto));
 	expect(formatPitch(settings.lowest)).toBe("A3");
 	expect(formatPitch(settings.highest)).toBe("F5");
@@ -21,6 +21,7 @@ test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s,
 	expect(settings.smartSampling).toBe(false);
 	expect(settings.toleranceCents).toBe(40);
 	expect(settings.useSong).toBe(false);
+	expect(settings.keepTempo).toBe(false);
 	expect(settings.songAbc).not.toBe("");
 	expect(settings.songAbc.startsWith("T: Mary Had a Little Lamb")).toBe(true);
 });

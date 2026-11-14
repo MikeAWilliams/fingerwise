@@ -3,7 +3,7 @@ import { formatPitch, type Pitch } from "../core/pitch";
 import type { StaffOptions } from "../render/staff";
 import { type TabFont, tabView } from "../render/tab";
 import type { Listening, Verdict } from "./card-flow";
-import { JUDGE_UNAVAILABLE, LISTEN_PROMPT } from "./judge-text";
+import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
 import { PitchGraph } from "./PitchGraph";
 import { Staff } from "./Staff";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
@@ -19,6 +19,12 @@ interface CardProps {
 	hint?: boolean;
 	/** Smart sampling need score (0 to 1), shown on reveal. */
 	need?: number | null;
+	/**
+	 * A timed song's card: the staff keeps the note, and the reveal area holds
+	 * only the start prompt or the summary, never a letter or tablature.
+	 */
+	timed?: "ready" | "playing" | "summary";
+	timedSummary?: string;
 	instrument: Instrument;
 	staffOptions: StaffOptions;
 	font: TabFont;
@@ -32,6 +38,8 @@ export function Card({
 	verdict = null,
 	hint = false,
 	need = null,
+	timed,
+	timedSummary,
 	instrument,
 	staffOptions,
 	font,
@@ -46,6 +54,8 @@ export function Card({
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
 			>
+				{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
+				{timed === "summary" && <p class="card-status">{timedSummary}</p>}
 				{!revealed && listening === "locked" && (
 					<p class="card-status">{LISTEN_PROMPT}</p>
 				)}
