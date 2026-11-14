@@ -725,18 +725,50 @@ describe("song fields", () => {
 		});
 	});
 
-	test("the strict parse accepts off and empty and rejects anything else", () => {
-		expect(parseDefaults(json(), instrument)).toMatchObject({
-			useSong: false,
-			songAbc: "",
+	test("text saved empty or never saved takes the defaults' song, other fields kept", () => {
+		const withTune = { ...DEFAULTS, songAbc: tune };
+		for (const songAbc of ["", undefined]) {
+			expect(
+				validateSettings(
+					json({ useSong: true, songAbc, delaySeconds: 5 }),
+					instrument,
+					withTune,
+				),
+			).toEqual({
+				...withTune,
+				delaySeconds: 5,
+				useSong: true,
+				songAbc: tune,
+			});
+		}
+		const { useSong, songAbc, ...old } = json({ delaySeconds: 7 });
+		expect(validateSettings(old, instrument, withTune)).toEqual({
+			...withTune,
+			delaySeconds: 7,
 		});
+	});
+
+	test("a non-empty stored text is kept over the defaults' song", () => {
+		const withTune = { ...DEFAULTS, songAbc: tune };
+		expect(
+			validateSettings(json({ songAbc: "X:2\nK:C\nG|" }), instrument, withTune)
+				.songAbc,
+		).toBe("X:2\nK:C\nG|");
+	});
+
+	test("the strict parse accepts a song text and rejects use song on or a bad text", () => {
+		expect(parseDefaults(json({ songAbc: tune }), instrument)).toMatchObject({
+			useSong: false,
+			songAbc: tune,
+		});
+		expect(parseDefaults(json(), instrument)).toMatchObject({ songAbc: "" });
 		const bad: [Record<string, unknown>, string][] = [
 			[{ useSong: undefined }, "useSong"],
 			[{ useSong: "no" }, "useSong"],
 			[{ useSong: true }, "useSong"],
 			[{ songAbc: undefined }, "songAbc"],
 			[{ songAbc: 3 }, "songAbc"],
-			[{ songAbc: tune }, "songAbc"],
+			[{ songAbc: "x".repeat(MAX_SONG_CHARS + 1) }, "songAbc"],
 		];
 		for (const [over, fragment] of bad) {
 			expect(() => parseDefaults(json(over), instrument)).toThrow(
