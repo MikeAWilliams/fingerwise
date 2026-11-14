@@ -19,7 +19,14 @@ import { parseDefaults, type Settings } from "../core/settings";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
-import { type CardListen, type CardState, createCardFlow } from "./card-flow";
+import {
+	type CardListen,
+	type CardState,
+	createCardFlow,
+	type PitchSource,
+	randomSource,
+	songSource,
+} from "./card-flow";
 import { fontUrl, loadFont } from "./font";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
@@ -134,17 +141,29 @@ export function App() {
 	// With judging on, a hidden page has no flow, so the microphone is released;
 	// showing it again deals a fresh card. With judging off visibility is ignored.
 	const visibleKey = settings.judgeEnabled ? visible : true;
+	const song = songState.song;
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
+		// With use song on, the song is still parsing until `song` arrives; load
+		// turns use song off for a text that fails. No flow and no card meanwhile.
+		let next: PitchSource;
+		if (settings.useSong) {
+			if (song === null) {
+				setCard(null);
+				return;
+			}
+			next = songSource(song.pitches);
+		} else {
+			next = randomSource(poolFor(settings), Math.random);
+		}
 		const onChange = (state: CardState) => {
 			setCard(state);
 			if (state.listening === "unavailable") setJudgeUnavailable(true);
 			else if (state.listening === "running") setJudgeUnavailable(false);
 		};
 		const flow = createCardFlow({
-			pool: poolFor(settings),
-			random: Math.random,
+			next,
 			delayMs: settings.delaySeconds * 1000,
 			advanceDelayMs: settings.autoAdvance
 				? settings.advanceDelaySeconds * 1000
@@ -184,7 +203,7 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, [settings, open, visibleKey]);
+	}, [settings, open, visibleKey, song]);
 	return (
 		<main>
 			<header class="app-header">
