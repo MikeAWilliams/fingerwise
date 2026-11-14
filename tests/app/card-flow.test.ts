@@ -785,6 +785,14 @@ describe("createCardFlow listen", () => {
 		await settle();
 		expect(last().listening).toBe("running");
 	});
+	test("a song source reports each note's position before it is dealt", () => {
+		const seen: number[] = [];
+		const next = songSource([69, 71] as Pitch[], (i) => seen.push(i));
+		expect([next(null), next(69 as Pitch), next(71 as Pitch)]).toEqual([
+			69, 71, 69,
+		]);
+		expect(seen).toEqual([0, 1, 0]);
+	});
 	test("F05-S04 AC6: a song card is judged against its own pitch", async () => {
 		const { flow, listener, graded } = listenSetup({
 			next: songSource([69, 71] as Pitch[]),

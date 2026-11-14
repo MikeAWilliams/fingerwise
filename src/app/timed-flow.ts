@@ -1,6 +1,12 @@
 import type { ListenResult, PitchReading } from "../audio/listener";
 import type { Pitch } from "../core/pitch";
-import { countIn, DEFAULT_TEMPO, type Song, songSlotsMs } from "../core/song";
+import {
+	countIn,
+	DEFAULT_TEMPO,
+	type Song,
+	type SongNote,
+	songSlotsMs,
+} from "../core/song";
 import type { CardListen, Listening, Verdict } from "./card-flow";
 
 /** Time between the start tap and the first click, so a resuming audio context is running by then. */
@@ -39,6 +45,8 @@ export interface TimedSummary {
 export interface TimedState {
 	/** The note on the staff: the first one before and during the count-in, the last one in the summary. */
 	pitch: Pitch;
+	/** That note's length in quarter-note beats. */
+	beats: number;
 	phase: TimedPhase;
 	/** The judge's answer for the note playing; null when none has been heard or it is not listened to. */
 	verdict: Verdict | null;
@@ -104,8 +112,10 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 
 	function emit(index: number, summary: TimedSummary | null = null): void {
 		if (stopped) return;
+		const note = (notes[index] ?? notes[0]) as SongNote;
 		onChange({
-			pitch: (notes[index] ?? notes[0])?.pitch as Pitch,
+			pitch: note.pitch,
+			beats: note.beats,
 			phase,
 			verdict,
 			listening,

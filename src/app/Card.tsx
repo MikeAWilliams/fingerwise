@@ -10,6 +10,8 @@ import { graphLabel, judgedNote, playedOffset } from "./verdict";
 
 interface CardProps {
 	pitch: Pitch;
+	/** The note's length in quarter-note beats, for a timed song; a whole note when absent. */
+	beats?: number;
 	revealed: boolean;
 	listening?: Listening;
 	/** Judge on: the reveal area is taller and shows the verdict. */
@@ -32,6 +34,7 @@ interface CardProps {
 
 export function Card({
 	pitch,
+	beats,
 	revealed,
 	listening = "off",
 	judging = false,
@@ -49,7 +52,7 @@ export function Card({
 	return (
 		<div class="card">
 			<div class="card-staff">
-				<Staff pitch={pitch} options={staffOptions} />
+				<Staff pitch={pitch} options={staffOptions} beats={beats} />
 			</div>
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}

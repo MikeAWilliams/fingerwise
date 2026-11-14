@@ -4,6 +4,7 @@ import { type Pitch, parsePitch } from "../../src/core/pitch";
 import {
 	buildNote,
 	ledgerLines,
+	noteDuration,
 	noteLayout,
 	type StaffOptions,
 	StaffRangeError,
@@ -85,5 +86,28 @@ describe("range (AC5)", () => {
 		expect(() => noteLayout(p("A3"), { ...options, lowest: p("C4") })).toThrow(
 			StaffRangeError,
 		);
+	});
+});
+
+describe("note length", () => {
+	test("song lengths map to VexFlow durations", () => {
+		expect(noteDuration(4)).toBe("w");
+		expect(noteDuration(3)).toBe("hd");
+		expect(noteDuration(2)).toBe("h");
+		expect(noteDuration(1.5)).toBe("qd");
+		expect(noteDuration(1)).toBe("q");
+		expect(noteDuration(0.5)).toBe("8");
+		expect(noteDuration(0.25)).toBe("16");
+	});
+
+	test("a length no single note shows gets the longest that fits", () => {
+		expect(noteDuration(5)).toBe("w");
+		expect(noteDuration(1 / 3)).toBe("16");
+	});
+
+	test("a note is whole by default, or as long as asked", () => {
+		const layout = noteLayout(p("C4"), options);
+		expect(buildNote(layout).getDuration()).toBe("w");
+		expect(buildNote(layout, 1).getDuration()).toBe("q");
 	});
 });

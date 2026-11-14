@@ -1,4 +1,4 @@
-import { Accidental, Stave, StaveNote } from "vexflow/bravura";
+import { Accidental, Dot, Stave, StaveNote } from "vexflow/bravura";
 import type { ClefName } from "../../core/instrument";
 import { formatPitch, type Pitch } from "../../core/pitch";
 
@@ -76,13 +76,40 @@ export function noteLayout(pitch: Pitch, options: StaffOptions): NoteLayout {
 	};
 }
 
-export function buildNote(layout: NoteLayout): StaveNote {
+/** VexFlow durations by length in quarter-note beats, longest first. */
+const DURATIONS: readonly [beats: number, duration: string][] = [
+	[6, "wd"],
+	[4, "w"],
+	[3, "hd"],
+	[2, "h"],
+	[1.5, "qd"],
+	[1, "q"],
+	[0.75, "8d"],
+	[0.5, "8"],
+	[0.375, "16d"],
+	[0.25, "16"],
+	[0.125, "32"],
+];
+
+/**
+ * The VexFlow duration for a note `beats` quarter notes long. A length no single
+ * note can show (a tie or a tuplet) gets the longest that fits, or a 32nd.
+ */
+export function noteDuration(beats: number): string {
+	const fit = DURATIONS.find(([b]) => b <= beats + 1e-9);
+	return fit ? fit[1] : "32";
+}
+
+/** A note `beats` quarter notes long (a whole note by default), with the layout's accidental. */
+export function buildNote(layout: NoteLayout, beats = 4): StaveNote {
+	const duration = noteDuration(beats);
 	const note = new StaveNote({
 		keys: [layout.key],
-		duration: "w",
+		duration,
 		clef: layout.clef,
 	});
 	if (layout.accidental) note.addModifier(new Accidental(layout.accidental));
+	if (duration.endsWith("d")) Dot.buildAndAttach([note], { all: true });
 	return note;
 }
 

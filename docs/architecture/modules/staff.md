@@ -11,10 +11,11 @@ Owns how a pitch is drawn on a staff. Given a pitch and staff options it works o
 - `interface StaffOptions`: `clef` ([`ClefName`](instrument.md)), `accidentals` (`"sharps"`), `keySignature` (`KeySignature`), `lowest` and `highest` ([`Pitch`](pitch.md)). The last two bound what the staff accepts.
 - `type KeySignature`: `"C" | "G" | "D" | "A" | "E" | "B" | "F#"`, VexFlow key spec names. Sharp keys only, since pitches are spelled with sharps.
 - `noteLayout(pitch, options): NoteLayout`: `{ key, accidental, clef, annotation, keySignature }`. `key` is a VexFlow key such as `f#/4`. `accidental` is what differs from the key: `"#"` for a sharp the key does not sharp, `"n"` for a natural whose letter the key sharps, otherwise `null`. Throws `StaffRangeError` if `pitch` is outside `lowest`..`highest`. For `treble-8vb` the clef is treble with an `8vb` annotation and the key is an octave higher.
-- `buildNote(layout): StaveNote`: a whole note, with an accidental modifier when the layout has one.
+- `noteDuration(beats): string`: the VexFlow duration for a note `beats` quarter notes long: `wd`, `w`, `hd`, `h`, `qd`, `q`, `8d`, `8`, `16d`, `16` or `32`. A length no single note can show (a tie or a tuplet) gets the longest that fits, or `32`.
+- `buildNote(layout, beats = 4): StaveNote`: a note of `noteDuration(beats)`, with an accidental modifier when the layout has one and a dot when the duration is dotted.
 - `buildStave(layout, x, y, width): Stave`: a stave with the layout's clef (and annotation) and, unless the key is `"C"`, its key signature. `drawStaff` uses it.
 - `ledgerLines(note): number`: ledger lines the note needs, from VexFlow's staff line number.
-- `drawStaff(element: HTMLDivElement, pitch, options): void`: clears `element` and draws a one-note SVG staff in it. It sets a view box (220 by 150) on the SVG context, so CSS sizes the SVG and the drawing scales with it.
+- `drawStaff(element: HTMLDivElement, pitch, options, beats = 4): void`: clears `element` and draws a one-note SVG staff in it, the note `beats` long. It sets a view box (220 by 150) on the SVG context, so CSS sizes the SVG and the drawing scales with it.
 - `StaffRangeError`.
 
 The app passes C major; sharp-key signatures are supported for tests (F01-S07). In C there is no signature, so sharps are drawn as accidentals on the note.
@@ -25,7 +26,7 @@ The app passes C major; sharp-key signatures are supported for tests (F01-S07). 
 
 ## Tests
 
-- `tests/render/staff.test.ts`: inspects VexFlow's `StaveNote` model in Node (staff line, accidental modifiers, ledger lines, range errors).
+- `tests/render/staff.test.ts`: inspects VexFlow's `StaveNote` model in Node (staff line, accidental modifiers, ledger lines, range errors, note length). Dots are not tested there: VexFlow's `Dot` needs a DOM.
 - `tests/render/staff-imports.test.ts`: the staff module does not import the app, and core does not import render.
 - `tests/extensibility/key-signature.test.ts` (F01-S07): `buildStave` adds a signature only outside C; in G and D accidentals follow the key; in C every pitch A3..F5 in each clef is drawn as before.
 - `tests/extensibility/staff-clefs.test.ts` (F01-S07): the same pitch in treble, treble 8vb and bass; ledger lines at range limits in each clef; sharps in each clef and at range limits.

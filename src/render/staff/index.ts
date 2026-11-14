@@ -8,6 +8,7 @@ export {
 	type KeySignature,
 	ledgerLines,
 	type NoteLayout,
+	noteDuration,
 	noteLayout,
 	type StaffOptions,
 	StaffRangeError,
@@ -16,11 +17,15 @@ export {
 const WIDTH = 220;
 const HEIGHT = 150;
 
-/** Draw `pitch` as a whole note on a one-note staff inside `element`, replacing its contents. */
+/**
+ * Draw `pitch` as a note `beats` quarter notes long (a whole note by default) on
+ * a one-note staff inside `element`, replacing its contents.
+ */
 export function drawStaff(
 	element: HTMLDivElement,
 	pitch: Pitch,
 	options: StaffOptions,
+	beats = 4,
 ): void {
 	const layout = noteLayout(pitch, options);
 	element.replaceChildren();
@@ -32,5 +37,5 @@ export function drawStaff(
 	const stave = buildStave(layout, 10, 30, WIDTH - 20);
 	stave.setContext(ctx).draw();
 
-	Formatter.FormatAndDraw(ctx, stave, [buildNote(layout)]);
+	Formatter.FormatAndDraw(ctx, stave, [buildNote(layout, beats)]);
 }

@@ -126,6 +126,8 @@ export function App() {
 	const [songState, setSongState] = useState<SongState>(NO_SONG);
 	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
+	// The song note's length for the card; undefined (a whole note) without a song.
+	const [cardBeats, setCardBeats] = useState<number | undefined>(undefined);
 	const [timed, setTimed] = useState<TimedState | null>(null);
 	const [visible, setVisible] = useState(pageVisible);
 	const [judgeUnavailable, setJudgeUnavailable] = useState(false);
@@ -187,13 +189,16 @@ export function App() {
 		// turns use song off for a text that fails. No flow and no card meanwhile.
 		const smart = smartSamplingApplies(settings);
 		let next: PitchSource;
+		let beats: number | undefined;
 		if (settings.useSong) {
 			if (song === null) {
 				setCard(null);
 				setTimed(null);
 				return;
 			}
-			next = songSource(song.pitches);
+			next = songSource(song.pitches, (index) => {
+				beats = song.notes[index]?.beats;
+			});
 		} else {
 			const pool = poolFor(settings);
 			next = smart
@@ -202,6 +207,7 @@ export function App() {
 		}
 		const onChange = (state: CardState) => {
 			setCard(state);
+			setCardBeats(beats);
 			if (state.listening === "unavailable") setJudgeUnavailable(true);
 			else if (state.listening === "running") setJudgeUnavailable(false);
 		};
@@ -304,6 +310,7 @@ export function App() {
 			{!open && timedSong && timed && (
 				<Card
 					pitch={timed.pitch}
+					beats={timed.beats}
 					revealed={false}
 					judging={settings.judgeEnabled}
 					verdict={timed.verdict}
@@ -321,6 +328,7 @@ export function App() {
 			{!open && !timedSong && card && (
 				<Card
 					pitch={card.pitch}
+					beats={cardBeats}
 					revealed={card.revealed}
 					listening={card.listening}
 					judging={settings.judgeEnabled}

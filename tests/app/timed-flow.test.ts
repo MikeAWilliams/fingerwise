@@ -86,6 +86,7 @@ describe("ready (AC3)", () => {
 		expect(states).toHaveLength(1);
 		expect(last()).toEqual({
 			pitch: 60,
+			beats: 1,
 			phase: "ready",
 			verdict: null,
 			listening: "off",
@@ -206,6 +207,7 @@ describe("the end (AC7)", () => {
 		vi.advanceTimersByTime((LEAD_SECONDS + 2 + 1.5) * 1000);
 		expect(last()).toEqual({
 			pitch: 62,
+			beats: 1,
 			phase: "summary",
 			verdict: null,
 			listening: "off",
