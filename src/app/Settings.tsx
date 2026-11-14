@@ -83,7 +83,9 @@ export function Settings({
 	const latest = useRef(settings);
 	latest.current = settings;
 	const edits = useRef(0);
-	const editSong = (text: string) => {
+	const editSong = (typed: string) => {
+		// An emptied box loads the example at once, so there is always a song.
+		const text = isEmptySong(typed) ? SONG_EXAMPLE : typed;
 		setDraft(text);
 		const id = ++edits.current;
 		const apply = (result: Awaited<ReturnType<typeof parseAbc>> | null) => {
@@ -97,8 +99,7 @@ export function Settings({
 				onSong(edit.state);
 			}
 		};
-		if (isEmptySong(text)) apply(null);
-		else parseAbc(text, instrument).then(apply);
+		parseAbc(text, instrument).then(apply);
 	};
 
 	const [rejection, setRejection] = useState<{
