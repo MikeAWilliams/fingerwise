@@ -24,7 +24,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 05  | Songs as note order            | done          |
 | 06  | Smart sampling                 | designed      |
 | 07  | Song practice                  | designed      |
-| 08  | Timed play-along               | not started   |
+| 08  | Timed play-along               | designed (no stories yet) |
 | 09  | Other instruments and clefs    | not started   |
 
 Feature order and scope come from `../vision/vision.md#feature-order`. Folders are created when a feature is designed, not before.

@@ -34,6 +34,11 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Waiting**                    | A song card's state, with use song and judging on, until the correct note is played or the player skips. A wrong note does not end it ([F07](features/07-song-practice/design.md)). |
 | **Hint**                       | The note letter and tablature shown on a waiting card after the reveal delay or a tap, while it keeps listening. Unlike the reveal, no tone plays and nothing advances. |
 | **Skip**                       | A tap on a card showing the hint: the next song note is dealt at once, with no tone. |
+| **Keep tempo**                 | A setting: with use song on, each song card lasts its note's length at the tune's tempo and the song moves on regardless; graded within the slot when judging is on ([F08](features/08-timed-play-along/design.md)). Default off. |
+| **Tempo**                      | How fast a song is played, from its ABC `Q:` line; ♩ = 90 when it has none ([ADR 0008](architecture/decisions/0008-songs-keep-rhythm.md)). |
+| **Slot**                       | With keep tempo, the time a song note's card is shown and listened to: from its start to the next note's start, so a rest's time goes to the note before it. |
+| **Count-in**                   | One bar of clicks in the tune's meter before the first note of a timed song. |
+| **Metronome**                  | A setting under keep tempo: a click on every beat while the song plays, not just the count-in. Default off. |
 | **ABC notation**               | A plain-text format for tunes, used by tune books and online editors. Only its pitches are used. |
 | **Pool**                       | The set of pitches a card can be drawn from: the naturals between the low and high bounds, plus the sharps between them if sharps are included. |
 | **Smart sampling**             | A setting: with judging on, random cards are drawn weighted by need instead of uniformly ([F06](features/06-smart-sampling/design.md)). Default off. |

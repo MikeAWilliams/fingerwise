@@ -69,8 +69,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 7. **Song practice:** small follow-ups to feature 5. Designed in [`features/07-song-practice`](../features/07-song-practice/design.md).
    - **Wait for the correct note:** with use song and judging both on, a song card waits until the correct note is played. A wrong note shows its verdict briefly and the card keeps listening; after the reveal delay the letter and tablature show as a hint while it still listens; a tap can skip. No timing judgment. Random cards are unchanged.
    - **Example song by default:** the defaults ship "Mary Had a Little Lamb" as the song text, with use song off, so use song can be turned on at once. An empty stored song text loads as the example. This replaces feature 5's empty default and placeholder-only example.
-8. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.
-   - **Scope:** open. It is the hardest feature and depends on the judge being reliable. Feature 4 is done, so decide now whether to keep it.
+8. **Timed play-along:** a keep tempo setting plays a song in time: each card lasts its note's length at the tune's `Q:` tempo, after a one-bar count-in, graded on pitch within its slot, with a score at the end. No onset timing or latency calibration. Designed in [`features/08-timed-play-along`](../features/08-timed-play-along/design.md); rhythm from ABC decided in [ADR 0008](../architecture/decisions/0008-songs-keep-rhythm.md). Stories wait for F07 to be built.
 9. **Other instruments and clefs (maybe eventually):** thanks to the abstractions above, this is mostly data: add instrument JSON files (tin whistle, recorder, 6-hole ocarina, etc.) and clef options.
 
 ### Technical gotchas
@@ -99,4 +98,4 @@ Main value is to ocarina players using the app.
 
 ### Open questions
 
-- Open questions for features 8 and 9 sit under their entries in [Feature order](#feature-order).
+- Open questions for feature 9 sit under its entry in [Feature order](#feature-order).
