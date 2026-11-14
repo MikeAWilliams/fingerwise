@@ -21,7 +21,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 02  | Deploy and PWA                 | done          |
 | 03  | Play the note                  | done          |
 | 04  | Record and judge a single note | done          |
-| 05  | Songs as note order            | designed      |
+| 05  | Songs as note order            | done          |
 | 06  | Smarter flashcard sampling     | not started   |
 | 07  | Wait mode for songs            | not started   |
 | 08  | Timed play-along               | not started   |

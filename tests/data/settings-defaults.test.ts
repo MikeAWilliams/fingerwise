@@ -5,7 +5,7 @@ import { loadInstrument } from "../../src/core/instrument";
 import { formatPitch } from "../../src/core/pitch";
 import { parseDefaults } from "../../src/core/settings";
 
-test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s, auto-advance on, 3 s, sound on, 0.5 s, 1.5 s, judge off, 40 cents", () => {
+test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s, auto-advance on, 3 s, sound on, 0.5 s, 1.5 s, judge off, 40 cents, use song off and no song text", () => {
 	const settings = parseDefaults(defaults, loadInstrument(alto));
 	expect(formatPitch(settings.lowest)).toBe("A3");
 	expect(formatPitch(settings.highest)).toBe("F5");
@@ -18,4 +18,6 @@ test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s,
 	expect(settings.soundDurationSeconds).toBe(1.5);
 	expect(settings.judgeEnabled).toBe(false);
 	expect(settings.toleranceCents).toBe(40);
+	expect(settings.useSong).toBe(false);
+	expect(settings.songAbc).toBe("");
 });

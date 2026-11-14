@@ -287,3 +287,21 @@ footer {
 		max-width: 16rem;
 	}
 }
+
+.settings .settings-song-text {
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-start;
+}
+
+.settings-song-text textarea {
+	font-family: monospace;
+	min-height: 8rem;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.settings-song-status ul {
+	margin: 0;
+	padding-left: 1.25rem;
+}

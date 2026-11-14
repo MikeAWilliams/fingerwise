@@ -1,5 +1,5 @@
 import type { ListenResult, PitchReading } from "../audio/listener";
-import { drawPitch, type RandomSource } from "../core/drill";
+import { drawPitch, nextInOrder, type RandomSource } from "../core/drill";
 import type { Grade, ToneTracker } from "../core/judge";
 import type { Pitch } from "../core/pitch";
 import { startRevealTimer } from "./reveal";
@@ -48,9 +48,33 @@ export interface CardListen {
 	now(): number;
 }
 
+/** Where the next card's pitch comes from; `previous` is the card just shown, or null at the start. */
+export type PitchSource = (previous: Pitch | null) => Pitch;
+
+/** Random cards from `pool`, never the same twice in a row (unless the pool is one pitch). */
+export function randomSource(
+	pool: readonly Pitch[],
+	random: RandomSource,
+): PitchSource {
+	return (previous) => drawPitch(pool, previous, random);
+}
+
+/**
+ * The notes of a song in order, looping after the last. It keeps its own
+ * position, so a repeated note is shown again; each flow builds a new one and
+ * so starts at the first note. It draws nothing at random.
+ */
+export function songSource(pitches: readonly Pitch[]): PitchSource {
+	let index: number | null = null;
+	return () => {
+		const next = nextInOrder(pitches, index);
+		index = next.index;
+		return next.pitch;
+	};
+}
+
 export interface CardFlowOptions {
-	pool: readonly Pitch[];
-	random: RandomSource;
+	next: PitchSource;
 	delayMs: number;
 	/** How long a revealed card waits before the next one; null turns auto-advance off. */
 	advanceDelayMs: number | null;
@@ -73,8 +97,7 @@ export interface CardFlow {
 const NONE: Verdict = { grade: "none" };
 
 export function createCardFlow({
-	pool,
-	random,
+	next,
 	delayMs,
 	advanceDelayMs,
 	tone = null,
@@ -197,7 +220,7 @@ export function createCardFlow({
 		cancelTone();
 		windowOpen = false;
 		dealt++;
-		const pitch = drawPitch(pool, previous, random);
+		const pitch = next(previous);
 		if (!listen) {
 			show({ pitch, revealed: false, verdict: null, listening: "off" });
 			startRevealDelay();
