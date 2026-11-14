@@ -40,17 +40,19 @@ Every error is an `InstrumentError` whose message names the offending field (dot
 | `soundEnabled` | boolean | Play note: whether the card's note sounds after the reveal. |
 | `soundDelaySeconds` | number | Time from the reveal to the note starting. Finite, 0 to 30 inclusive. |
 | `soundDurationSeconds` | number | How long the note sounds. Finite, 0.5 to 30 inclusive. |
+| `judgeEnabled` | boolean | Whether the microphone judges the played note before the reveal. |
+| `toleranceCents` | number | How far, in cents, a played tone may be from the expected pitch and still be correct. Finite, 10 to 45 inclusive. |
 
 Across fields: with `soundEnabled` and `autoAdvance` both true, `soundDelaySeconds + soundDurationSeconds` must not exceed `advanceDelaySeconds`.
 
-The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 second reveal delay, auto-advance on, 3 second advance delay, play note on, 0.5 second sound delay, 1.5 second sound duration.
+The file must be valid as written: `parseDefaults` throws a `SettingsError` naming the field rather than correcting anything. Currently A3, F5, sharps on, 3 second reveal delay, auto-advance on, 3 second advance delay, play note on, 0.5 second sound delay, 1.5 second sound duration, judge off, 40 cent tolerance.
 
 ## Storage
 
 Settings are kept in `localStorage` under the single key `fingerwise.settings`, as JSON in the same shape as the defaults file:
 
 ```json
-{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3, "autoAdvance": true, "advanceDelaySeconds": 3, "soundEnabled": true, "soundDelaySeconds": 0.5, "soundDurationSeconds": 1.5 }
+{ "lowest": "A3", "highest": "F5", "includeSharps": true, "delaySeconds": 3, "autoAdvance": true, "advanceDelaySeconds": 3, "soundEnabled": true, "soundDelaySeconds": 0.5, "soundDurationSeconds": 1.5, "judgeEnabled": false, "toleranceCents": 40 }
 ```
 
-On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. Data saved before auto-advance existed lacks `autoAdvance` and `advanceDelaySeconds`, so it keeps its other fields and gets the defaults for those two; data saved before sound existed likewise gets play note on, 0.5 s and 1.5 s. If the result breaks the sound rule above (for example an old advance delay of 1 s), the sound delay, sound duration and advance delay all reset to the defaults and the other fields are kept. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet.
+On load the value is run through `validateSettings` ([settings](modules/settings.md)), so each invalid field falls back to its default. Data saved before auto-advance existed lacks `autoAdvance` and `advanceDelaySeconds`, so it keeps its other fields and gets the defaults for those two; data saved before sound existed likewise gets play note on, 0.5 s and 1.5 s, and data saved before judging gets judge off and 40 cents. If the result breaks the sound rule above (for example an old advance delay of 1 s), the sound delay, sound duration and advance delay all reset to the defaults and the other fields are kept. A missing key, unparseable JSON, a throwing `getItem` or absent storage gives the defaults. A failed write is ignored. A corrected value is not written back until the player changes something. Nothing else is stored yet; nothing from the microphone is ever stored.

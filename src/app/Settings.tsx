@@ -6,9 +6,11 @@ import {
 	canTurnSharpsOff,
 	canTurnSoundOn,
 	MAX_DELAY_SECONDS,
+	MAX_TOLERANCE_CENTS,
 	MIN_DELAY_SECONDS,
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
+	MIN_TOLERANCE_CENTS,
 	type Settings as SettingsValue,
 	setAutoAdvance,
 	setIncludeSharps,
@@ -18,10 +20,12 @@ import {
 import { Section } from "./Section";
 import {
 	applyDelayInput,
+	applyToleranceInput,
 	cardsSummary,
 	editTiming,
 	highestOptions,
 	lowestOptions,
+	micSummary,
 	soundSummary,
 	type TimingField,
 } from "./settings-form";
@@ -31,13 +35,21 @@ interface SettingsProps {
 	settings: SettingsValue;
 	onChange: (settings: SettingsValue) => void;
 	onClose: () => void;
+	/** The microphone was denied or missing; shown in, and opens, the Microphone section. */
+	judgeUnavailable?: boolean;
 }
+
+export const JUDGE_HELP =
+	"The microphone is open while you drill with this on. Only the time before each reveal is analysed, and no audio is stored or sent.";
+export const JUDGE_UNAVAILABLE =
+	"Judging is unavailable (microphone blocked or missing).";
 
 export function Settings({
 	instrument,
 	settings,
 	onChange,
 	onClose,
+	judgeUnavailable = false,
 }: SettingsProps) {
 	const [rejection, setRejection] = useState<{
 		field: TimingField;
@@ -228,6 +240,39 @@ export function Settings({
 				{rejectionFor("soundDurationSeconds") && (
 					<p class="settings-note">{rejectionFor("soundDurationSeconds")}</p>
 				)}
+			</Section>
+			<Section
+				title="Microphone"
+				summary={micSummary(settings)}
+				hasMessage={judgeUnavailable}
+			>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.judgeEnabled}
+						onChange={(e) =>
+							onChange({ ...settings, judgeEnabled: e.currentTarget.checked })
+						}
+					/>
+					Judge my playing
+				</label>
+				<p class="settings-note">{JUDGE_HELP}</p>
+				{judgeUnavailable && <p class="settings-note">{JUDGE_UNAVAILABLE}</p>}
+				<label>
+					Tolerance (¢)
+					<input
+						type="number"
+						min={MIN_TOLERANCE_CENTS}
+						max={MAX_TOLERANCE_CENTS}
+						step="1"
+						value={settings.toleranceCents}
+						onInput={(e) =>
+							onChange(
+								applyToleranceInput(settings, e.currentTarget.valueAsNumber),
+							)
+						}
+					/>
+				</label>
 			</Section>
 			<div class="settings-footer">
 				<button type="button" onClick={onClose}>

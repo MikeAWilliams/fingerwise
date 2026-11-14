@@ -11,6 +11,8 @@ export interface Settings {
 	soundEnabled: boolean;
 	soundDelaySeconds: number;
 	soundDurationSeconds: number;
+	judgeEnabled: boolean;
+	toleranceCents: number;
 }
 
 /** Serialized form shared by the defaults file and storage; pitches are note names. */
@@ -24,12 +26,16 @@ export interface SettingsJson {
 	soundEnabled: boolean;
 	soundDelaySeconds: number;
 	soundDurationSeconds: number;
+	judgeEnabled: boolean;
+	toleranceCents: number;
 }
 
 export const MIN_DELAY_SECONDS = 0.5;
 export const MAX_DELAY_SECONDS = 30;
 export const MIN_SOUND_DELAY_SECONDS = 0;
 export const MIN_SOUND_DURATION_SECONDS = 0.5;
+export const MIN_TOLERANCE_CENTS = 10;
+export const MAX_TOLERANCE_CENTS = 45;
 
 export class SettingsError extends Error {
 	constructor(message: string) {
@@ -55,6 +61,8 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		soundEnabled: settings.soundEnabled,
 		soundDelaySeconds: settings.soundDelaySeconds,
 		soundDurationSeconds: settings.soundDurationSeconds,
+		judgeEnabled: settings.judgeEnabled,
+		toleranceCents: settings.toleranceCents,
 	};
 }
 
@@ -173,6 +181,16 @@ function isValidSoundDuration(value: unknown): value is number {
 	);
 }
 
+/** A finite number of cents from 10 to 45, so a tone nearer the next semitone is never correct. */
+export function isValidTolerance(value: unknown): value is number {
+	return (
+		typeof value === "number" &&
+		Number.isFinite(value) &&
+		value >= MIN_TOLERANCE_CENTS &&
+		value <= MAX_TOLERANCE_CENTS
+	);
+}
+
 function isValidDelay(value: unknown): value is number {
 	return (
 		typeof value === "number" &&
@@ -227,6 +245,13 @@ export function validateSettings(
 	const soundDurationSeconds = isValidSoundDuration(obj.soundDurationSeconds)
 		? obj.soundDurationSeconds
 		: defaults.soundDurationSeconds;
+	const judgeEnabled =
+		typeof obj.judgeEnabled === "boolean"
+			? obj.judgeEnabled
+			: defaults.judgeEnabled;
+	const toleranceCents = isValidTolerance(obj.toleranceCents)
+		? obj.toleranceCents
+		: defaults.toleranceCents;
 
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
@@ -252,6 +277,8 @@ export function validateSettings(
 		soundEnabled,
 		soundDelaySeconds,
 		soundDurationSeconds,
+		judgeEnabled,
+		toleranceCents,
 	};
 	if (!breaksSoundRule(result)) return result;
 	return {
@@ -304,6 +331,14 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 			`soundDurationSeconds must be a number from ${MIN_SOUND_DURATION_SECONDS} to ${MAX_DELAY_SECONDS}`,
 		);
 	}
+	if (typeof obj.judgeEnabled !== "boolean") {
+		throw new SettingsError("judgeEnabled must be true or false");
+	}
+	if (!isValidTolerance(obj.toleranceCents)) {
+		throw new SettingsError(
+			`toleranceCents must be a number from ${MIN_TOLERANCE_CENTS} to ${MAX_TOLERANCE_CENTS}`,
+		);
+	}
 
 	for (const [field, p] of [
 		["lowest", lowest],
@@ -333,6 +368,8 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		soundEnabled: obj.soundEnabled,
 		soundDelaySeconds: obj.soundDelaySeconds,
 		soundDurationSeconds: obj.soundDurationSeconds,
+		judgeEnabled: obj.judgeEnabled,
+		toleranceCents: obj.toleranceCents,
 	};
 	if (breaksSoundRule(settings)) {
 		throw new SettingsError(

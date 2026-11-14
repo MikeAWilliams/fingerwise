@@ -26,6 +26,8 @@ const DEFAULTS: Settings = {
 	soundEnabled: true,
 	soundDelaySeconds: 0.5,
 	soundDurationSeconds: 1.5,
+	judgeEnabled: false,
+	toleranceCents: 40,
 };
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -51,6 +53,8 @@ test("saved settings load back unchanged", () => {
 		soundEnabled: false,
 		soundDelaySeconds: 2,
 		soundDurationSeconds: 4,
+		judgeEnabled: true,
+		toleranceCents: 25.5,
 	};
 	saveSettings(storage, settings);
 	expect([...data.keys()]).toEqual([SETTINGS_KEY]);
@@ -64,6 +68,8 @@ test("saved settings load back unchanged", () => {
 		soundEnabled: false,
 		soundDelaySeconds: 2,
 		soundDurationSeconds: 4,
+		judgeEnabled: true,
+		toleranceCents: 25.5,
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -113,6 +119,8 @@ test("settings saved before auto-advance load with its defaults", () => {
 		soundEnabled: true,
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
+		judgeEnabled: false,
+		toleranceCents: 40,
 	});
 });
 
@@ -137,6 +145,8 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		soundEnabled: true,
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
+		judgeEnabled: false,
+		toleranceCents: 40,
 	});
 });
 
@@ -161,6 +171,30 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		soundEnabled: true,
 		soundDelaySeconds: 0.5,
 		soundDurationSeconds: 1.5,
+		judgeEnabled: false,
+		toleranceCents: 40,
+	});
+});
+
+test("settings saved before judging keep their fields and get judge off, 40 cents", () => {
+	const saved = {
+		lowest: "C4",
+		highest: "E5",
+		includeSharps: false,
+		delaySeconds: 1.3,
+		autoAdvance: false,
+		advanceDelaySeconds: 6,
+		soundEnabled: false,
+		soundDelaySeconds: 2,
+		soundDurationSeconds: 4,
+	};
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(saved) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		...saved,
+		lowest: pitch("C4"),
+		highest: pitch("E5"),
+		judgeEnabled: false,
+		toleranceCents: 40,
 	});
 });
 

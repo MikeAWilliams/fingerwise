@@ -6,6 +6,7 @@ import {
 	pitchesInRange,
 } from "../core/pitch";
 import {
+	isValidTolerance,
 	MAX_DELAY_SECONDS,
 	MIN_DELAY_SECONDS,
 	MIN_SOUND_DELAY_SECONDS,
@@ -31,6 +32,12 @@ export function cardsSummary(settings: Settings): string {
 export function soundSummary(settings: Settings): string {
 	if (!settings.soundEnabled) return "off";
 	return `on, after ${formatSeconds(settings.soundDelaySeconds)}, for ${formatSeconds(settings.soundDurationSeconds)}`;
+}
+
+/** One line of the Microphone section's values, shown while it is closed. */
+export function micSummary(settings: Settings): string {
+	if (!settings.judgeEnabled) return "off";
+	return `on, within ${settings.toleranceCents}¢`;
 }
 
 function offered(settings: Settings, lowest: Pitch, highest: Pitch): Pitch[] {
@@ -77,6 +84,15 @@ export function applyAdvanceDelayInput(
 ): Settings {
 	if (!isDelayInput(value)) return settings;
 	return { ...settings, advanceDelaySeconds: value };
+}
+
+/** The settings with `value` as the tolerance, or unchanged when it is not a finite number from 10 to 45. */
+export function applyToleranceInput(
+	settings: Settings,
+	value: number,
+): Settings {
+	if (!isValidTolerance(value)) return settings;
+	return { ...settings, toleranceCents: value };
 }
 
 export type TimingField =
