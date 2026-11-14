@@ -6,6 +6,7 @@ import {
 	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
 	canTurnSoundOn,
+	keepTempoApplies,
 	MAX_DELAY_SECONDS,
 	MAX_TOLERANCE_CENTS,
 	MIN_DELAY_SECONDS,
@@ -411,6 +412,17 @@ export function Settings({
 						}
 					/>
 					Keep tempo
+				</label>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.metronome}
+						disabled={!keepTempoApplies(settings)}
+						onChange={(e) =>
+							onChange({ ...settings, metronome: e.currentTarget.checked })
+						}
+					/>
+					Metronome
 				</label>
 			</Section>
 			<div class="settings-footer">

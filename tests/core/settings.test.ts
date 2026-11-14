@@ -12,6 +12,7 @@ import {
 	MAX_SONG_CHARS,
 	MAX_TOLERANCE_CENTS,
 	MIN_TOLERANCE_CENTS,
+	metronomeApplies,
 	parseDefaults,
 	type Settings,
 	SettingsError,
@@ -59,6 +60,7 @@ function settings(
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	};
 }
@@ -81,6 +83,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 		...over,
 	};
@@ -593,6 +596,7 @@ describe("judge fields", () => {
 				toleranceCents: 20,
 				useSong: false,
 				keepTempo: false,
+				metronome: false,
 				songAbc: "",
 			});
 		}
@@ -669,6 +673,7 @@ describe("song fields", () => {
 		expect(toSettingsJson(input)).toMatchObject({
 			useSong: true,
 			keepTempo: false,
+			metronome: false,
 			songAbc: tune,
 		});
 		expect(
@@ -700,6 +705,7 @@ describe("song fields", () => {
 				delaySeconds: 5,
 				useSong: false,
 				keepTempo: false,
+				metronome: false,
 				songAbc: tune,
 			});
 		}
@@ -717,6 +723,7 @@ describe("song fields", () => {
 				delaySeconds: 5,
 				useSong: true,
 				keepTempo: false,
+				metronome: false,
 				songAbc: "",
 			});
 		}
@@ -729,6 +736,7 @@ describe("song fields", () => {
 			delaySeconds: 7,
 			useSong: false,
 			keepTempo: false,
+			metronome: false,
 			songAbc: "",
 		});
 	});
@@ -747,6 +755,7 @@ describe("song fields", () => {
 				delaySeconds: 5,
 				useSong: true,
 				keepTempo: false,
+				metronome: false,
 				songAbc: tune,
 			});
 		}
@@ -769,6 +778,7 @@ describe("song fields", () => {
 		expect(parseDefaults(json({ songAbc: tune }), instrument)).toMatchObject({
 			useSong: false,
 			keepTempo: false,
+			metronome: false,
 			songAbc: tune,
 		});
 		expect(parseDefaults(json(), instrument)).toMatchObject({ songAbc: "" });
@@ -867,6 +877,7 @@ describe("keep tempo (F08-S02 AC1)", () => {
 			delaySeconds: 7,
 			useSong: true,
 			keepTempo: false,
+			metronome: false,
 		});
 	});
 
@@ -883,6 +894,7 @@ describe("keep tempo (F08-S02 AC1)", () => {
 				useSong: true,
 				delaySeconds: 5,
 				keepTempo: false,
+				metronome: false,
 			});
 		}
 	});
@@ -907,6 +919,75 @@ describe("keep tempo (F08-S02 AC1)", () => {
 				expect(keepTempoApplies({ ...DEFAULTS, useSong, keepTempo })).toBe(
 					useSong && keepTempo,
 				);
+			}
+		}
+	});
+});
+
+describe("metronome (F08-S04 AC1)", () => {
+	test("is off in the test defaults and round trips", () => {
+		expect(DEFAULTS.metronome).toBe(false);
+		const input = {
+			...DEFAULTS,
+			useSong: true,
+			keepTempo: true,
+			metronome: true,
+		};
+		expect(toSettingsJson(input)).toMatchObject({ metronome: true });
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
+	test("old data without it loads false and keeps every other field", () => {
+		const { metronome, ...old } = json({ delaySeconds: 7, keepTempo: true });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+			keepTempo: true,
+			metronome: false,
+		});
+	});
+
+	test("a non-boolean resets alone", () => {
+		for (const metronome of ["true", 1, null]) {
+			expect(
+				validateSettings(
+					json({ metronome, keepTempo: true, delaySeconds: 5 }),
+					instrument,
+					DEFAULTS,
+				),
+			).toEqual({
+				...DEFAULTS,
+				keepTempo: true,
+				delaySeconds: 5,
+				metronome: false,
+			});
+		}
+	});
+
+	test("the strict parse requires a boolean", () => {
+		expect(parseDefaults(json({ metronome: false }), instrument)).toMatchObject(
+			{ metronome: false },
+		);
+		for (const metronome of [undefined, "no", 1, null]) {
+			expect(() => parseDefaults(json({ metronome }), instrument)).toThrow(
+				SettingsError,
+			);
+			expect(() => parseDefaults(json({ metronome }), instrument)).toThrow(
+				"metronome",
+			);
+		}
+	});
+
+	test("metronomeApplies needs use song, keep tempo and metronome", () => {
+		for (const useSong of [false, true]) {
+			for (const keepTempo of [false, true]) {
+				for (const metronome of [false, true]) {
+					expect(
+						metronomeApplies({ ...DEFAULTS, useSong, keepTempo, metronome }),
+					).toBe(useSong && keepTempo && metronome);
+				}
 			}
 		}
 	});

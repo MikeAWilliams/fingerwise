@@ -31,6 +31,7 @@ const DEFAULTS: Settings = {
 	toleranceCents: 40,
 	useSong: false,
 	keepTempo: false,
+	metronome: false,
 	songAbc: "",
 };
 
@@ -62,6 +63,7 @@ test("saved settings load back unchanged", () => {
 		toleranceCents: 25.5,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	};
 	saveSettings(storage, settings);
@@ -81,6 +83,7 @@ test("saved settings load back unchanged", () => {
 		toleranceCents: 25.5,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
@@ -136,6 +139,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	});
 });
@@ -166,6 +170,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	});
 });
@@ -196,6 +201,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	});
 });
@@ -222,6 +228,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	});
 });
@@ -257,12 +264,14 @@ test("a song and its switch save and load back", () => {
 		...DEFAULTS,
 		useSong: true,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "X:1\nK:C\nC D E|",
 	};
 	saveSettings(storage, settings);
 	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
 		useSong: true,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "X:1\nK:C\nC D E|",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
@@ -290,6 +299,7 @@ test("settings saved before songs load with use song off and no text", () => {
 		toleranceCents: 30,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	});
 });
@@ -309,6 +319,7 @@ test("settings saved before smart sampling load with it off and keep their field
 		toleranceCents: 30,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	};
 	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
@@ -326,6 +337,7 @@ test("keep tempo saves and loads back", () => {
 	saveSettings(storage, settings);
 	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
 		keepTempo: true,
+		metronome: false,
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -340,6 +352,7 @@ test("settings saved before keep tempo load with it off and keep their fields", 
 		delaySeconds: 4,
 		useSong: true,
 		keepTempo: false,
+		metronome: false,
 	});
 });
 
@@ -353,5 +366,49 @@ test("a non-boolean keep tempo resets alone", () => {
 		...DEFAULTS,
 		delaySeconds: 4,
 		keepTempo: false,
+		metronome: false,
+	});
+});
+
+test("metronome saves and loads back", () => {
+	const { storage, data } = fakeStorage();
+	const settings: Settings = {
+		...DEFAULTS,
+		useSong: true,
+		keepTempo: true,
+		metronome: true,
+	};
+	saveSettings(storage, settings);
+	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
+		metronome: true,
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
+});
+
+test("settings saved before the metronome load with it off and keep their fields", () => {
+	const { metronome, ...old } = toSettingsJson({
+		...DEFAULTS,
+		delaySeconds: 4,
+		keepTempo: true,
+	});
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		...DEFAULTS,
+		delaySeconds: 4,
+		keepTempo: true,
+		metronome: false,
+	});
+});
+
+test("a non-boolean metronome resets alone", () => {
+	const bad = {
+		...toSettingsJson({ ...DEFAULTS, delaySeconds: 4 }),
+		metronome: "yes",
+	};
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(bad) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		...DEFAULTS,
+		delaySeconds: 4,
+		metronome: false,
 	});
 });

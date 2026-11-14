@@ -34,6 +34,7 @@ const SETTINGS: Settings = {
 	toleranceCents: 40,
 	useSong: false,
 	keepTempo: false,
+	metronome: false,
 	songAbc: "",
 };
 

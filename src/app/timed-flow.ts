@@ -18,6 +18,9 @@ export const TIMED_HOLD_OFF_MS = 0;
  */
 export const MIN_GRADED_SLOT_MS = 300;
 
+/** How far past a slot's end metronome clicks are scheduled ahead, in seconds, so timer jitter cannot make one late. */
+export const METRONOME_LOOKAHEAD_SECONDS = 1;
+
 /** Seconds of slack when checking a boundary against the clock, for rounding in the sums. */
 const CLOCK_EPSILON = 1e-9;
 
@@ -51,6 +54,8 @@ export interface TimedFlowOptions {
 	clock: { now(): number };
 	/** Plays clicks on that clock; null keeps the flow silent but in time. */
 	clicker: { click(atSeconds: number): void; stop(): void } | null;
+	/** Click on every beat while the song plays, continuing the count-in's grid; false by default. */
+	metronome?: boolean;
 	/** Judges each slot from the microphone; null or absent turns judging off. */
 	listen?: CardListen | null;
 	onChange: (state: TimedState) => void;
@@ -68,6 +73,7 @@ export interface TimedFlow {
 export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const { song, clock, clicker, onChange } = options;
 	const listen = options.listen ?? null;
+	const metronome = options.metronome ?? false;
 	const notes = song.notes;
 	const last = notes.length - 1;
 	const tempo = song.tempo ?? DEFAULT_TEMPO;
@@ -205,6 +211,20 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			elapsedMs += ms;
 			return firstSlot + elapsedMs / 1000;
 		});
+		const songEnd = boundaries[last] as number;
+		// The metronome keeps the count-in's grid: beats from the first slot's start,
+		// every `beatMs`, up to but not including the end. A batch at a time.
+		let nextBeat = 0;
+		const scheduleBeats = (upTo: number): void => {
+			if (!metronome) return;
+			for (;;) {
+				const time = firstSlot + (nextBeat * bar.beatMs) / 1000;
+				if (time >= songEnd - CLOCK_EPSILON || time > upTo) return;
+				clicker?.click(time);
+				nextBeat++;
+			}
+		};
+		scheduleBeats((boundaries[0] as number) + METRONOME_LOOKAHEAD_SECONDS);
 		const show = (index: number): void => {
 			closeSlot();
 			if (index > last) {
@@ -216,6 +236,9 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			currentIndex = index;
 			currentPitch = notes[index]?.pitch as Pitch;
 			openSlot(index);
+			scheduleBeats(
+				(boundaries[index] as number) + METRONOME_LOOKAHEAD_SECONDS,
+			);
 			emit(index);
 			at(boundaries[index] as number, () => show(index + 1));
 		};

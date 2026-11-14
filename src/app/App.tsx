@@ -24,6 +24,7 @@ import {
 } from "../core/progress";
 import {
 	keepTempoApplies,
+	metronomeApplies,
 	parseDefaults,
 	type Settings,
 	smartSamplingApplies,
@@ -217,6 +218,7 @@ export function App() {
 						clock: timedClock,
 						clicker,
 						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
+						metronome: metronomeApplies(settings),
 						listen: listenFor(settings, TIMED_HOLD_OFF_MS),
 						onChange: (state) => {
 							setTimed(state);

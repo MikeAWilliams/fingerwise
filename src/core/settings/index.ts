@@ -16,6 +16,7 @@ export interface Settings {
 	toleranceCents: number;
 	useSong: boolean;
 	keepTempo: boolean;
+	metronome: boolean;
 	songAbc: string;
 }
 
@@ -35,6 +36,7 @@ export interface SettingsJson {
 	toleranceCents: number;
 	useSong: boolean;
 	keepTempo: boolean;
+	metronome: boolean;
 	songAbc: string;
 }
 
@@ -76,6 +78,7 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		toleranceCents: settings.toleranceCents,
 		useSong: settings.useSong,
 		keepTempo: settings.keepTempo,
+		metronome: settings.metronome,
 		songAbc: settings.songAbc,
 	};
 }
@@ -125,6 +128,11 @@ export function smartSamplingApplies(s: Settings): boolean {
 /** Keep tempo times a held song's cards, so it needs the song on. */
 export function keepTempoApplies(s: Settings): boolean {
 	return s.useSong && s.keepTempo;
+}
+
+/** The metronome clicks on every beat of a timed song, so it needs keep tempo to apply. */
+export function metronomeApplies(s: Settings): boolean {
+	return keepTempoApplies(s) && s.metronome;
 }
 
 /** Sound delay plus duration fits in the advance delay (compared with a tolerance for half seconds). */
@@ -289,6 +297,8 @@ export function validateSettings(
 		typeof obj.useSong === "boolean" ? obj.useSong : defaults.useSong;
 	const keepTempo =
 		typeof obj.keepTempo === "boolean" ? obj.keepTempo : defaults.keepTempo;
+	const metronome =
+		typeof obj.metronome === "boolean" ? obj.metronome : defaults.metronome;
 	// Text saved empty (or never saved) takes the defaults' song, the example.
 	const songAbc =
 		isValidSongText(obj.songAbc) && obj.songAbc !== ""
@@ -324,6 +334,7 @@ export function validateSettings(
 		toleranceCents,
 		useSong,
 		keepTempo,
+		metronome,
 		songAbc,
 	};
 	if (!breaksSoundRule(result)) return result;
@@ -397,6 +408,9 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (typeof obj.keepTempo !== "boolean") {
 		throw new SettingsError("keepTempo must be true or false");
 	}
+	if (typeof obj.metronome !== "boolean") {
+		throw new SettingsError("metronome must be true or false");
+	}
 	if (typeof obj.songAbc !== "string") {
 		throw new SettingsError("songAbc must be a string");
 	}
@@ -439,6 +453,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		toleranceCents: obj.toleranceCents,
 		useSong: obj.useSong,
 		keepTempo: obj.keepTempo,
+		metronome: obj.metronome,
 		songAbc: obj.songAbc,
 	};
 	if (breaksSoundRule(settings)) {

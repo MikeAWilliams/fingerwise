@@ -3,6 +3,7 @@ import type { CardListen } from "../../src/app/card-flow";
 import {
 	createTimedFlow,
 	LEAD_SECONDS,
+	METRONOME_LOOKAHEAD_SECONDS,
 	MIN_GRADED_SLOT_MS,
 	TIMED_HOLD_OFF_MS,
 	type TimedFlow,
@@ -51,12 +52,13 @@ function songOf(
 
 function setup(
 	song = songOf([1, 1, 1]),
-	{ clock = { now }, silent = false } = {},
+	{ clock = { now }, silent = false, metronome = false } = {},
 ): TimedFlow {
 	const flow = createTimedFlow({
 		song,
 		clock,
 		clicker: silent ? null : clicker,
+		metronome,
 		onChange: (s) => states.push(s),
 	});
 	flow.start();
@@ -667,5 +669,122 @@ describe("grading within the slot (F08-S03)", () => {
 			vi.advanceTimersByTime(FIRST_SLOT_MS + 1500);
 			expect(last().summary).toEqual({ correct: 0, graded: 3 });
 		});
+	});
+});
+
+describe("metronome (F08-S04)", () => {
+	const near = (actual: number[], expected: number[]) => {
+		expect(actual).toHaveLength(expected.length);
+		for (const [i, e] of expected.entries())
+			expect(actual[i]).toBeCloseTo(e, 9);
+	};
+
+	test("4/4 clicks every beat from the first slot, continuing the count-in's grid (AC3)", () => {
+		const flow = setup(songOf([1, 1, 1]), { metronome: true });
+		flow.step();
+		const first = LEAD_SECONDS + 2;
+		// Count-in beats, then the song's beats; the first slot's click is one beat after
+		// the count-in's last, with no gap and no double. The end (3.6) gets none.
+		near(clicks, [
+			LEAD_SECONDS,
+			LEAD_SECONDS + 0.5,
+			LEAD_SECONDS + 1,
+			LEAD_SECONDS + 1.5,
+			first,
+			first + 0.5,
+			first + 1,
+		]);
+		vi.advanceTimersByTime(20000);
+		expect(clicks).toHaveLength(7);
+	});
+
+	test("6/8 clicks every dotted quarter, none at or after the last slot's end", () => {
+		const flow = setup(songOf([1, 1, 1, 1], { meter: { beats: 6, unit: 8 } }), {
+			metronome: true,
+		});
+		flow.step();
+		const first = LEAD_SECONDS + 1.5;
+		near(clicks, [
+			LEAD_SECONDS,
+			LEAD_SECONDS + 0.75,
+			first,
+			first + 0.75,
+			first + 1.5,
+		]);
+	});
+
+	test("a song ending on a beat gets no click at its end", () => {
+		const flow = setup(songOf([2]), { metronome: true });
+		flow.step();
+		const first = LEAD_SECONDS + 2;
+		near(clicks.slice(4), [first, first + 0.5]);
+	});
+
+	test("with it off only the count-in clicks (AC4)", () => {
+		const flow = setup(songOf([1, 1, 1]));
+		flow.step();
+		vi.advanceTimersByTime(20000);
+		expect(clicks).toHaveLength(4);
+	});
+
+	test("clicks are scheduled a batch at a time, not all at the start", () => {
+		const flow = setup(songOf(Array(40).fill(1)), { metronome: true });
+		flow.step();
+		const early = clicks.length;
+		expect(early).toBeLessThan(4 + 80);
+		expect(early).toBeGreaterThan(4);
+		const first = LEAD_SECONDS + 2;
+		expect(Math.max(...clicks)).toBeLessThanOrEqual(
+			first + 0.5 + METRONOME_LOOKAHEAD_SECONDS,
+		);
+		vi.advanceTimersByTime(60000);
+		// 40 beats of song at 2 per beat's second: beats at 0.5 s from the first slot to 20 s.
+		expect(clicks).toHaveLength(4 + 40);
+		for (let i = 4; i < clicks.length; i++) {
+			expect(clicks[i]).toBeCloseTo(first + (i - 4) * 0.5, 9);
+		}
+	});
+
+	test("nothing is scheduled once the summary shows", () => {
+		const flow = setup(songOf([1, 1]), { metronome: true });
+		flow.step();
+		vi.advanceTimersByTime(10000);
+		expect(last().phase).toBe("summary");
+		const count = clicks.length;
+		vi.advanceTimersByTime(60000);
+		expect(clicks).toHaveLength(count);
+	});
+
+	test("a stop stops the clicks and schedules no more (AC5)", () => {
+		const flow = setup(songOf(Array(40).fill(1)), { metronome: true });
+		flow.step();
+		const stops = clickerStops;
+		vi.advanceTimersByTime(5000);
+		flow.stop();
+		expect(clickerStops).toBe(stops + 1);
+		const count = clicks.length;
+		vi.advanceTimersByTime(60000);
+		expect(clicks).toHaveLength(count);
+	});
+
+	test("a restart stops the old clicks and starts a clean grid (AC5)", () => {
+		const flow = setup(songOf([1, 1]), { metronome: true });
+		flow.step();
+		vi.advanceTimersByTime(10000);
+		expect(last().phase).toBe("summary");
+		clicks = [];
+		const stops = clickerStops;
+		flow.step();
+		expect(clickerStops).toBe(stops + 1);
+		const first = now() + LEAD_SECONDS + 2;
+		near(clicks.slice(4), [first, first + 0.5]);
+		expect(clicks).toHaveLength(6);
+	});
+
+	test("with no clicker it still runs", () => {
+		const flow = setup(songOf([1]), { metronome: true, silent: true });
+		flow.step();
+		vi.advanceTimersByTime(5000);
+		expect(last().phase).toBe("summary");
 	});
 });

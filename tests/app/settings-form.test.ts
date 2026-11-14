@@ -45,6 +45,7 @@ function settings(
 		toleranceCents: 40,
 		useSong: false,
 		keepTempo: false,
+		metronome: false,
 		songAbc: "",
 	};
 }
