@@ -1,6 +1,6 @@
 # F08: Timed play-along
 
-- **Status:** designed (stories not written yet)
+- **Status:** designed
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
@@ -23,13 +23,14 @@ A song can be played in time. With a new **keep tempo** setting on, each song ca
 
 **Count-in**
 
-- When the song starts, and each time it starts again, one bar of clicks plays before the first note. A bar is the tune's meter (`M:`): the top number of beats, except that 6/8, 9/8 and 12/8 count dotted beats (2, 3, 4). No meter, or free meter, counts 4 quarter beats. A pickup (anacrusis) starts after the full count-in bar.
+- A timed song starts with its first note on the staff and "Tap or press a key to start". The tap is the gesture that unlocks audio and, with judging on, opens the microphone, and it lets the player start when ready.
+- After the start tap, and each time the song starts again, one bar of clicks plays before the first note. A bar is the tune's meter (`M:`): the top number of beats, except that 6/8, 9/8 and 12/8 count dotted beats (2, 3, 4). No meter, or free meter, counts 4 quarter beats. A pickup (anacrusis) starts after the full count-in bar.
 - During the count-in the staff shows the first note, so the player can get ready. The microphone is not listened to until the first slot starts.
 
 **Playing a slot**
 
 - The card appears at the start of its slot and is replaced by the next card when the slot ends. Cards and clicks run from the audio clock, so they stay together.
-- With judging on, the slot is the listening window. The [hold-off](../../glossary.md) is shorter than F04's 500 ms, because no tone is played (see Risks). A correct tone shows the F04 verdict (icon, "Correct", the judged note) at once, without the note letter or tablature, and the card keeps its place until the slot ends. A wrong tone shows "Incorrect" with the judged note, and the card keeps listening, so the player can still correct it within the slot. A later correct tone replaces it.
+- With judging on, the slot is the listening window. The [hold-off](../../glossary.md) is shorter than F04's 500 ms, because no tone is played (see Risks). A correct tone shows the F04 verdict (icon, "Correct", the judged note) at once, without the note letter, tablature or pitch graph, and the card keeps its place until the slot ends. A wrong tone shows "Incorrect" with the judged note, and the card keeps listening, so the player can still correct it within the slot. A later correct tone replaces it.
 - When the slot ends, the note is **correct** if a correct tone was heard in it, otherwise **missed**. A missed note shows nothing extra on its way out.
 - No tone plays during the song, because the microphone would hear it on the next note.
 - A slot too short for the judge to hear a settled tone is shown but **not graded**: it counts neither way in the score. The threshold is provisional (see Risks).
@@ -41,7 +42,7 @@ A song can be played in time. With a new **keep tempo** setting on, each song ca
 **Taps and interruptions**
 
 - During the count-in and the song, a tap does nothing. The song cannot be skipped through by hand.
-- Opening Settings, turning judging off or hiding the page stops the song as in F04. Showing the drill again starts the song from the count-in.
+- Opening Settings, turning judging off or hiding the page stops the song as in F04. Showing the drill again shows the first note with the start prompt.
 
 **Metronome** (last story, see Risks)
 
@@ -82,13 +83,11 @@ The drill engine, judge, staff and tab modules are unchanged. The judge's hold-o
 - **Microphone latency** (50–200 ms on Android) shortens the effective window at the end of each slot: a tone that settles just before the slot ends may be heard after it. A grace period after the slot is possible later if the live check shows false misses.
 - **Metronome clicks breaking a held note.** A reading that fails the judge's checks clears its run. If a click in the microphone does that, short notes may never settle. The metronome is the last story so it can be dropped or reworked without affecting the rest. The count-in clicks come before any listening and carry no such risk.
 - **Timer accuracy.** Card changes run from the page's timers, which can lag the audio clock by a frame or so. That is fine for display, and clicks are scheduled on the audio clock itself.
-- **F07 dependency.** F07 is designed but not built. The stories are written once F07 is built and has been played with, against its real card flow.
+- **F07 dependency.** F07 is designed but not built. F08-S02 onwards builds on F07's card flow, so F08 is built after F07. If building F07 changes its behaviour, check these stories before F08's breakdown.
 
 ## Stories
 
-Not written yet; they follow F07's build. Likely split, in build order:
-
-- Song rhythm from ABC (durations, tempo, meter; the "no tempo" note)
-- Keep tempo setting and timed song cards (slots, count-in, no grading)
-- Grading within a slot and the end-of-song summary
-- Metronome
+- F08-S01: Song rhythm from ABC
+- F08-S02: Keep tempo
+- F08-S03: Grade within the slot
+- F08-S04: Metronome
