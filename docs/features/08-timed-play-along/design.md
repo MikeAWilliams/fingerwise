@@ -1,6 +1,6 @@
 # F08: Timed play-along
 
-- **Status:** designed
+- **Status:** done
 
 ## Goal
 

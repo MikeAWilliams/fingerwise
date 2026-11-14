@@ -24,7 +24,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 05  | Songs as note order            | done          |
 | 06  | Smart sampling                 | done          |
 | 07  | Song practice                  | done          |
-| 08  | Timed play-along               | designed      |
+| 08  | Timed play-along               | done          |
 | 09  | Other instruments and clefs    | parked        |
 
 This index is the feature order. Folders are created when a feature is designed, not before; a parked feature keeps a short design as a placeholder.
