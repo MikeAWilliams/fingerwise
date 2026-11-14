@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/MikeAWilliams/fingerwise/discussions
+    about: Ask a question or float an idea before opening an issue.
+  - name: Report a security problem or conduct concern
+    url: https://github.com/MikeAWilliams/fingerwise/security/advisories/new
+    about: Private report. Please don't open a public issue.
