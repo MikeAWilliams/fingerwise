@@ -2,31 +2,44 @@ name: Fingering correction
 description: A fingering shown for a note looks wrong.
 labels: [fingering-data]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        The maintainer is not a sophisticated musician and cannot check most fingerings, so please be specific and show your evidence.
   - type: input
     id: instrument
     attributes:
       label: Instrument
-      placeholder: 12-hole alto C ocarina
+      description: Exact name, key and fingering style.
+      placeholder: 12-hole alto C ocarina, Taiwanese style
     validations:
       required: true
   - type: input
     id: note
     attributes:
       label: Note
+      description: The note, with octave, and how the app names it.
       placeholder: A4
+    validations:
+      required: true
+  - type: textarea
+    id: shown
+    attributes:
+      label: Fingering the app shows
+      description: Which holes the app shows covered.
     validations:
       required: true
   - type: textarea
     id: correct
     attributes:
       label: Correct fingering
-      description: Which holes are covered. Describe it in words or as a hole diagram.
+      description: Exactly which holes should be covered. State your hole numbering (for example, left to right as seen by the player).
     validations:
       required: true
   - type: textarea
     id: source
     attributes:
-      label: Source
-      description: Where this comes from. It must be an open source or your own testing on a real instrument. Please do not copy from commercial charts.
+      label: Source and how you checked it
+      description: A link to an open source with its license, or say you tested it on your own instrument. Please do not copy from commercial charts.
     validations:
       required: true

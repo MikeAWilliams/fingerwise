@@ -1,10 +1,26 @@
 name: Feature idea
 description: Suggest something new. Please read docs/vision/vision.md first; it may already be planned.
 body:
+  - type: markdown
+    attributes:
+      value: |
+        The maintainer is not a sophisticated musician, so please explain musical terms and be specific about what you want.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do and what gets in the way today.
+    validations:
+      required: true
   - type: textarea
     id: idea
     attributes:
       label: The idea
-      description: What you would like, and the problem it solves for you.
+      description: What you would like, in concrete terms. Include an example of how it would look or work.
     validations:
       required: true
+  - type: textarea
+    id: help
+    attributes:
+      label: Can you help
+      description: Would you do any of the work, or review the result?

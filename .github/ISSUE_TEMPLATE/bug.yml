@@ -1,12 +1,22 @@
 name: Bug
 description: Something in the app does not work as expected.
-labels: []
 body:
-  - type: textarea
-    id: what
+  - type: markdown
     attributes:
-      label: What happened
-      description: What you did, what you expected, and what happened instead.
+      value: |
+        Please be specific and clear. The more exactly you can describe the problem, the easier it is to fix.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, including the settings and note in use.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual
+      description: What you expected to happen, and what happened instead.
     validations:
       required: true
   - type: input
@@ -14,8 +24,10 @@ body:
     attributes:
       label: Browser and device
       placeholder: Firefox 130 on Android 15
+    validations:
+      required: true
   - type: textarea
     id: extra
     attributes:
       label: Anything else
-      description: Screenshots, the note and settings in use, console errors.
+      description: Screenshots and console errors help.

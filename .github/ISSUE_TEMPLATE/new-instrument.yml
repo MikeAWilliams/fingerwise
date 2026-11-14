@@ -1,19 +1,45 @@
 name: New instrument
-description: Propose adding an instrument.
+description: Propose adding an instrument. The maintainer cannot verify fingerings on most instruments, so please do as much of the work as you can.
 labels: [instrument]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        The maintainer is not a sophisticated musician and cannot check fingerings on most instruments. A request is much more likely to be accepted if you do the work and make it easy to review. Be specific and complete.
   - type: input
     id: instrument
     attributes:
       label: Instrument
-      description: Name, hole count, key and fingering style.
+      description: Exact name, family, number of holes, key, and fingering style (for example Taiwanese or English).
+      placeholder: 12-hole alto C ocarina, Taiwanese style
+    validations:
+      required: true
+  - type: textarea
+    id: range
+    attributes:
+      label: Playable range
+      description: Lowest and highest note, and whether the instrument is written at a different pitch than it sounds (transposing).
+    validations:
+      required: true
+  - type: textarea
+    id: fingerings
+    attributes:
+      label: Fingering for every note
+      description: One line per note in the range, saying exactly which holes are covered. State your hole numbering (for example, left to right as seen by the player), and which holes are thumb holes. Look at data/instruments/ocarina-12-taiwanese.json for the shape. Do not leave notes out or say "same as the other instrument".
     validations:
       required: true
   - type: textarea
     id: source
     attributes:
-      label: Fingering source
-      description: Where the fingerings would come from. It must be an open source or your own testing on a real instrument. Please do not copy from commercial charts.
+      label: Source and license
+      description: Links for where the fingerings come from, and the license that allows reuse. It must be an open source, an open font, or your own testing. Please do not copy from commercial charts. If you are unsure about a source, say so.
+    validations:
+      required: true
+  - type: textarea
+    id: verified
+    attributes:
+      label: How you checked it
+      description: Do you own and play this instrument? Did you test each fingering by playing it, or are you relying on the source? Say which notes you are less sure of.
     validations:
       required: true
   - type: checkboxes
@@ -21,4 +47,5 @@ body:
     attributes:
       label: Contribution
       options:
-        - label: I am willing to write the instrument definition (see data/instruments/README.md).
+        - label: I will write the instrument definition and send a pull request (see data/instruments/README.md).
+        - label: I am available to answer questions and check the result.
