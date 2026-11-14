@@ -52,7 +52,7 @@ A song can be played in time. With a new **keep tempo** setting on, each song ca
 - Timing judgment: onset detection, early or late verdicts, ±100–150 ms windows, latency calibration. A note is right if its pitch is heard anywhere in its slot.
 - A tempo setting or slow-down control. The player edits `Q:`.
 - Drawing rests, bars or several notes on the staff. One note per card as today.
-- Tempo changes within a tune (a second `Q:`), and swing. The first `Q:` holds for the whole tune.
+- Tempo or meter changes within a tune (a second `Q:` or `M:`), and swing. The first `Q:` and `M:` hold for the whole tune, and later ones are accepted and ignored. Note lengths still follow the written notes, so a meter change alone plays correctly; only the clicks keep the first meter's beat.
 - Storing scores, or feeding timed grades into [F06](../06-smart-sampling/design.md).
 - Pausing.
 
