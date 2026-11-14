@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
@@ -29,6 +29,7 @@ import {
 	type Settings,
 	smartSamplingApplies,
 } from "../core/settings";
+import { songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
@@ -182,6 +183,11 @@ export function App() {
 	const timedSong = keepTempoApplies(settings);
 	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
 	const song = songState.song;
+	const barsPerLine = settings.barsPerLine;
+	const lines = useMemo(
+		() => (song === null ? [] : songLines(song, barsPerLine)),
+		[song, barsPerLine],
+	);
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
@@ -320,6 +326,16 @@ export function App() {
 							: timed.phase
 					}
 					timedSummary={summaryText(timed.summary ?? { correct: 0, graded: 0 })}
+					song={
+						song === null
+							? undefined
+							: {
+									lines,
+									meter: song.meter,
+									barsPerLine,
+									current: timed.index,
+								}
+					}
 					instrument={instrument}
 					staffOptions={STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}

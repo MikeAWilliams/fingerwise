@@ -35,6 +35,7 @@ const SETTINGS: Settings = {
 	useSong: false,
 	keepTempo: false,
 	metronome: false,
+	barsPerLine: 2,
 	songAbc: "",
 };
 

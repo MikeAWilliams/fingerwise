@@ -13,6 +13,7 @@ export {
 	type StaffOptions,
 	StaffRangeError,
 } from "./layout";
+export { drawSongLines, GREY, lineOfNote, splitBeats } from "./song-lines";
 
 const WIDTH = 220;
 const HEIGHT = 150;

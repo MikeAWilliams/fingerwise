@@ -7,6 +7,7 @@ import type { Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import { MAX_SONG_CHARS } from "../core/settings";
 import {
+	barBeats,
 	createSong,
 	DEFAULT_METER,
 	type Meter,
@@ -104,6 +105,38 @@ function tempoOf(tune: AbcTune): number | null {
 	const whole = (tempo.duration ?? []).reduce((sum, d) => sum + d, 0);
 	const quarters = tempo.bpm * whole * 4;
 	return Number.isFinite(quarters) && quarters > 0 ? quarters : null;
+}
+
+/**
+ * Where the first bar line falls, in quarter-note beats from the start of the
+ * tune: the played length of the notes and rests before it, or null when the
+ * tune has no bar line.
+ */
+function firstBarLineOf(tune: AbcTune): number | null {
+	let whole = 0;
+	let triplet = 1;
+	for (const line of tune.lines) {
+		for (const el of line.staff?.[0]?.voices[0] ?? []) {
+			if (el.el_type === "bar") return whole * 4;
+			if (el.el_type !== "note" || typeof el.duration !== "number") continue;
+			if (el.tripletMultiplier !== undefined) triplet = el.tripletMultiplier;
+			whole += el.duration * triplet;
+			if (el.endTriplet) triplet = 1;
+		}
+	}
+	return null;
+}
+
+/**
+ * Beats from the first note to the first bar line after it. With no bar line
+ * the first note is taken to start a bar.
+ */
+function firstBarOf(tune: AbcTune, origin: number, meter: Meter): number {
+	const bar = barBeats(meter);
+	const line = firstBarLineOf(tune);
+	if (line === null) return bar;
+	const ahead = (((line - origin) % bar) + bar) % bar;
+	return ahead > 1e-3 && bar - ahead > 1e-3 ? ahead : bar;
 }
 
 /** The first `M:` as a meter; 2/2 for cut time; 4/4 for anything else (no `M:`, `M:none`, `M:C`, `2+3/8`). */
@@ -341,7 +374,12 @@ export async function parseAbc(
 			start: e.start - origin,
 			beats: e.duration,
 		}));
-		song = createSong(notes, { tempo: tempoOf(tune), meter: meterOf(tune) });
+		const meter = meterOf(tune);
+		song = createSong(notes, {
+			tempo: tempoOf(tune),
+			meter,
+			firstBar: firstBarOf(tune, origin, meter),
+		});
 	} catch (error) {
 		return { ok: false, problems: [thrownProblem(error)] };
 	}

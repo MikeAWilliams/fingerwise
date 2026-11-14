@@ -3,6 +3,7 @@ import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import { loadInstrument } from "../../src/core/instrument";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
 import {
+	barBeats,
 	countIn,
 	createSong,
 	DEFAULT_METER,
@@ -10,6 +11,8 @@ import {
 	type Meter,
 	SongError,
 	type SongNote,
+	songBars,
+	songLines,
 	songOutOfRange,
 	songSlotsMs,
 } from "../../src/core/song";
@@ -239,5 +242,87 @@ describe("imports and randomness (AC6)", () => {
 
 	test("never calls Math.random", () => {
 		expect(songSource).not.toContain("Math.random");
+	});
+});
+
+describe("bars and lines (timed song staff)", () => {
+	/** Each bar as `pitch:beats`, with `~` after a tied piece and `r:beats` for a rest. */
+	function shape(s: ReturnType<typeof song>) {
+		return songBars(s).map((bar) =>
+			bar.items
+				.map((item) =>
+					item.kind === "rest"
+						? `r:${item.beats}`
+						: `${item.index}:${item.beats}${item.tied ? "~" : ""}`,
+				)
+				.join(" "),
+		);
+	}
+
+	test("barBeats counts quarter notes", () => {
+		expect(barBeats({ beats: 4, unit: 4 })).toBe(4);
+		expect(barBeats({ beats: 6, unit: 8 })).toBe(3);
+		expect(barBeats({ beats: 2, unit: 2 })).toBe(4);
+	});
+
+	test("the first bar defaults to a whole bar and must be positive", () => {
+		expect(quarters("C4").firstBar).toBe(4);
+		expect(() =>
+			createSong([{ pitch: pitch("C4"), start: 0, beats: 1 }], {
+				tempo: null,
+				meter: DEFAULT_METER,
+				firstBar: 0,
+			}),
+		).toThrow(SongError);
+	});
+
+	test("quarters fill whole bars; the last ends with its note", () => {
+		expect(shape(quarters("C4", "D4", "E4", "F4", "G4", "A4"))).toEqual([
+			"0:1 1:1 2:1 3:1",
+			"4:1 5:1",
+		]);
+	});
+
+	test("a gap between notes is a rest", () => {
+		expect(
+			shape(
+				song([
+					["C4", 0, 1],
+					["D4", 2, 2],
+				]),
+			),
+		).toEqual(["0:1 r:1 1:2"]);
+	});
+
+	test("a note over a bar line is split and tied", () => {
+		expect(
+			shape(
+				song([
+					["C4", 0, 3],
+					["D4", 3, 2],
+					["E4", 5, 1],
+				]),
+			),
+		).toEqual(["0:3 1:1~", "1:1 2:1"]);
+	});
+
+	test("a pickup makes a short first bar", () => {
+		const s = createSong(
+			[
+				{ pitch: pitch("C4"), start: 0, beats: 1 },
+				{ pitch: pitch("D4"), start: 1, beats: 4 },
+			],
+			{ tempo: null, meter: DEFAULT_METER, firstBar: 1 },
+		);
+		expect(songBars(s).map((b) => b.start)).toEqual([0, 1]);
+		expect(songBars(s)[1]?.items).toEqual([
+			{ kind: "note", index: 1, pitch: pitch("D4"), beats: 4, tied: false },
+		]);
+	});
+
+	test("songLines groups bars, the last line may be short", () => {
+		const s = quarters(...Array.from({ length: 12 }, () => "C4"));
+		expect(songLines(s, 2).map((line) => line.length)).toEqual([2, 1]);
+		expect(songLines(s, 1).map((line) => line.length)).toEqual([1, 1, 1]);
 	});
 });

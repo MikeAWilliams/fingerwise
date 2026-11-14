@@ -16,13 +16,16 @@ Owns how a pitch is drawn on a staff. Given a pitch and staff options it works o
 - `buildStave(layout, x, y, width): Stave`: a stave with the layout's clef (and annotation) and, unless the key is `"C"`, its key signature. `drawStaff` uses it.
 - `ledgerLines(note): number`: ledger lines the note needs, from VexFlow's staff line number.
 - `drawStaff(element: HTMLDivElement, pitch, options, beats = 4): void`: clears `element` and draws a one-note SVG staff in it, the note `beats` long. It sets a view box (220 by 150) on the SVG context, so CSS sizes the SVG and the drawing scales with it.
+- `drawSongLines(element, lines, current, options, meter, barsPerLine): void` (`song-lines.ts`): clears `element` and draws two lines of music from `songLines` ([song](song.md)): the line holding note `current` and the one after it. Each line starts with the clef and key signature; a whole bar is `BAR_WIDTH` (180) wide and a shorter one (pickup, last bar) is scaled by its length, but no narrower than half. Rests are drawn from the bar items, lengths no single note can show are split by `splitBeats` into tied notes, eighths and shorter are beamed with VexFlow's default groups for the meter, and a note tied over a line break gets half a tie on each line. Note `current`'s pieces, and beams and ties over them, are black; everything else is `GREY`. The view box is sized for `barsPerLine` whole bars, so lines keep the same scale.
+- `splitBeats(beats): number[]`: a length as note values (dotted at most once) to tie, longest first; a length they cannot add up to (a triplet) stays one value.
+- `lineOfNote(lines, index): number`: the line where note `index` starts, or 0.
 - `StaffRangeError`.
 
 The app passes C major; sharp-key signatures are supported for tests (F01-S07). In C there is no signature, so sharps are drawn as accidentals on the note.
 
 ## Dependencies
 
-`vexflow/bravura` (Bravura font embedded, so no font is fetched at runtime), `src/core/pitch` and `src/core/instrument` (types). It must not import `src/app/`.
+`vexflow/bravura` (Bravura font embedded, so no font is fetched at runtime), `src/core/pitch`, `src/core/instrument` and `src/core/song` (types). It must not import `src/app/`.
 
 ## Tests
 
@@ -30,6 +33,7 @@ The app passes C major; sharp-key signatures are supported for tests (F01-S07). 
 - `tests/render/staff-imports.test.ts`: the staff module does not import the app, and core does not import render.
 - `tests/extensibility/key-signature.test.ts` (F01-S07): `buildStave` adds a signature only outside C; in G and D accidentals follow the key; in C every pitch A3..F5 in each clef is drawn as before.
 - `tests/extensibility/staff-clefs.test.ts` (F01-S07): the same pitch in treble, treble 8vb and bass; ledger lines at range limits in each clef; sharps in each clef and at range limits.
+- `tests/render/staff.test.ts` also covers `splitBeats` and `lineOfNote`; `drawSongLines` needs a DOM and is checked by hand.
 
 The rendered SVG is not unit tested; it is checked by hand with `make dev`.
 

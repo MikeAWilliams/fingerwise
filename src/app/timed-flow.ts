@@ -43,6 +43,8 @@ export interface TimedSummary {
 }
 
 export interface TimedState {
+	/** The index in the song of the note on the staff. */
+	index: number;
 	/** The note on the staff: the first one before and during the count-in, the last one in the summary. */
 	pitch: Pitch;
 	/** That note's length in quarter-note beats. */
@@ -114,6 +116,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		if (stopped) return;
 		const note = (notes[index] ?? notes[0]) as SongNote;
 		onChange({
+			index: notes[index] ? index : 0,
 			pitch: note.pitch,
 			beats: note.beats,
 			phase,

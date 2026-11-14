@@ -1,6 +1,7 @@
 import { Accidental } from "vexflow/bravura";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
+import { lineOfNote, splitBeats } from "../../src/render/staff";
 import {
 	buildNote,
 	ledgerLines,
@@ -109,5 +110,35 @@ describe("note length", () => {
 		const layout = noteLayout(p("C4"), options);
 		expect(buildNote(layout).getDuration()).toBe("w");
 		expect(buildNote(layout, 1).getDuration()).toBe("q");
+	});
+});
+
+describe("song lines", () => {
+	test("splitBeats breaks a length into note values to tie", () => {
+		expect(splitBeats(1)).toEqual([1]);
+		expect(splitBeats(2.5)).toEqual([2, 0.5]);
+		expect(splitBeats(5)).toEqual([4, 1]);
+		expect(splitBeats(1.5)).toEqual([1.5]);
+	});
+
+	test("a triplet length stays one note", () => {
+		expect(splitBeats(1 / 3)).toEqual([1 / 3]);
+	});
+
+	test("lineOfNote finds the line where a note starts", () => {
+		const note = (index: number) => ({
+			kind: "note" as const,
+			index,
+			pitch: p("C4"),
+			beats: 4,
+			tied: false,
+		});
+		const lines = [
+			[{ start: 0, items: [note(0)] }],
+			[{ start: 4, items: [note(1)] }],
+		];
+		expect(lineOfNote(lines, 0)).toBe(0);
+		expect(lineOfNote(lines, 1)).toBe(1);
+		expect(lineOfNote(lines, 9)).toBe(0);
 	});
 });

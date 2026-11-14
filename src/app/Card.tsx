@@ -5,7 +5,7 @@ import { type TabFont, tabView } from "../render/tab";
 import type { Listening, Verdict } from "./card-flow";
 import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
 import { PitchGraph } from "./PitchGraph";
-import { Staff } from "./Staff";
+import { SongStaff, type SongView, Staff } from "./Staff";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
 
 interface CardProps {
@@ -27,6 +27,8 @@ interface CardProps {
 	 */
 	timed?: "ready" | "playing" | "summary";
 	timedSummary?: string;
+	/** A timed song's lines of music; the staff shows them instead of one note. */
+	song?: SongView;
 	instrument: Instrument;
 	staffOptions: StaffOptions;
 	font: TabFont;
@@ -43,6 +45,7 @@ export function Card({
 	need = null,
 	timed,
 	timedSummary,
+	song,
 	instrument,
 	staffOptions,
 	font,
@@ -50,9 +53,13 @@ export function Card({
 	const glyph = glyphFor(instrument, pitch);
 	const view = glyph === undefined ? null : tabView(glyph, font);
 	return (
-		<div class="card">
+		<div class={song ? "card card-song" : "card"}>
 			<div class="card-staff">
-				<Staff pitch={pitch} options={staffOptions} beats={beats} />
+				{song ? (
+					<SongStaff view={song} options={staffOptions} />
+				) : (
+					<Staff pitch={pitch} options={staffOptions} beats={beats} />
+				)}
 			</div>
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}

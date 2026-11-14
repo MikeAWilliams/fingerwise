@@ -7,8 +7,10 @@ import {
 	canTurnSharpsOff,
 	canTurnSoundOn,
 	keepTempoApplies,
+	MAX_BARS_PER_LINE,
 	MAX_DELAY_SECONDS,
 	MAX_TOLERANCE_CENTS,
+	MIN_BARS_PER_LINE,
 	MIN_DELAY_SECONDS,
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
@@ -22,6 +24,7 @@ import {
 import { JUDGE_HELP, JUDGE_UNAVAILABLE } from "./judge-text";
 import { Section } from "./Section";
 import {
+	applyBarsPerLineInput,
 	applyDelayInput,
 	applyToleranceInput,
 	cardsSummary,
@@ -424,6 +427,22 @@ export function Settings({
 						}
 					/>
 					Metronome
+				</label>
+				<label>
+					Bars per line
+					<input
+						type="number"
+						min={MIN_BARS_PER_LINE}
+						max={MAX_BARS_PER_LINE}
+						step="1"
+						value={settings.barsPerLine}
+						disabled={!keepTempoApplies(settings)}
+						onInput={(e) =>
+							onChange(
+								applyBarsPerLineInput(settings, e.currentTarget.valueAsNumber),
+							)
+						}
+					/>
 				</label>
 			</Section>
 			<div class="settings-footer">

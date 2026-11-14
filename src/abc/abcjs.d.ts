@@ -12,9 +12,16 @@ declare module "abcjs/src/api/abc_tunebook.js" {
 		rest?: unknown;
 		gracenotes?: unknown[];
 		decoration?: string[];
-		/** For `el_type: "tempo"`: the beat length in whole notes (as `duration[]`) and the rate. */
-		duration?: number[];
+		/**
+		 * A note's or rest's written length in whole notes; for `el_type: "tempo"`,
+		 * the beat length as parts to add up.
+		 */
+		duration?: number | number[];
 		bpm?: number;
+		/** On a triplet's first note: the factor its written lengths are played at. */
+		tripletMultiplier?: number;
+		/** On a triplet's last note. */
+		endTriplet?: boolean;
 	}
 
 	export interface AbcStaff {

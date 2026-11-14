@@ -46,6 +46,15 @@ main {
 	aspect-ratio: 220 / 150;
 }
 
+.card-song {
+	max-width: 56rem;
+}
+
+.song-staff {
+	width: 100%;
+}
+
+.song-staff svg,
 .staff svg {
 	display: block;
 	width: 100%;

@@ -32,6 +32,7 @@ const DEFAULTS: Settings = {
 	useSong: false,
 	keepTempo: false,
 	metronome: false,
+	barsPerLine: 2,
 	songAbc: "",
 };
 
@@ -64,6 +65,7 @@ test("saved settings load back unchanged", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	};
 	saveSettings(storage, settings);
@@ -84,6 +86,7 @@ test("saved settings load back unchanged", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
@@ -140,6 +143,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	});
 });
@@ -171,6 +175,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	});
 });
@@ -202,6 +207,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	});
 });
@@ -229,6 +235,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	});
 });
@@ -300,6 +307,7 @@ test("settings saved before songs load with use song off and no text", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	});
 });

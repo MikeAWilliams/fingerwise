@@ -464,6 +464,36 @@ describe("meter (F08-S01 AC6)", () => {
 	});
 });
 
+describe("the first bar", () => {
+	const firstBar = async (body: string) =>
+		(await parsed(`${head}M:4/4\nL:1/4\nK:C\n${body}`)).song.firstBar;
+
+	test("a tune that starts on the bar line has a whole first bar", async () => {
+		expect(await firstBar("C D E F|G A B c|")).toBe(4);
+	});
+
+	test("a one-beat pickup gives a one-beat first bar", async () => {
+		expect(await firstBar("C|D E F G|")).toBe(1);
+	});
+
+	test("a leading rest is not counted: the bar runs from the first note", async () => {
+		expect(await firstBar("z C D E|F G A B|")).toBe(3);
+	});
+
+	test("a triplet pickup counts as its played length", async () => {
+		expect(await firstBar("(3C/D/E/|F G A B|")).toBe(1);
+	});
+
+	test("a tune with no bar line has a whole first bar", async () => {
+		expect(await firstBar("C D E")).toBe(4);
+	});
+
+	test("6/8 bars are three quarters long", async () => {
+		const result = await parsed(`${head}M:6/8\nL:1/8\nK:C\nC|DEF GAB|`);
+		expect(result.song.firstBar).toBe(0.5);
+	});
+});
+
 describe("a later Q: or M: (F08-S01 AC7)", () => {
 	test("a second Q: line and an inline Q: leave the first tempo and the written lengths", async () => {
 		const text = `${head}M:4/4\nL:1/8\nQ:1/4=120\nK:C\nCDEF|\nQ:1/4=60\nGABc|[Q:1/4=30] cdef|`;

@@ -17,6 +17,7 @@ export interface Settings {
 	useSong: boolean;
 	keepTempo: boolean;
 	metronome: boolean;
+	barsPerLine: number;
 	songAbc: string;
 }
 
@@ -37,6 +38,7 @@ export interface SettingsJson {
 	useSong: boolean;
 	keepTempo: boolean;
 	metronome: boolean;
+	barsPerLine: number;
 	songAbc: string;
 }
 
@@ -46,6 +48,9 @@ export const MIN_SOUND_DELAY_SECONDS = 0;
 export const MIN_SOUND_DURATION_SECONDS = 0.5;
 export const MIN_TOLERANCE_CENTS = 10;
 export const MAX_TOLERANCE_CENTS = 45;
+/** Bars on each line of a timed song's staff. */
+export const MIN_BARS_PER_LINE = 1;
+export const MAX_BARS_PER_LINE = 4;
 /** Longest song text kept, in characters. Settings only check the length; the ABC adapter reads the text. */
 export const MAX_SONG_CHARS = 10000;
 
@@ -79,6 +84,7 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		useSong: settings.useSong,
 		keepTempo: settings.keepTempo,
 		metronome: settings.metronome,
+		barsPerLine: settings.barsPerLine,
 		songAbc: settings.songAbc,
 	};
 }
@@ -232,6 +238,16 @@ function isValidDelay(value: unknown): value is number {
 	);
 }
 
+/** A whole number of bars from 1 to 4. */
+export function isValidBarsPerLine(value: unknown): value is number {
+	return (
+		typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= MIN_BARS_PER_LINE &&
+		value <= MAX_BARS_PER_LINE
+	);
+}
+
 function isValidSongText(value: unknown): value is string {
 	return typeof value === "string" && value.length <= MAX_SONG_CHARS;
 }
@@ -299,6 +315,9 @@ export function validateSettings(
 		typeof obj.keepTempo === "boolean" ? obj.keepTempo : defaults.keepTempo;
 	const metronome =
 		typeof obj.metronome === "boolean" ? obj.metronome : defaults.metronome;
+	const barsPerLine = isValidBarsPerLine(obj.barsPerLine)
+		? obj.barsPerLine
+		: defaults.barsPerLine;
 	// Text saved empty (or never saved) takes the defaults' song, the example.
 	const songAbc =
 		isValidSongText(obj.songAbc) && obj.songAbc !== ""
@@ -335,6 +354,7 @@ export function validateSettings(
 		useSong,
 		keepTempo,
 		metronome,
+		barsPerLine,
 		songAbc,
 	};
 	if (!breaksSoundRule(result)) return result;
@@ -411,6 +431,11 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (typeof obj.metronome !== "boolean") {
 		throw new SettingsError("metronome must be true or false");
 	}
+	if (!isValidBarsPerLine(obj.barsPerLine)) {
+		throw new SettingsError(
+			`barsPerLine must be a whole number from ${MIN_BARS_PER_LINE} to ${MAX_BARS_PER_LINE}`,
+		);
+	}
 	if (typeof obj.songAbc !== "string") {
 		throw new SettingsError("songAbc must be a string");
 	}
@@ -454,6 +479,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		useSong: obj.useSong,
 		keepTempo: obj.keepTempo,
 		metronome: obj.metronome,
+		barsPerLine: obj.barsPerLine,
 		songAbc: obj.songAbc,
 	};
 	if (breaksSoundRule(settings)) {

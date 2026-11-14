@@ -61,6 +61,7 @@ function settings(
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 	};
 }
@@ -84,6 +85,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		barsPerLine: 2,
 		songAbc: "",
 		...over,
 	};
@@ -920,6 +922,40 @@ describe("keep tempo (F08-S02 AC1)", () => {
 					useSong && keepTempo,
 				);
 			}
+		}
+	});
+});
+
+describe("bars per line", () => {
+	test("is 2 in the test defaults and round trips", () => {
+		const input = { ...DEFAULTS, barsPerLine: 4 };
+		expect(toSettingsJson(input)).toMatchObject({ barsPerLine: 4 });
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
+	test("old data without it, or a bad value, takes the default alone", () => {
+		const { barsPerLine, ...old } = json({ delaySeconds: 7 });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+		});
+		for (const bad of [0, 5, 1.5, "2", null]) {
+			expect(
+				validateSettings(json({ barsPerLine: bad }), instrument, DEFAULTS),
+			).toEqual(DEFAULTS);
+		}
+	});
+
+	test("the strict parse requires a whole number from 1 to 4", () => {
+		expect(parseDefaults(json({ barsPerLine: 3 }), instrument)).toMatchObject({
+			barsPerLine: 3,
+		});
+		for (const bad of [0, 5, 1.5, "2"]) {
+			expect(() =>
+				parseDefaults(json({ barsPerLine: bad }), instrument),
+			).toThrow(/barsPerLine/);
 		}
 	});
 });
