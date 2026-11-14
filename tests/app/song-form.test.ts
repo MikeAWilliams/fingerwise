@@ -1,15 +1,18 @@
 import { describe, expect, test } from "vitest";
-import type { AbcResult } from "../../src/abc";
+import alto from "../../data/instruments/ocarina-12-taiwanese.json";
+import { type AbcResult, parseAbc } from "../../src/abc";
 import {
 	applySongText,
 	canUseSong,
 	NO_SONG,
 	problemLine,
+	SONG_EXAMPLE,
 	songSectionSummary,
 	songStateFrom,
 	songStatus,
 	songSummary,
 } from "../../src/app/song-form";
+import { loadInstrument } from "../../src/core/instrument";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
 import type { Settings } from "../../src/core/settings";
 import { createSong } from "../../src/core/song";
@@ -139,4 +142,9 @@ describe("state", () => {
 		expect(songSectionSummary(SETTINGS)).toBe("off");
 		expect(songSectionSummary({ ...SETTINGS, useSong: true })).toBe("on");
 	});
+});
+
+test("the placeholder example is a valid song for the alto C", async () => {
+	const result = await parseAbc(SONG_EXAMPLE, loadInstrument(alto));
+	expect(result).toMatchObject({ ok: true, notes: 26, converted: 0 });
 });

@@ -42,7 +42,7 @@ The player pastes one tune in ABC notation into the settings, and the drill show
 ## Out of scope
 
 - Visualizing, playing or editing the song in the app (use the linked editor).
-- A list of songs, names, a bundled example, sharing or import from files and URLs.
+- A list of songs, names, a bundled song (the empty box only shows a greyed example as a placeholder; it is never saved or played), sharing or import from files and URLs.
 - Rhythm in the drill, wait mode (feature 7) and timed play-along (feature 8). The durations are read but unused.
 - MusicXML, other formats, and transposing a song into range.
 - Flat spelling on the staff and reveal; a possible later feature.

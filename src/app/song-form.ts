@@ -114,3 +114,8 @@ export function canUseSong(song: Song | null): boolean {
 export function songSectionSummary(settings: Settings): string {
 	return settings.useSong ? "on" : "off";
 }
+
+/** Shown greyed in the empty box so the format is clear; never saved or used as a song. */
+export const SONG_EXAMPLE = `T: Mary Had a Little Lamb
+E D C D | E E E2 | D D D2 | E G G2 |
+E D C D | E E E E | D D E D | C4 ||`;

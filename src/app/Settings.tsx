@@ -36,6 +36,7 @@ import {
 	canUseSong,
 	isEmptySong,
 	problemLine,
+	SONG_EXAMPLE,
 	type SongState,
 	songSectionSummary,
 } from "./song-form";
@@ -331,6 +332,7 @@ export function Settings({
 					<textarea
 						rows={8}
 						value={draft}
+						placeholder={SONG_EXAMPLE}
 						spellcheck={false}
 						autocapitalize="off"
 						onInput={(e) => editSong(e.currentTarget.value)}
