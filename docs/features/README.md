@@ -19,7 +19,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | --- | ------------------------------ | ------------- |
 | 01  | Core flashcards                | done          |
 | 02  | Deploy and PWA                 | done          |
-| 03  | Play the note                  | designed      |
+| 03  | Play the note                  | done          |
 | 04  | Record and judge a single note | designed      |
 | 05  | Songs as note order            | designed      |
 | 06  | Smarter flashcard sampling     | not started   |

@@ -1,6 +1,6 @@
 # F03: Play the note
 
-- **Status:** designed
+- **Status:** done
 - **Vision source:** `../../vision/vision.md#feature-order`
 
 ## Goal
