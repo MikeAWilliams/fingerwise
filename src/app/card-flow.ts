@@ -34,6 +34,8 @@ export interface CardState {
 	 * after `WRONG_VERDICT_MS`.
 	 */
 	verdict: Verdict | null;
+	/** A waiting card shows its note letter and tablature as a hint while it keeps listening. */
+	hint: boolean;
 	listening: Listening;
 }
 
@@ -111,8 +113,9 @@ export interface CardFlowOptions {
 	listen?: CardListen | null;
 	/**
 	 * Wait for the correct note: while listening runs with its window open, an
-	 * incorrect tone shows its verdict briefly instead of revealing the card, and
-	 * the reveal delay and taps do not reveal it. Needs `listen`; false by default.
+	 * incorrect tone shows its verdict briefly instead of revealing the card. The
+	 * reveal delay and then a step show the hint, and a step on the hint deals
+	 * the next card. Needs `listen`; false by default.
 	 */
 	wait?: boolean;
 	/**
@@ -126,7 +129,10 @@ export interface CardFlowOptions {
 export interface CardFlow {
 	/** Draw the first card and start its timer. */
 	start(): void;
-	/** Reveal the card if hidden, otherwise show the next one. Exactly one per call. */
+	/**
+	 * Reveal the card if hidden, otherwise show the next one. Exactly one per call.
+	 * A waiting card shows the hint first, then a step skips it.
+	 */
 	step(): void;
 	/** Cancel any pending reveal or advance, and stop listening. */
 	stop(): void;
@@ -229,10 +235,16 @@ export function createCardFlow({
 		}
 	}
 
-	// While waiting, the reveal delay does nothing (the hint, F07-S02).
+	/** Shows the hint on a waiting card: no tone, no advance, the window stays open. */
+	function showHint() {
+		cancel();
+		if (state !== null) show({ ...state, hint: true });
+	}
+
+	// While waiting, the reveal delay gives the hint instead of revealing.
 	function timedReveal() {
-		if (waiting()) return;
-		reveal();
+		if (waiting()) showHint();
+		else reveal();
 	}
 
 	function startRevealDelay() {
@@ -255,14 +267,13 @@ export function createCardFlow({
 			if (hz === null) return;
 			const grade = listen.grade(state.pitch, hz);
 			if (grade === "incorrect" && waiting()) {
-				const shown = state;
-				show({ ...shown, verdict: { grade, frequency: hz } });
+				show({ ...state, verdict: { grade, frequency: hz } });
 				listen.tracker.reset(listen.now());
 				cancelClear();
 				cancelMiss = startRevealTimer(WRONG_VERDICT_MS, () => {
 					cancelMiss = null;
-					// Reveal, deal and stop cancel this timer, so the card is still the same.
-					show({ ...shown, verdict: null });
+					// Reveal, deal and stop cancel this timer, so the card is still unrevealed.
+					if (state) show({ ...state, verdict: null });
 				});
 				return;
 			}
@@ -311,23 +322,47 @@ export function createCardFlow({
 		dealt++;
 		const pitch = next(previous);
 		if (!listen) {
-			show({ pitch, revealed: false, verdict: null, listening: "off" });
+			show({
+				pitch,
+				revealed: false,
+				verdict: null,
+				hint: false,
+				listening: "off",
+			});
 			startRevealDelay();
 			return;
 		}
 		if (unavailable) {
-			show({ pitch, revealed: false, verdict: null, listening: "unavailable" });
+			show({
+				pitch,
+				revealed: false,
+				verdict: null,
+				hint: false,
+				listening: "unavailable",
+			});
 			startRevealDelay();
 			return;
 		}
 		if (streamRunning) {
-			show({ pitch, revealed: false, verdict: null, listening: "running" });
+			show({
+				pitch,
+				revealed: false,
+				verdict: null,
+				hint: false,
+				listening: "running",
+			});
 			openWindow(listen);
 			startRevealDelay();
 			return;
 		}
 		// The reveal delay and the window wait until the stream runs or fails.
-		show({ pitch, revealed: false, verdict: null, listening: "opening" });
+		show({
+			pitch,
+			revealed: false,
+			verdict: null,
+			hint: false,
+			listening: "opening",
+		});
 		openStream(listen);
 	}
 
@@ -337,6 +372,8 @@ export function createCardFlow({
 			if (state === null) return;
 			if (state.revealed) deal(state.pitch);
 			else if (!waiting()) reveal();
+			else if (state.hint) deal(state.pitch);
+			else showHint();
 		},
 		stop() {
 			stopped = true;

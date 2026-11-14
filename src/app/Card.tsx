@@ -15,6 +15,8 @@ interface CardProps {
 	/** Judge on: the reveal area is taller and shows the verdict. */
 	judging?: boolean;
 	verdict?: Verdict | null;
+	/** Show the note name and glyph on a card that is not revealed. */
+	hint?: boolean;
 	/** Smart sampling need score (0 to 1), shown on reveal. */
 	need?: number | null;
 	instrument: Instrument;
@@ -28,6 +30,7 @@ export function Card({
 	listening = "off",
 	judging = false,
 	verdict = null,
+	hint = false,
 	need = null,
 	instrument,
 	staffOptions,
@@ -40,14 +43,16 @@ export function Card({
 			<div class="card-staff">
 				<Staff pitch={pitch} options={staffOptions} />
 			</div>
-			<div class={judging ? "card-reveal judging" : "card-reveal"}>
+			<div
+				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
+			>
 				{!revealed && listening === "locked" && (
 					<p class="card-status">{LISTEN_PROMPT}</p>
 				)}
 				{!revealed && listening === "unavailable" && (
 					<p class="card-status">{JUDGE_UNAVAILABLE}</p>
 				)}
-				{revealed && (
+				{(revealed || hint) && (
 					<>
 						<div class="card-name">{formatPitch(pitch)}</div>
 						{need !== null && (

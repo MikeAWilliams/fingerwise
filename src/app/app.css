@@ -97,6 +97,12 @@ main {
 	font-size: 5.5rem;
 }
 
+/* The hint is the answer shown early, so it is a little muted. Heights stay put. */
+.card-hint .card-name,
+.card-hint .card-glyph {
+	opacity: 0.75;
+}
+
 .card-verdict {
 	display: flex;
 	align-items: center;

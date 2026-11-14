@@ -269,6 +269,7 @@ export function App() {
 					listening={card.listening}
 					judging={settings.judgeEnabled}
 					verdict={card.verdict}
+					hint={card.hint}
 					need={
 						smartSamplingApplies(settings) && !settings.useSong
 							? needOf(scoresRef.current as Scores, card.pitch)

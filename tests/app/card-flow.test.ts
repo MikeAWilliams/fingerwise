@@ -71,6 +71,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
+			hint: false,
 			listening: "off",
 		});
 		const count = states.length;
@@ -112,6 +113,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
+			hint: false,
 			listening: "off",
 		});
 	});
@@ -143,6 +145,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
+			hint: false,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(ADVANCE - 1);
@@ -150,6 +153,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
+			hint: false,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(1);
@@ -171,6 +175,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
+			hint: false,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(1);
@@ -186,6 +191,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: false,
 			verdict: null,
+			hint: false,
 			listening: "off",
 		});
 		const count = states.length;
@@ -195,6 +201,7 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
+			hint: false,
 			listening: "off",
 		});
 	});
@@ -212,7 +219,13 @@ describe("createCardFlow", () => {
 		vi.advanceTimersByTime(DELAY + ADVANCE - 1);
 		expect(last().pitch).toBe(second);
 		expect(states.slice(count)).toEqual([
-			{ pitch: second, revealed: true, verdict: NONE, listening: "off" },
+			{
+				pitch: second,
+				revealed: true,
+				verdict: NONE,
+				hint: false,
+				listening: "off",
+			},
 		]);
 	});
 
@@ -912,20 +925,18 @@ describe("createCardFlow listen", () => {
 			expect(last()).toMatchObject({ pitch: 71, revealed: false });
 		});
 
-		test("AC5: a step keeps a waiting card, also after its reveal delay; a revealed card deals the next note", async () => {
+		test("AC5: the reveal delay and a step never reveal a waiting card; a revealed card deals the next note", async () => {
 			const { flow, listener } = waitSetup();
 			flow.start();
 			await settle();
-			const count = states.length;
-			flow.step();
 			vi.advanceTimersByTime(DELAY * 2);
 			flow.step();
-			expect(states).toHaveLength(count);
-			expect(last()).toMatchObject({ pitch: 69, revealed: false });
-			playUntilChange(listener, OK, 1500);
-			expect(last().revealed).toBe(true);
 			flow.step();
 			expect(last()).toMatchObject({ pitch: 71, revealed: false });
+			playUntilChange(listener, OK, 1500);
+			expect(last()).toMatchObject({ pitch: 71, revealed: true });
+			flow.step();
+			expect(last()).toMatchObject({ pitch: 72, revealed: false });
 		});
 
 		test("AC6: without wait an incorrect tone still reveals", async () => {
@@ -1032,6 +1043,146 @@ describe("createCardFlow listen", () => {
 			again.flow.start();
 			await settle();
 			expect(last().pitch).toBe(69);
+		});
+	});
+
+	describe("hint while waiting (F07-S02)", () => {
+		const SONG = [69, 71, 72] as Pitch[];
+		const WRONG = 880;
+		const OK = 440;
+
+		function hintSetup(advanceDelayMs: number | null = null) {
+			const calls: string[] = [];
+			const tone: CardTone = {
+				delayMs: 500,
+				play: (p) => calls.push(`play${p}`),
+				stop: () => calls.push("stop"),
+			};
+			const result = listenSetup({
+				next: songSource(SONG),
+				tone,
+				wait: true,
+				advanceDelayMs,
+			});
+			const plays = () => calls.filter((c) => c.startsWith("play"));
+			return { ...result, plays };
+		}
+
+		function playUntilChange(listener: FakeListener, hz: number, ms: number) {
+			const count = states.length;
+			for (let t = 0; t < ms; t += 16) {
+				listener.read(hz);
+				if (states.length !== count) return;
+				vi.advanceTimersByTime(16);
+			}
+		}
+
+		test("AC1: the reveal delay shows the hint, keeps listening, plays nothing and starts no advance", async () => {
+			const { flow, listener, plays } = hintSetup(ADVANCE);
+			flow.start();
+			await settle();
+			expect(last().hint).toBe(false);
+			vi.advanceTimersByTime(DELAY);
+			expect(last()).toMatchObject({
+				pitch: 69,
+				revealed: false,
+				hint: true,
+				listening: "running",
+			});
+			vi.advanceTimersByTime(ADVANCE * 3);
+			expect(plays()).toEqual([]);
+			expect(last()).toMatchObject({ pitch: 69, revealed: false, hint: true });
+			// Still listening: the right note is judged.
+			playUntilChange(listener, OK, 1500);
+			expect(last()).toMatchObject({ revealed: true, hint: true });
+		});
+
+		test("AC2: a step shows the hint at once, and the reveal delay does not fire again", async () => {
+			const { flow } = hintSetup();
+			flow.start();
+			await settle();
+			vi.advanceTimersByTime(1000);
+			flow.step();
+			expect(last()).toMatchObject({ pitch: 69, revealed: false, hint: true });
+			const count = states.length;
+			vi.advanceTimersByTime(DELAY * 2);
+			expect(states).toHaveLength(count);
+		});
+
+		test("AC3: a wrong verdict shows and clears under the hint, which stays", async () => {
+			const { flow, listener } = hintSetup();
+			flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY);
+			expect(last().hint).toBe(true);
+			playUntilChange(listener, WRONG, 1500);
+			expect(last()).toMatchObject({
+				revealed: false,
+				hint: true,
+				verdict: { grade: "incorrect" },
+			});
+			vi.advanceTimersByTime(WRONG_VERDICT_MS);
+			expect(last()).toMatchObject({ hint: true, verdict: null });
+		});
+
+		test("a wrong verdict showing when the hint arrives keeps both, and the clear keeps the hint", async () => {
+			const { flow, listener } = hintSetup();
+			flow.start();
+			await settle();
+			playUntilChange(listener, WRONG, 1500);
+			flow.step();
+			expect(last()).toMatchObject({
+				hint: true,
+				verdict: { grade: "incorrect" },
+			});
+			vi.advanceTimersByTime(WRONG_VERDICT_MS);
+			expect(last()).toMatchObject({ hint: true, verdict: null });
+		});
+
+		test("AC4: a correct tone after the hint reveals, plays and advances", async () => {
+			const { flow, listener, plays } = hintSetup(ADVANCE);
+			flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY);
+			playUntilChange(listener, OK, 1500);
+			const revealedAt = Date.now();
+			expect(last()).toMatchObject({
+				revealed: true,
+				verdict: { grade: "correct" },
+			});
+			vi.advanceTimersByTime(600);
+			expect(plays()).toEqual(["play69"]);
+			vi.advanceTimersByTime(ADVANCE - (Date.now() - revealedAt));
+			expect(last()).toMatchObject({ pitch: 71, revealed: false, hint: false });
+		});
+
+		test("AC5: a step on the hint deals the next note with no tone and no extra advance", async () => {
+			const { flow, plays } = hintSetup(ADVANCE);
+			flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY);
+			expect(last().hint).toBe(true);
+			flow.step();
+			expect(last()).toMatchObject({ pitch: 71, revealed: false, hint: false });
+			const count = states.length;
+			vi.advanceTimersByTime(ADVANCE * 2);
+			expect(plays()).toEqual([]);
+			expect(last().pitch).toBe(71);
+			// Only the new card's own hint arrives.
+			expect(states.slice(count).every((s) => s.pitch === 71)).toBe(true);
+		});
+
+		test("one step does one thing: hint, then skip, never both", async () => {
+			const { flow } = hintSetup();
+			flow.start();
+			await settle();
+			const count = states.length;
+			flow.step();
+			expect(states).toHaveLength(count + 1);
+			expect(last()).toMatchObject({ pitch: 69, hint: true });
+			flow.step();
+			expect(states).toHaveLength(count + 2);
+			expect(last()).toMatchObject({ pitch: 71, hint: false });
 		});
 	});
 });
