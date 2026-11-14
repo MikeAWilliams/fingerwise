@@ -15,6 +15,8 @@ interface CardProps {
 	/** Judge on: the reveal area is taller and shows the verdict. */
 	judging?: boolean;
 	verdict?: Verdict | null;
+	/** Smart sampling need score (0 to 1), shown on reveal. */
+	need?: number | null;
 	instrument: Instrument;
 	staffOptions: StaffOptions;
 	font: TabFont;
@@ -26,6 +28,7 @@ export function Card({
 	listening = "off",
 	judging = false,
 	verdict = null,
+	need = null,
 	instrument,
 	staffOptions,
 	font,
@@ -47,6 +50,9 @@ export function Card({
 				{revealed && (
 					<>
 						<div class="card-name">{formatPitch(pitch)}</div>
+						{need !== null && (
+							<div class="card-need">Priority {need.toFixed(2)}</div>
+						)}
 						{view?.kind === "glyph" && (
 							<div
 								class="card-glyph"

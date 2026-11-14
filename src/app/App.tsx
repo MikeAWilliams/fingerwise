@@ -15,7 +15,12 @@ import {
 	judge,
 } from "../core/judge";
 import type { Pitch } from "../core/pitch";
-import { applyGrade, type ProgressGrade, type Scores } from "../core/progress";
+import {
+	applyGrade,
+	needOf,
+	type ProgressGrade,
+	type Scores,
+} from "../core/progress";
 import {
 	parseDefaults,
 	type Settings,
@@ -97,6 +102,8 @@ export function App() {
 	if (scoresRef.current === null) {
 		scoresRef.current = loadProgress(browserStorage(), instrument);
 	}
+	// Bumped after each grade so the revealed card re-renders with the new score.
+	const [, setScoreTick] = useState(0);
 	const settingsRef = useRef(settings);
 	settingsRef.current = settings;
 	const songEdited = useRef(false);
@@ -182,6 +189,7 @@ export function App() {
 			const scores = applyGrade(scoresRef.current as Scores, pitch, grade);
 			scoresRef.current = scores;
 			saveProgress(browserStorage(), instrument, scores);
+			setScoreTick((t) => t + 1);
 		};
 		const flow = createCardFlow({
 			next,
@@ -260,6 +268,11 @@ export function App() {
 					listening={card.listening}
 					judging={settings.judgeEnabled}
 					verdict={card.verdict}
+					need={
+						smartSamplingApplies(settings) && !settings.useSong
+							? needOf(scoresRef.current as Scores, card.pitch)
+							: null
+					}
 					instrument={instrument}
 					staffOptions={STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}
