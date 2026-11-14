@@ -321,7 +321,14 @@ describe("warnings and failures (AC9)", () => {
 		for (const p of found) {
 			expect(p.message).not.toMatch(/[<>]/);
 		}
-		expect(found[0]?.message).toContain("Unknown character");
+		expect(found[0]?.message).toBe('Unknown character "h" ignored');
+	});
+
+	test("a length after a space names the stray character", async () => {
+		const found = await problems(`${head}K:C\nE D C D | E E E 2 |`);
+		expect(found).toEqual([
+			{ message: 'Unknown character "2" ignored', line: 4, column: 17 },
+		]);
 	});
 
 	test("a long list of warnings is cut short", async () => {

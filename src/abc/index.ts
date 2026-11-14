@@ -84,7 +84,14 @@ function stripMarkup(html: string): string {
 
 /** abcjs warns as `Music Line:5:3: message`, with the line counted in the whole text. */
 function warningProblem(warning: string): AbcProblem {
-	const plain = stripMarkup(warning);
+	// abcjs underlines the offending character in a copy of the line; name it instead.
+	const unknown =
+		/^([^:]*:\d+:\d+:)\s*Unknown character ignored:[\s\S]*?<span[^>]*>([^<]*)<\/span>/.exec(
+			warning,
+		);
+	const plain = unknown
+		? `${unknown[1]} Unknown character "${unknown[2]}" ignored`
+		: stripMarkup(warning);
 	const match = /^[^:]*:(\d+):(\d+):\s*([\s\S]*)$/.exec(plain);
 	if (!match) return { message: plain, line: 1 };
 	return {
