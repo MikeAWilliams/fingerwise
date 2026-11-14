@@ -2,11 +2,14 @@ import { glyphFor, type Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import type { StaffOptions } from "../render/staff";
 import { type TabFont, tabView } from "../render/tab";
+import type { Listening } from "./card-flow";
+import { JUDGE_UNAVAILABLE, LISTEN_PROMPT } from "./judge-text";
 import { Staff } from "./Staff";
 
 interface CardProps {
 	pitch: Pitch;
 	revealed: boolean;
+	listening?: Listening;
 	instrument: Instrument;
 	staffOptions: StaffOptions;
 	font: TabFont;
@@ -15,6 +18,7 @@ interface CardProps {
 export function Card({
 	pitch,
 	revealed,
+	listening = "off",
 	instrument,
 	staffOptions,
 	font,
@@ -27,6 +31,12 @@ export function Card({
 				<Staff pitch={pitch} options={staffOptions} />
 			</div>
 			<div class="card-reveal">
+				{!revealed && listening === "locked" && (
+					<p class="card-status">{LISTEN_PROMPT}</p>
+				)}
+				{!revealed && listening === "unavailable" && (
+					<p class="card-status">{JUDGE_UNAVAILABLE}</p>
+				)}
 				{revealed && (
 					<>
 						<div class="card-name">{formatPitch(pitch)}</div>

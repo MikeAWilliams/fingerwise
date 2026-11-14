@@ -3,15 +3,22 @@ import licenseUrl from "../../data/fonts/OFL.txt?url";
 import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
 import { browserAudioFactory, createAudio } from "../audio/context";
+import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer } from "../audio/tone";
 import { buildPool } from "../core/drill";
 import { loadInstrument, soundingPitch } from "../core/instrument";
+import {
+	createToneTracker,
+	DEFAULT_THRESHOLDS,
+	frequencyBand,
+	judge,
+} from "../core/judge";
 import type { Pitch } from "../core/pitch";
 import { parseDefaults, type Settings } from "../core/settings";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
-import { type CardState, createCardFlow } from "./card-flow";
+import { type CardListen, type CardState, createCardFlow } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
@@ -37,6 +44,24 @@ const STAFF_OPTIONS: StaffOptions = {
 
 const audio = createAudio(browserAudioFactory());
 const player = createTonePlayer(audio);
+const listener = createListener(audio, browserListenerEnv());
+const BAND = frequencyBand(instrument);
+
+function listenFor(settings: Settings): CardListen | null {
+	if (!settings.judgeEnabled) return null;
+	return {
+		listener,
+		tracker: createToneTracker({ ...DEFAULT_THRESHOLDS, band: BAND }),
+		grade: (p, hz) =>
+			judge(soundingPitch(instrument, p), hz, settings.toleranceCents),
+		// The same clock as the requestAnimationFrame timestamps on readings.
+		now: () => performance.now(),
+	};
+}
+
+function pageVisible(): boolean {
+	return document.visibilityState !== "hidden";
+}
 
 const FONT_FAMILY = fontFamilyFor(instrument.tablatureFont);
 
@@ -53,6 +78,8 @@ export function App() {
 	);
 	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
+	const [visible, setVisible] = useState(pageVisible);
+	const [judgeUnavailable, setJudgeUnavailable] = useState(false);
 	const changeSettings = (next: Settings) => {
 		setSettings(next);
 		saveSettings(browserStorage(), next);
@@ -74,7 +101,21 @@ export function App() {
 		};
 	}, []);
 	useEffect(() => {
-		if (open) return;
+		const onVisibility = () => setVisible(pageVisible());
+		document.addEventListener("visibilitychange", onVisibility);
+		return () => document.removeEventListener("visibilitychange", onVisibility);
+	}, []);
+	// With judging on, a hidden page has no flow, so the microphone is released;
+	// showing it again deals a fresh card. With judging off visibility is ignored.
+	const visibleKey = settings.judgeEnabled ? visible : true;
+	useEffect(() => {
+		if (!settings.judgeEnabled) setJudgeUnavailable(false);
+		if (open || !visibleKey) return;
+		const onChange = (state: CardState) => {
+			setCard(state);
+			if (state.listening === "unavailable") setJudgeUnavailable(true);
+			else if (state.listening === "running") setJudgeUnavailable(false);
+		};
 		const flow = createCardFlow({
 			pool: poolFor(settings),
 			random: Math.random,
@@ -93,7 +134,8 @@ export function App() {
 						stop: () => player.stop(),
 					}
 				: null,
-			onChange: setCard,
+			listen: listenFor(settings),
+			onChange,
 		});
 		const onClick = (event: MouseEvent) => {
 			if (
@@ -116,7 +158,7 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, [settings, open]);
+	}, [settings, open, visibleKey]);
 	return (
 		<main>
 			<header class="app-header">
@@ -133,12 +175,14 @@ export function App() {
 					settings={settings}
 					onChange={changeSettings}
 					onClose={() => setOpen(false)}
+					judgeUnavailable={judgeUnavailable}
 				/>
 			)}
 			{!open && card && (
 				<Card
 					pitch={card.pitch}
 					revealed={card.revealed}
+					listening={card.listening}
 					instrument={instrument}
 					staffOptions={STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}

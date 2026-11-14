@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+	type CardListen,
 	type CardState,
 	type CardTone,
 	createCardFlow,
 } from "../../src/app/card-flow";
+import type { ListenResult, PitchReading } from "../../src/audio/listener";
+import { createToneTracker, DEFAULT_THRESHOLDS } from "../../src/core/judge";
 import type { Pitch } from "../../src/core/pitch";
 
 const POOL = [60, 62, 64, 65] as Pitch[];
+const NONE = { grade: "none" };
 const DELAY = 3000;
 const ADVANCE = 2000;
 
@@ -53,7 +57,12 @@ describe("createCardFlow", () => {
 		const first = last().pitch;
 		vi.advanceTimersByTime(1000);
 		flow.step();
-		expect(last()).toEqual({ pitch: first, revealed: true });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: true,
+			verdict: NONE,
+			listening: "off",
+		});
 		const count = states.length;
 		vi.advanceTimersByTime(DELAY * 2);
 		expect(states).toHaveLength(count);
@@ -89,7 +98,12 @@ describe("createCardFlow", () => {
 		const count = states.length;
 		flow.step();
 		expect(states).toHaveLength(count + 1);
-		expect(last()).toEqual({ pitch: first, revealed: true });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: true,
+			verdict: NONE,
+			listening: "off",
+		});
 	});
 
 	test("AC8: one step from revealed only advances", () => {
@@ -115,9 +129,19 @@ describe("createCardFlow", () => {
 		setup(ADVANCE);
 		const first = last().pitch;
 		vi.advanceTimersByTime(DELAY);
-		expect(last()).toEqual({ pitch: first, revealed: true });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: true,
+			verdict: NONE,
+			listening: "off",
+		});
 		vi.advanceTimersByTime(ADVANCE - 1);
-		expect(last()).toEqual({ pitch: first, revealed: true });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: true,
+			verdict: NONE,
+			listening: "off",
+		});
 		vi.advanceTimersByTime(1);
 		expect(last().revealed).toBe(false);
 		expect(last().pitch).not.toBe(first);
@@ -133,7 +157,12 @@ describe("createCardFlow", () => {
 		vi.advanceTimersByTime(1000);
 		flow.step();
 		vi.advanceTimersByTime(ADVANCE - 1);
-		expect(last()).toEqual({ pitch: first, revealed: true });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: true,
+			verdict: NONE,
+			listening: "off",
+		});
 		vi.advanceTimersByTime(1);
 		expect(last().revealed).toBe(false);
 		expect(last().pitch).not.toBe(first);
@@ -143,11 +172,21 @@ describe("createCardFlow", () => {
 		const flow = setup(ADVANCE);
 		const first = last().pitch;
 		vi.advanceTimersByTime(ADVANCE);
-		expect(last()).toEqual({ pitch: first, revealed: false });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: false,
+			verdict: null,
+			listening: "off",
+		});
 		const count = states.length;
 		flow.step();
 		expect(states).toHaveLength(count + 1);
-		expect(last()).toEqual({ pitch: first, revealed: true });
+		expect(last()).toEqual({
+			pitch: first,
+			revealed: true,
+			verdict: NONE,
+			listening: "off",
+		});
 	});
 
 	test("AC3: a step during the advance wait shows the next card at once and the advance never fires", () => {
@@ -162,7 +201,9 @@ describe("createCardFlow", () => {
 		const count = states.length;
 		vi.advanceTimersByTime(DELAY + ADVANCE - 1);
 		expect(last().pitch).toBe(second);
-		expect(states.slice(count)).toEqual([{ pitch: second, revealed: true }]);
+		expect(states.slice(count)).toEqual([
+			{ pitch: second, revealed: true, verdict: NONE, listening: "off" },
+		]);
 	});
 
 	test("AC4: with auto-advance off a revealed card stays until a step", () => {
@@ -336,5 +377,388 @@ describe("createCardFlow tone", () => {
 		flow.step();
 		expect(last().revealed).toBe(true);
 		expect(() => flow.stop()).not.toThrow();
+	});
+});
+
+describe("createCardFlow listen", () => {
+	beforeEach(() => {
+		vi.setSystemTime(0);
+	});
+
+	const RUNNING: ListenResult = { status: "running" };
+	const LOCKED: ListenResult = { status: "locked" };
+	const DENIED: ListenResult = { status: "unavailable", reason: "denied" };
+
+	/** A listener whose start results are handed out by the test. */
+	class FakeListener {
+		starts = 0;
+		stops = 0;
+		onReading: ((r: PitchReading) => void) | null = null;
+		results: ((r: ListenResult) => void)[] = [];
+		/** When set, `start` resolves with it at once. */
+		auto: ListenResult | null = RUNNING;
+		mode: "ok" | "throw" | "reject" = "ok";
+		start(onReading: (r: PitchReading) => void): Promise<ListenResult> {
+			this.starts++;
+			this.onReading = onReading;
+			if (this.mode === "throw") throw new Error("start threw");
+			if (this.mode === "reject") return Promise.reject(new Error("rejected"));
+			if (this.auto) return Promise.resolve(this.auto);
+			return new Promise((resolve) => this.results.push(resolve));
+		}
+		stop() {
+			this.stops++;
+		}
+		/** Sends a reading at the fake clock's time. */
+		read(frequency: number | null, clarity = 0.98) {
+			this.onReading?.({ time: Date.now(), frequency, clarity, level: -30 });
+		}
+	}
+
+	function listenSetup(
+		over: {
+			advanceDelayMs?: number | null;
+			tracker?: CardListen["tracker"];
+			tone?: CardTone | null;
+			grade?: CardListen["grade"];
+		} = {},
+	) {
+		const listener = new FakeListener();
+		const tracker = over.tracker ?? createToneTracker(DEFAULT_THRESHOLDS);
+		const graded: { pitch: Pitch; hz: number }[] = [];
+		const listen: CardListen = {
+			listener,
+			tracker,
+			grade:
+				over.grade ??
+				((pitch, hz) => {
+					graded.push({ pitch, hz });
+					return hz === 440 ? "correct" : "incorrect";
+				}),
+			now: () => Date.now(),
+		};
+		let i = 0;
+		const flow = createCardFlow({
+			pool: POOL,
+			random: () => (i++ % 3) / 3,
+			delayMs: DELAY,
+			advanceDelayMs:
+				over.advanceDelayMs === undefined ? null : over.advanceDelayMs,
+			tone: over.tone ?? null,
+			listen,
+			onChange: (s) => states.push(s),
+		});
+		return { flow, listener, graded };
+	}
+
+	/** Lets pending promise callbacks run without moving the fake clock. */
+	async function settle() {
+		for (let k = 0; k < 5; k++) await Promise.resolve();
+	}
+
+	/** Plays a steady tone from now for `ms`, one reading per 16 ms. */
+	function play(listener: FakeListener, hz: number, ms: number) {
+		for (let t = 0; t < ms; t += 16) {
+			listener.read(hz);
+			vi.advanceTimersByTime(16);
+		}
+	}
+
+	test("AC1: without listen nothing listens and the state says off", () => {
+		setup();
+		expect(last().listening).toBe("off");
+		expect(last().verdict).toBeNull();
+		vi.advanceTimersByTime(DELAY);
+		expect(last().verdict).toEqual({ grade: "none" });
+	});
+
+	test("AC12: the card shows at once while opening, and its delay waits for the stream", async () => {
+		const { flow, listener } = listenSetup();
+		listener.auto = null;
+		flow.start();
+		expect(last()).toMatchObject({ revealed: false, listening: "opening" });
+		vi.advanceTimersByTime(DELAY * 2);
+		expect(last().revealed).toBe(false);
+		listener.results[0]?.(RUNNING);
+		await settle();
+		expect(last().listening).toBe("running");
+		vi.advanceTimersByTime(DELAY - 1);
+		expect(last().revealed).toBe(false);
+		vi.advanceTimersByTime(1);
+		expect(last()).toMatchObject({
+			revealed: true,
+			verdict: { grade: "none" },
+		});
+	});
+
+	test("AC12: a step while opening reveals at once with none, and the late result opens no window", async () => {
+		const { flow, listener, graded } = listenSetup();
+		listener.auto = null;
+		flow.start();
+		flow.step();
+		expect(last()).toMatchObject({
+			revealed: true,
+			verdict: { grade: "none" },
+		});
+		listener.results[0]?.(RUNNING);
+		await settle();
+		expect(last()).toMatchObject({ revealed: true, listening: "running" });
+		const count = states.length;
+		play(listener, 440, 1500);
+		vi.advanceTimersByTime(DELAY * 2);
+		expect(states).toHaveLength(count);
+		expect(graded).toEqual([]);
+	});
+
+	test("AC3: a stable tone reveals at once with the verdict and cancels the reveal timer", async () => {
+		const { flow, listener, graded } = listenSetup();
+		flow.start();
+		await settle();
+		const shown = last().pitch;
+		play(listener, 440, 900);
+		expect(last()).toMatchObject({
+			pitch: shown,
+			revealed: true,
+			verdict: { grade: "correct", frequency: 440 },
+		});
+		expect(graded).toEqual([{ pitch: shown, hz: 440 }]);
+		expect(Date.now()).toBeLessThan(DELAY);
+		const count = states.length;
+		vi.advanceTimersByTime(DELAY * 2);
+		expect(states).toHaveLength(count);
+	});
+
+	test("AC3: a wrong note is incorrect, and one verdict per card", async () => {
+		const { flow, listener, graded } = listenSetup();
+		flow.start();
+		await settle();
+		play(listener, 494, 900);
+		expect(last().verdict).toEqual({ grade: "incorrect", frequency: 494 });
+		play(listener, 440, 900);
+		expect(graded).toHaveLength(1);
+		expect(last().verdict).toEqual({ grade: "incorrect", frequency: 494 });
+	});
+
+	test("AC4: the reveal delay ending with no tone gives none", async () => {
+		const { flow, listener } = listenSetup();
+		flow.start();
+		await settle();
+		play(listener, 440, 600);
+		vi.advanceTimersByTime(DELAY);
+		expect(last()).toMatchObject({
+			revealed: true,
+			verdict: { grade: "none" },
+		});
+	});
+
+	test("AC5: an early click gives none and closes the window", async () => {
+		const { flow, listener, graded } = listenSetup();
+		flow.start();
+		await settle();
+		play(listener, 440, 600);
+		flow.step();
+		expect(last().verdict).toEqual({ grade: "none" });
+		play(listener, 440, 900);
+		expect(graded).toEqual([]);
+		expect(last().verdict).toEqual({ grade: "none" });
+	});
+
+	test("AC6: readings after the reveal are ignored; tone and advance run as before", async () => {
+		const calls: string[] = [];
+		const { flow, listener, graded } = listenSetup({
+			advanceDelayMs: ADVANCE,
+			tone: {
+				delayMs: 500,
+				play: () => calls.push(`play@${Date.now()}`),
+				stop: () => calls.push(`stop@${Date.now()}`),
+			},
+		});
+		flow.start();
+		await settle();
+		while (!last().revealed) {
+			listener.read(440);
+			vi.advanceTimersByTime(16);
+		}
+		const revealedAt = Date.now() - 16;
+		expect(last().verdict).toMatchObject({ grade: "correct" });
+		const shown = last().pitch;
+		play(listener, 494, ADVANCE - 16);
+		expect(graded).toHaveLength(1);
+		expect(calls).toContain(`play@${revealedAt + 500}`);
+		vi.advanceTimersByTime(ADVANCE - (Date.now() - revealedAt));
+		expect(last()).toMatchObject({ revealed: false, verdict: null });
+		expect(last().pitch).not.toBe(shown);
+	});
+
+	test("AC2, AC8: the stream starts once; each card resets the tracker and its hold-off", async () => {
+		const resets: number[] = [];
+		const real = createToneTracker(DEFAULT_THRESHOLDS);
+		const { flow, listener } = listenSetup({
+			tracker: {
+				reset: (ms) => {
+					resets.push(ms);
+					real.reset(ms);
+				},
+				push: (r) => real.push(r),
+			},
+		});
+		flow.start();
+		await settle();
+		play(listener, 440, 900);
+		expect(last().verdict).toMatchObject({ grade: "correct" });
+		flow.step();
+		const dealtAt = Date.now();
+		expect(last()).toMatchObject({ verdict: null, listening: "running" });
+		// Inside the new card's hold-off, the same tone is not judged.
+		play(listener, 440, 480);
+		expect(last().revealed).toBe(false);
+		play(listener, 440, 400);
+		expect(last().verdict).toMatchObject({ grade: "correct" });
+		expect(listener.starts).toBe(1);
+		expect(resets).toEqual([0, dealtAt]);
+	});
+
+	test("AC11: locked shows locked, starts the timer without a window, and retries next deal", async () => {
+		const { flow, listener, graded } = listenSetup();
+		listener.auto = LOCKED;
+		flow.start();
+		await settle();
+		expect(last().listening).toBe("locked");
+		play(listener, 440, 900);
+		expect(graded).toEqual([]);
+		flow.step();
+		expect(last().verdict).toEqual({ grade: "none" });
+		listener.auto = RUNNING;
+		flow.step();
+		await settle();
+		expect(listener.starts).toBe(2);
+		expect(last().listening).toBe("running");
+		play(listener, 440, 900);
+		expect(last().verdict).toMatchObject({ grade: "correct" });
+	});
+
+	test("AC9: unavailable behaves as judge off for the rest of the flow", async () => {
+		const { flow, listener, graded } = listenSetup();
+		listener.auto = DENIED;
+		flow.start();
+		await settle();
+		expect(last().listening).toBe("unavailable");
+		play(listener, 440, 900);
+		expect(graded).toEqual([]);
+		vi.advanceTimersByTime(DELAY);
+		expect(last()).toMatchObject({
+			revealed: true,
+			verdict: { grade: "none" },
+		});
+		flow.step();
+		expect(last()).toMatchObject({ revealed: false, listening: "unavailable" });
+		expect(listener.starts).toBe(1);
+		vi.advanceTimersByTime(DELAY);
+		expect(last().revealed).toBe(true);
+	});
+
+	test("AC9: unavailable arriving after an early reveal still marks the flow", async () => {
+		const { flow, listener } = listenSetup();
+		listener.auto = null;
+		flow.start();
+		flow.step();
+		listener.results[0]?.(DENIED);
+		await settle();
+		expect(last().listening).toBe("unavailable");
+		flow.step();
+		expect(last().listening).toBe("unavailable");
+		expect(listener.starts).toBe(1);
+	});
+
+	test.each(["throw", "reject"] as const)(
+		"AC10: a start that %ss becomes unavailable",
+		async (mode) => {
+			const { flow, listener } = listenSetup();
+			listener.mode = mode;
+			expect(() => flow.start()).not.toThrow();
+			await settle();
+			expect(last().listening).toBe("unavailable");
+			vi.advanceTimersByTime(DELAY);
+			expect(last().revealed).toBe(true);
+		},
+	);
+
+	test("AC10: a throwing tracker or grade never escapes and the timer reveals", async () => {
+		for (const broken of ["push", "reset", "grade"] as const) {
+			states = [];
+			const tracker = createToneTracker(DEFAULT_THRESHOLDS);
+			const { flow, listener } = listenSetup({
+				tracker: {
+					reset: (ms) => {
+						if (broken === "reset") throw new Error("reset");
+						tracker.reset(ms);
+					},
+					push: (r) => {
+						if (broken === "push") throw new Error("push");
+						return tracker.push(r);
+					},
+				},
+				grade: () => {
+					throw new Error("grade");
+				},
+			});
+			flow.start();
+			await settle();
+			expect(() => play(listener, 440, 900)).not.toThrow();
+			expect(last().revealed).toBe(false);
+			vi.advanceTimersByTime(DELAY);
+			expect(last()).toMatchObject({
+				revealed: true,
+				verdict: { grade: "none" },
+			});
+			flow.stop();
+		}
+	});
+
+	test("AC7: stop stops the listener; a throwing stop never escapes", async () => {
+		const { flow, listener } = listenSetup();
+		flow.start();
+		await settle();
+		flow.stop();
+		expect(listener.stops).toBe(1);
+		const count = states.length;
+		play(listener, 440, 900);
+		vi.runAllTimers();
+		expect(states).toHaveLength(count);
+
+		const other = listenSetup();
+		other.listener.stop = () => {
+			throw new Error("stop");
+		};
+		other.flow.start();
+		expect(() => other.flow.stop()).not.toThrow();
+	});
+
+	test("AC7: a result arriving after stop does nothing", async () => {
+		const { flow, listener } = listenSetup();
+		listener.auto = null;
+		flow.start();
+		flow.stop();
+		const count = states.length;
+		listener.results[0]?.(RUNNING);
+		await settle();
+		vi.runAllTimers();
+		expect(states).toHaveLength(count);
+	});
+
+	test("a result for a card already replaced does not touch the new card", async () => {
+		const { flow, listener } = listenSetup();
+		listener.auto = null;
+		flow.start();
+		flow.step();
+		flow.step();
+		expect(listener.starts).toBe(2);
+		const current = last();
+		listener.results[0]?.(LOCKED);
+		await settle();
+		expect(last()).toBe(current);
+		listener.results[1]?.(RUNNING);
+		await settle();
+		expect(last().listening).toBe("running");
 	});
 });

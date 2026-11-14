@@ -17,6 +17,7 @@ import {
 	setSoundEnabled,
 	soundTooLongReason,
 } from "../core/settings";
+import { JUDGE_HELP, JUDGE_UNAVAILABLE } from "./judge-text";
 import { Section } from "./Section";
 import {
 	applyDelayInput,
@@ -38,11 +39,6 @@ interface SettingsProps {
 	/** The microphone was denied or missing; shown in, and opens, the Microphone section. */
 	judgeUnavailable?: boolean;
 }
-
-export const JUDGE_HELP =
-	"The microphone is open while you drill with this on. Only the time before each reveal is analysed, and no audio is stored or sent.";
-export const JUDGE_UNAVAILABLE =
-	"Judging is unavailable (microphone blocked or missing).";
 
 export function Settings({
 	instrument,
