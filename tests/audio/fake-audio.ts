@@ -1,8 +1,11 @@
 import type {
+	AnalyserLike,
 	AudioContextLike,
 	AudioParamLike,
 	GainLike,
 	OscillatorLike,
+	SourceLike,
+	StreamLike,
 } from "../../src/audio/context";
 
 export type ParamCall =
@@ -50,11 +53,45 @@ export class FakeGain implements GainLike {
 	}
 }
 
+/** Hands out queued sample buffers, one per read; the last one repeats. */
+export class FakeAnalyser implements AnalyserLike {
+	fftSize = 2048;
+	queue: Float32Array[] = [];
+	reads = 0;
+	disconnected = 0;
+	getFloatTimeDomainData(array: Float32Array<ArrayBuffer>) {
+		this.reads++;
+		const next = this.queue.length > 1 ? this.queue.shift() : this.queue[0];
+		array.fill(0);
+		if (next) array.set(next.subarray(0, array.length));
+	}
+	disconnect() {
+		this.disconnected++;
+	}
+}
+
+export class FakeSource implements SourceLike {
+	connected: unknown[] = [];
+	disconnected = 0;
+	constructor(public stream: StreamLike) {}
+	connect(destination: unknown) {
+		this.connected.push(destination);
+	}
+	disconnect() {
+		this.disconnected++;
+	}
+}
+
 /** A context that records what is created and scheduled. */
 export class FakeContext implements AudioContextLike {
 	state = "running";
 	currentTime = 0;
+	sampleRate = 48000;
 	destination = { name: "destination" };
+	analysers: FakeAnalyser[] = [];
+	sources: FakeSource[] = [];
+	/** Samples every new analyser starts with. */
+	samples: Float32Array[] = [];
 	oscillators: FakeOscillator[] = [];
 	gains: FakeGain[] = [];
 	resumeCalls = 0;
@@ -80,5 +117,16 @@ export class FakeContext implements AudioContextLike {
 		const gain = new FakeGain();
 		this.gains.push(gain);
 		return gain;
+	}
+	createAnalyser(): FakeAnalyser {
+		const analyser = new FakeAnalyser();
+		analyser.queue = [...this.samples];
+		this.analysers.push(analyser);
+		return analyser;
+	}
+	createMediaStreamSource(stream: StreamLike): FakeSource {
+		const source = new FakeSource(stream);
+		this.sources.push(source);
+		return source;
 	}
 }

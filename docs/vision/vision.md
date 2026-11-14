@@ -33,7 +33,7 @@ As of Oct 2026. Nothing found does this exact loop.
 - **Staff rendering:** VexFlow (MIT).
 - **Tablature:** panzi's font 1, decided in [ADR 0002](../architecture/decisions/0002-tablature-from-panzi-font.md).
 - **Audio:** Web Audio API (sine-wave synth, optional samples).
-- **Pitch detection:** Pitchy / YIN (MIT), in JS.
+- **Pitch detection:** decided in [ADR 0005](../architecture/decisions/0005-yin-pitch-detector.md); built, see [`modules/audio.md`](../architecture/modules/audio.md).
 - **Storage:** localStorage (progress, sampling state); export/import button for sync.
 - **Hosting:** GitHub Pages (free, HTTPS included, which the mic requires) via GitHub Actions. See [deployment](../architecture/deployment.md).
 - **WASM (C++/Rust):** not needed; the workloads are tiny and DOM/Web Audio access goes through JS anyway. Keep only as an optional escape hatch for the pitch detector.
@@ -92,7 +92,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
 ### License and assets
 
 - **Code:** MIT (see the repo's `LICENSE`).
-- **Dependencies:** VexFlow, Pitchy, and abcjs are MIT; panzi's fonts are unrestricted.
+- **Dependencies:** VexFlow and abcjs are MIT (the pitch detector is our own, [ADR 0005](../architecture/decisions/0005-yin-pitch-detector.md)); panzi's fonts are unrestricted.
 - **Avoid:** copying commercial fingering charts (Songbird, STL Ocarina, etc.); generate charts from the open fonts.
 - Keep code license and third-party asset notes clearly separated in the repo.
 
