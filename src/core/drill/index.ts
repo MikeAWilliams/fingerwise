@@ -63,6 +63,39 @@ export function drawPitch(
 	return candidates[Math.floor(random() * candidates.length)] as Pitch;
 }
 
+/**
+ * Draw from `pool` with probability proportional to `weight`, never repeating `previous`
+ * unless it is the only pitch. Throws `DrillError` for an empty pool or a candidate weight
+ * that is not finite and positive.
+ */
+export function drawWeighted(
+	pool: readonly Pitch[],
+	previous: Pitch | null,
+	weight: (pitch: Pitch) => number,
+	random: RandomSource,
+): Pitch {
+	if (pool.length === 0) throw new DrillError("the pool is empty");
+	if (pool.length === 1) return pool[0] as Pitch;
+	const candidates = pool.filter((p) => p !== previous);
+	if (candidates.length === 0) return pool[0] as Pitch;
+	const weights = candidates.map((p) => {
+		const w = weight(p);
+		if (!Number.isFinite(w) || w <= 0) {
+			throw new DrillError("a weight must be finite and above zero");
+		}
+		return w;
+	});
+	if (weights.every((w) => w === weights[0])) {
+		return drawPitch(pool, previous, random);
+	}
+	let remaining = random() * weights.reduce((sum, w) => sum + w, 0);
+	for (let i = 0; i < candidates.length; i++) {
+		remaining -= weights[i] as number;
+		if (remaining < 0) return candidates[i] as Pitch;
+	}
+	return candidates[candidates.length - 1] as Pitch;
+}
+
 /** The next note of a tune: the first for `null`, otherwise the following one, wrapping after the last. */
 export function nextInOrder(
 	pitches: readonly Pitch[],
