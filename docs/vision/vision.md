@@ -76,7 +76,7 @@ Instrument definitions live as JSON files (`data/instruments/`) so contributors 
    - **New cards:** start with a few notes and add more as they settle, or draw from the whole note-range setting from the start?
    - **Misses:** does a missed card come back later in the same session?
    - **Grade source:** the scheduler takes grades from any source, so the judge and any self-grade buttons both feed it.
-7. **Song practice:** small follow-ups to feature 5.
+7. **Song practice:** small follow-ups to feature 5. Designed in [`features/07-song-practice`](../features/07-song-practice/design.md).
    - **Wait for the correct note:** with use song and judging both on, a song card waits until the correct note is played. A wrong note shows its verdict briefly and the card keeps listening; after the reveal delay the letter and tablature show as a hint while it still listens; a tap can skip. No timing judgment. Random cards are unchanged.
    - **Example song by default:** the defaults ship "Mary Had a Little Lamb" as the song text, with use song off, so use song can be turned on at once. An empty stored song text loads as the example. This replaces feature 5's empty default and placeholder-only example.
 8. **Timed play-along:** Web Audio clock playhead, count-in/metronome, onset detection, tolerance windows (about ±100-150 ms), latency calibration step, lenient scoring.

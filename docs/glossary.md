@@ -30,6 +30,10 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Cents**                      | A hundredth of a semitone, the unit for how far a tone is from a note.                           |
 | **Song**                       | One tune, an ordered list of written pitches, read from the player's ABC text ([F05](features/05-songs/design.md)). |
 | **Use song**                   | A setting: cards follow the saved song in order instead of the random pool. Default off; disabled with no valid song. |
+| **Example song**               | "Mary Had a Little Lamb", the song text in the defaults, so use song works without pasting a tune. An empty stored song text loads as it ([F07](features/07-song-practice/design.md)). |
+| **Waiting**                    | A song card's state, with use song and judging on, until the correct note is played or the player skips. A wrong note does not end it ([F07](features/07-song-practice/design.md)). |
+| **Hint**                       | The note letter and tablature shown on a waiting card after the reveal delay or a tap, while it keeps listening. Unlike the reveal, no tone plays and nothing advances. |
+| **Skip**                       | A tap on a card showing the hint: the next song note is dealt at once, with no tone. |
 | **ABC notation**               | A plain-text format for tunes, used by tune books and online editors. Only its pitches are used. |
 | **Pool**                       | The set of pitches a card can be drawn from: the naturals between the low and high bounds, plus the sharps between them if sharps are included. |
 | **Drill engine**               | The code that builds the pool and draws the next pitch. Knows only pitch and instrument definitions, never clef, staff, audio or UI. |
