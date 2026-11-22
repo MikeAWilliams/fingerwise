@@ -1,4 +1,4 @@
-# F09: Other instruments and clefs
+# F10: Other instruments and clefs
 
 - **Status:** parked. Not planned for now; recorded so the idea is not lost. Design it properly with `fw-plan` before any story is written.
 

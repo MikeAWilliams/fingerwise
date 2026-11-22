@@ -16,7 +16,7 @@ The first target is the 12-hole ocarina. The design keeps instruments, clefs and
 - **Settings:** note range, sharps, reveal delay, auto-advance and its delay, sound, and judging. They are kept in the browser.
 - **App:** published to GitHub Pages from `main` (every push is verified), lays out for phone and tablet, installs to the home screen, works offline and updates itself silently (see [`deployment.md`](docs/architecture/deployment.md)).
 
-Features 6 to 8 (smart sampling, song practice, timed play-along) are designed but not built; feature 9 (other instruments) is parked. See [`docs/features/`](docs/features/) for the list.
+Features 6 to 8 (smart sampling, song practice, timed play-along) are designed but not built; feature 10 (other instruments) is parked. See [`docs/features/`](docs/features/) for the list.
 
 ## Documentation
 
