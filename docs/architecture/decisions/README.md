@@ -19,6 +19,7 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 | [0006](0006-abcjs-for-songs.md) | abcjs reads songs through its audio sequence; deep import, exact pin | accepted |
 | [0007](0007-smart-sampling-by-need.md) | Smart sampling by need score, from judge grades only | accepted |
 | [0008](0008-songs-keep-rhythm.md) | Songs keep note lengths, tempo and meter from the ABC | accepted |
+| [0009](0009-timed-songs-scored-by-coverage.md) | Timed songs scored by coverage, timing and separation; slurs in the song | proposed |
 
 ## Likely next ADRs
 
