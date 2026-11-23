@@ -1,4 +1,5 @@
 import type { ListenResult, PitchReading } from "../audio/listener";
+import { type Analysis, analyse } from "../core/analysis";
 import {
 	buildTimeline,
 	type CoverageOptions,
@@ -6,6 +7,7 @@ import {
 	type CoverageRun,
 	createCoverageRun,
 	type Progress,
+	type Timeline,
 } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import {
@@ -72,6 +74,8 @@ export interface TimedState {
 	 * that, and in the summary when nothing was scored.
 	 */
 	summary: CoverageResult | null;
+	/** Why the score is what it is, with the summary; null in every other state, and when nothing was graded. */
+	analysis: Analysis | null;
 }
 
 /** What the flow needs to score a timed song from the microphone. */
@@ -138,12 +142,17 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	// The song's scoring while it plays and until its summary; null when nothing is scored.
 	let scoring: {
 		run: CoverageRun;
+		timeline: Timeline;
 		/** The audio clock's seconds at the first slot's start: song time 0. */
 		firstSlot: number;
 		lagMs: number;
 	} | null = null;
 
-	function emit(index: number, summary: CoverageResult | null = null): void {
+	function emit(
+		index: number,
+		summary: CoverageResult | null = null,
+		analysis: Analysis | null = null,
+	): void {
 		if (stopped) return;
 		const note = (notes[index] ?? notes[0]) as SongNote;
 		onChange({
@@ -155,6 +164,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			listening,
 			origin,
 			summary,
+			analysis,
 		});
 	}
 
@@ -234,8 +244,10 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		scoring = null;
 		if (listen && listening === "running") {
 			try {
+				const timeline = buildTimeline(song, tempo);
 				scoring = {
-					run: createCoverageRun(buildTimeline(song, tempo), listen.coverage),
+					run: createCoverageRun(timeline, listen.coverage),
+					timeline,
 					firstSlot,
 					lagMs: scoringLagMs(readOutputLatency()),
 				};
@@ -272,14 +284,29 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		// The last note's sound reaches the scoring one lag after its slot ends.
 		const summarise = (): void => {
 			let summary: CoverageResult | null = null;
+			let analysis: Analysis | null = null;
+			const current = scoring;
 			try {
-				summary = scoring?.run.finish() ?? null;
+				summary = current?.run.finish() ?? null;
 			} catch {
 				// A scoring that fails to finish leaves nothing to report.
 			}
+			if (current && summary) {
+				try {
+					analysis = analyse({
+						song,
+						tempo,
+						timeline: current.timeline,
+						segments: current.run.progress().segments,
+						result: summary,
+					});
+				} catch {
+					// An analysis that fails leaves the summary alone.
+				}
+			}
 			scoring = null;
 			phase = "summary";
-			emit(last, summary);
+			emit(last, summary, analysis);
 		};
 		const show = (index: number): void => {
 			phase = "playing";

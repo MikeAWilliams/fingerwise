@@ -17,6 +17,7 @@ const state = (over: Partial<TimedState>): TimedState => ({
 	listening: "off",
 	origin: null,
 	summary: null,
+	analysis: null,
 	...over,
 });
 
