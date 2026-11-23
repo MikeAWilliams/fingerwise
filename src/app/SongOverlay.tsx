@@ -110,6 +110,7 @@ export function SongOverlay({
 	playhead,
 	fill,
 	readout,
+	onRow,
 }: {
 	layout: SongLayout;
 	segments: readonly LaneSegment[];
@@ -121,7 +122,11 @@ export function SongOverlay({
 	fill: FillSource | null;
 	/** Where the readout's text goes, when it is on show. */
 	readout?: RefObject<HTMLElement | null>;
+	/** Called when the playhead reaches a row it has not reported (the first frame reports row 0). */
+	onRow?: (row: number) => void;
 }) {
+	const onRowRef = useRef(onRow);
+	onRowRef.current = onRow;
 	const line = useRef<SVGLineElement>(null);
 	const paths = useRef<(SVGPathElement | null)[]>([]);
 	const markPaths = useRef<(SVGPathElement | null)[]>([]);
@@ -141,6 +146,8 @@ export function SongOverlay({
 		};
 		clear();
 		let frame = 0;
+		// The row last reported to `onRow`; none at each loop start.
+		let reported = -1;
 		// What the settled paths hold: which array of segments, how many, and their path data.
 		let from: unknown = null;
 		let consumed = 0;
@@ -159,6 +166,10 @@ export function SongOverlay({
 			const place = playheadPlace(beat, layout.rows);
 			const row = place && layout.rows[place.row];
 			if (place && row) {
+				if (place.row !== reported) {
+					reported = place.row;
+					onRowRef.current?.(place.row);
+				}
 				const x = String(place.x);
 				el.setAttribute("x1", x);
 				el.setAttribute("x2", x);

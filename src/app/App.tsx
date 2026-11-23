@@ -319,9 +319,10 @@ export function App() {
 		};
 	}, [settings, open, visibleKey, song]);
 	const header = headerSong(settings, song, open);
+	const headerRef = useRef<HTMLElement>(null);
 	return (
 		<main>
-			<header class="app-header">
+			<header class="app-header" ref={headerRef}>
 				<h1>fingerwise</h1>
 				{header.title !== null && (
 					<span class="app-header-title" title={header.title}>
@@ -400,6 +401,7 @@ export function App() {
 										: null,
 								}
 					}
+					header={headerRef}
 					instrument={instrument}
 					staffOptions={STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}

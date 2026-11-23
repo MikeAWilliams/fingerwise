@@ -1,3 +1,4 @@
+import type { RefObject } from "preact";
 import { useRef } from "preact/hooks";
 import { glyphFor, type Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
@@ -35,6 +36,8 @@ interface CardProps {
 	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
 	song?: SongView;
+	/** The app's header, whose height a timed song's page keeps clear when it scrolls. */
+	header?: RefObject<HTMLElement | null>;
 	instrument: Instrument;
 	staffOptions: StaffOptions;
 	font: TabFont;
@@ -54,6 +57,7 @@ export function Card({
 	timedTuning = null,
 	readout = false,
 	song,
+	header,
 	instrument,
 	staffOptions,
 	font,
@@ -68,7 +72,14 @@ export function Card({
 		return (
 			<div class="card card-song">
 				<div class="card-staff">
-					<SongStaff view={song} options={staffOptions} readout={heard} />
+					<SongStaff
+						view={song}
+						options={staffOptions}
+						readout={heard}
+						phase={timed}
+						header={header}
+						bar={bar}
+					/>
 				</div>
 				<div class="song-bar" ref={bar}>
 					{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
