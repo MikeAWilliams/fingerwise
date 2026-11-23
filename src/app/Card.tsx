@@ -1,18 +1,18 @@
 import type { RefObject } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Analysis as AnalysisResult } from "../core/analysis";
 import { glyphFor, type Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import type { StaffOptions } from "../render/staff";
 import { type TabFont, tabView } from "../render/tab";
-import { ANALYSIS_ID, Analysis } from "./Analysis";
+import { ANALYSIS_ID, ANALYSIS_TITLE_ID, Analysis } from "./Analysis";
 import type { Listening, Verdict } from "./card-flow";
 import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
 import { Legend } from "./Legend";
 import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
 import { scrollLockApplies, setScrollLock } from "./scroll-lock";
-import { jumpTo } from "./scroll-to";
+import { isBelowView, jumpTo } from "./scroll-to";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
 
 interface CardProps {
@@ -84,6 +84,7 @@ export function Card({
 		return () => setScrollLock(document.documentElement, false);
 	}, [isSong, timed]);
 	const showAnalysis = timed === "summary" && timedAnalysis !== null;
+	const analysisBelow = useAnalysisBelow(showAnalysis, bar);
 	if (song) {
 		return (
 			<div class="card card-song">
@@ -104,11 +105,11 @@ export function Card({
 					{timed === "summary" && timedTuning && (
 						<p class="card-status">{timedTuning}</p>
 					)}
-					{showAnalysis && (
+					{showAnalysis && analysisBelow && (
 						<a
 							href={`#${ANALYSIS_ID}`}
 							class="analysis-link"
-							onClick={(event) => jumpTo(event, ANALYSIS_ID)}
+							onClick={(event) => jumpTo(event, ANALYSIS_ID, ANALYSIS_TITLE_ID)}
 						>
 							Analysis ↓
 						</a>
@@ -169,6 +170,46 @@ export function Card({
 			</div>
 		</div>
 	);
+}
+
+/**
+ * Whether the analysis heading is still below what can be seen, behind the
+ * pinned bar or past the window's bottom, so the "Analysis ↓" link has
+ * somewhere to go (F11-S05 AC5). Checked after each render, on scroll, on
+ * resize and when the page's size changes; false while there is no analysis.
+ */
+function useAnalysisBelow(
+	active: boolean,
+	bar: RefObject<HTMLElement | null>,
+): boolean {
+	const [below, setBelow] = useState(false);
+	useLayoutEffect(() => {
+		if (!active) {
+			setBelow(false);
+			return;
+		}
+		const check = () => {
+			const heading = document.getElementById(ANALYSIS_TITLE_ID);
+			if (!heading) return;
+			const visibleBottom =
+				bar.current?.getBoundingClientRect().top ?? window.innerHeight;
+			setBelow(
+				isBelowView(heading.getBoundingClientRect().bottom, visibleBottom),
+			);
+		};
+		check();
+		window.addEventListener("scroll", check, { passive: true });
+		window.addEventListener("resize", check);
+		const resized =
+			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(check);
+		resized?.observe(document.documentElement);
+		return () => {
+			window.removeEventListener("scroll", check);
+			window.removeEventListener("resize", check);
+			resized?.disconnect();
+		};
+	}, [active, bar]);
+	return below;
 }
 
 const VERDICT_TEXT = {

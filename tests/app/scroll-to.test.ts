@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { scrollToElement } from "../../src/app/scroll-to";
+import { isBelowView, scrollToElement } from "../../src/app/scroll-to";
 
 describe("scrollToElement", () => {
 	const element = () => {
@@ -27,5 +27,17 @@ describe("scrollToElement", () => {
 
 	test("does nothing without an element", () => {
 		expect(() => scrollToElement(null, false)).not.toThrow();
+	});
+});
+
+describe("isBelowView (F11-S05 AC5)", () => {
+	test("below while its bottom is past the visible bottom", () => {
+		expect(isBelowView(701, 700)).toBe(true);
+	});
+
+	test("not below once fully above the visible bottom, or scrolled past", () => {
+		expect(isBelowView(700, 700)).toBe(false);
+		expect(isBelowView(300, 700)).toBe(false);
+		expect(isBelowView(-50, 700)).toBe(false);
 	});
 });

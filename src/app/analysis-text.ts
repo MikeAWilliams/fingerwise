@@ -18,26 +18,89 @@ const TIME_STEP_MS = 10;
 
 const percent = (share: number) => `${Math.round(share * 100)}%`;
 
-/** The two shares of right-note time, in this order, then the losses by size. */
-const RIGHT_NOTE: [keyof Breakdown, string][] = [
-	["inTune", "in tune"],
-	["outOfTune", "out of tune"],
-];
-const LOSSES: [keyof Breakdown, string][] = [
-	["silentBefore", "silent before the note started"],
-	["silentAfter", "silent after it stopped"],
-	["silentMiddle", "silent in the middle"],
-	["wrong", "wrong note"],
-	["notPlayed", "not played"],
+/** The breakdown table's heading and its column of shares (F11-S05). */
+export const BREAKDOWN_TITLE = "Where the note time went";
+export const BREAKDOWN_COLUMN = "Share of all note time";
+
+/** The breakdown's groups and the rows under them, in the table's fixed order. A group with one share has no rows under it. */
+const GROUPS: { name: string; parts: [keyof Breakdown, string][] }[] = [
+	{
+		name: "On the right note",
+		parts: [
+			["inTune", "in tune"],
+			["outOfTune", "out of tune"],
+		],
+	},
+	{
+		name: "Silent",
+		parts: [
+			["silentBefore", "before the note started"],
+			["silentMiddle", "in the middle of the note"],
+			["silentAfter", "after the note stopped"],
+		],
+	},
+	{ name: "Wrong note", parts: [["wrong", ""]] },
+	{ name: "Not played", parts: [["notPlayed", ""]] },
 ];
 
-/** "45% in tune · 12% out of tune · 16% silent after it stopped · …": parts that round to 0% are left out. */
-export function breakdownText(breakdown: Breakdown): string {
-	const losses = [...LOSSES].sort((a, b) => breakdown[b[0]] - breakdown[a[0]]);
-	return [...RIGHT_NOTE, ...losses]
-		.filter(([key]) => Math.round(breakdown[key] * 100) > 0)
-		.map(([key, name]) => `${percent(breakdown[key])} ${name}`)
-		.join(" · ");
+/** One row of the breakdown table: a group, or a row under one. */
+export interface BreakdownRow {
+	label: string;
+	/** A whole percentage. */
+	percent: number;
+	group: boolean;
+}
+
+/**
+ * Whole numbers for `values` that add up to `total`, by largest remainder:
+ * each is floored, then the ones with the largest remainders get one more.
+ * `values` must add up to `total` within rounding.
+ */
+export function roundToTotal(values: number[], total: number): number[] {
+	// The slack keeps a value like 19.999999999999996 from flooring to 19.
+	const floor = (v: number) => Math.floor(v + 1e-9);
+	const floors = values.map(floor);
+	let left = total - floors.reduce((sum, f) => sum + f, 0);
+	const order = values
+		.map((v, i) => ({ i, rest: v - floor(v) }))
+		.sort((a, b) => b.rest - a.rest || a.i - b.i);
+	for (const { i } of order) {
+		if (left <= 0) break;
+		floors[i] = (floors[i] as number) + 1;
+		left--;
+	}
+	return floors;
+}
+
+/**
+ * The breakdown as table rows, every row every time in a fixed order, 0%
+ * included. Groups add up to 100% and the rows under a group to the group.
+ */
+export function breakdownRows(breakdown: Breakdown): BreakdownRow[] {
+	const all = GROUPS.flatMap((g) => g.parts).reduce(
+		(sum, [key]) => sum + breakdown[key],
+		0,
+	);
+	const scale = all > 0 ? 100 / all : 0;
+	const shares = GROUPS.map((g) =>
+		g.parts.map(([key]) => breakdown[key] * scale),
+	);
+	const sums = shares.map((parts) => parts.reduce((sum, v) => sum + v, 0));
+	const groupPercents = all > 0 ? roundToTotal(sums, 100) : sums.map(() => 0);
+	return GROUPS.flatMap((g, i) => {
+		const percent = groupPercents[i] as number;
+		const head = { label: g.name, percent, group: true };
+		if (g.parts.length === 1) return [head];
+		const parts = roundToTotal(shares[i] as number[], percent);
+		return [
+			head,
+			...g.parts.map(([, label], j) => ({
+				label,
+				percent: parts[j] as number,
+				group: false,
+			})),
+		];
+	});
 }
 
 /** "Sound during rests: 12%", or null with no graded rest. */

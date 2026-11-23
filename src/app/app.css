@@ -115,6 +115,44 @@ main {
 	margin: 0.25rem 0;
 }
 
+/* Where the note time went: groups bold, the rows under them indented. */
+.song-analysis .breakdown {
+	border-collapse: collapse;
+	margin: 0.25rem 0;
+}
+
+.breakdown th,
+.breakdown td {
+	padding: 0.125rem 0.75rem 0.125rem 0;
+	font-weight: normal;
+	text-align: left;
+	vertical-align: baseline;
+}
+
+.breakdown thead th {
+	font-size: 0.875rem;
+	font-style: italic;
+}
+
+.breakdown tbody td {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.breakdown tbody th {
+	padding-left: 1.5rem;
+}
+
+.breakdown .breakdown-group th,
+.breakdown .breakdown-group td {
+	padding-left: 0;
+	font-weight: bold;
+}
+
+.breakdown .breakdown-group td {
+	padding-left: 0.75rem;
+}
+
 .song-analysis ul {
 	margin: 0.25rem 0;
 	padding-left: 1.25rem;

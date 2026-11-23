@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
-	breakdownText,
+	breakdownRows,
 	habitLines,
 	lengthName,
 	NO_SPOT,
 	offsetPhrase,
 	restText,
+	roundToTotal,
 	spotAnchorId,
 	spotLabel,
 	spotLines,
@@ -32,41 +33,100 @@ const habits = (over: Partial<Habits> = {}): Habits => ({
 	...over,
 });
 
-describe("breakdownText (AC2)", () => {
-	test("the two right-note shares first, then losses largest first, leaving out 0%", () => {
-		expect(breakdownText(breakdown())).toBe(
-			"45% in tune · 12% out of tune · 16% silent after it stopped · 12% wrong note · 11% silent before the note started · 4% silent in the middle",
-		);
+const table = (b: Breakdown) =>
+	breakdownRows(b).map((r) => `${r.group ? "" : "  "}${r.label} ${r.percent}%`);
+
+describe("breakdownRows (F11-S05 AC2, AC3)", () => {
+	test("groups and the rows under them, in a fixed order", () => {
+		expect(table(breakdown())).toEqual([
+			"On the right note 57%",
+			"  in tune 45%",
+			"  out of tune 12%",
+			"Silent 31%",
+			"  before the note started 11%",
+			"  in the middle of the note 4%",
+			"  after the note stopped 16%",
+			"Wrong note 12%",
+			"Not played 0%",
+		]);
 	});
 
-	test("a share that rounds to 0% is left out, one that rounds to 1% stays", () => {
-		const text = breakdownText(
+	test("every row shows, 0% included, whatever the sizes", () => {
+		const rows = table(
 			breakdown({
-				inTune: 0.9,
-				outOfTune: 0.004,
-				wrong: 0.005,
-				silentBefore: 0.091,
+				inTune: 1,
+				outOfTune: 0,
+				silentBefore: 0,
 				silentAfter: 0,
 				silentMiddle: 0,
+				wrong: 0,
 			}),
 		);
-		expect(text).toBe(
-			"90% in tune · 9% silent before the note started · 1% wrong note",
+		expect(rows).toEqual([
+			"On the right note 100%",
+			"  in tune 100%",
+			"  out of tune 0%",
+			"Silent 0%",
+			"  before the note started 0%",
+			"  in the middle of the note 0%",
+			"  after the note stopped 0%",
+			"Wrong note 0%",
+			"Not played 0%",
+		]);
+	});
+
+	test("rounding adds up where plain rounding would not", () => {
+		// Plain rounding: groups 33 + 33 + 33 + 0 = 99, and right-note rows 20 + 13 = 33.
+		const b: Breakdown = {
+			inTune: 0.2,
+			outOfTune: 0.134,
+			silentBefore: 0.111,
+			silentMiddle: 0.111,
+			silentAfter: 0.112,
+			wrong: 0.332,
+			notPlayed: 0,
+		};
+		// Groups 34 + 33 + 33 + 0 = 100; right note 20 + 14 = 34; silent 11 × 3 = 33.
+		expect(table(b)).toEqual([
+			"On the right note 34%",
+			"  in tune 20%",
+			"  out of tune 14%",
+			"Silent 33%",
+			"  before the note started 11%",
+			"  in the middle of the note 11%",
+			"  after the note stopped 11%",
+			"Wrong note 33%",
+			"Not played 0%",
+		]);
+	});
+
+	test("shares that do not quite add to 1 are scaled first", () => {
+		const rows = breakdownRows(breakdown({ notPlayed: 0.0000001 }));
+		expect(rows.filter((r) => r.group).reduce((s, r) => s + r.percent, 0)).toBe(
+			100,
 		);
 	});
 
-	test("names not played, and all seven can show", () => {
-		const all = breakdownText({
-			inTune: 0.3,
-			outOfTune: 0.2,
-			silentBefore: 0.1,
-			silentAfter: 0.1,
-			silentMiddle: 0.1,
-			wrong: 0.1,
-			notPlayed: 0.1,
+	test("an all-zero breakdown gives 0% rows", () => {
+		const zero = breakdownRows({
+			inTune: 0,
+			outOfTune: 0,
+			silentBefore: 0,
+			silentAfter: 0,
+			silentMiddle: 0,
+			wrong: 0,
+			notPlayed: 0,
 		});
-		expect(all.split(" · ")).toHaveLength(7);
-		expect(all).toContain("10% not played");
+		expect(zero.every((r) => r.percent === 0)).toBe(true);
+		expect(zero).toHaveLength(9);
+	});
+});
+
+describe("roundToTotal", () => {
+	test("largest remainders take the leftover units", () => {
+		expect(roundToTotal([33.4, 33.3, 33.3], 100)).toEqual([34, 33, 33]);
+		expect(roundToTotal([7.4, 7.3, 7.3], 22)).toEqual([8, 7, 7]);
+		expect(roundToTotal([0, 0], 0)).toEqual([0, 0]);
 	});
 });
 

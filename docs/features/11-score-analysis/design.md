@@ -1,6 +1,6 @@
 # F11: Score analysis
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-23, after the user's recording of "Mary Had a Little Lamb" at ♩ = 80 scored 60% covered and 82% in tune but sounded right to them. A breakdown of that recording, run through the real detector and coverage core, showed where the score went: notes sounded for about 70% of their length, started about 110 ms late, and three notes were a quarter tone off. The user does not want the rules loosened; the goal is to become a better player, so the app should explain the score the same way.
 
@@ -13,7 +13,7 @@ After a timed song, the player sees why they got the score they did: how much of
 **When it shows**
 
 - At the end of a timed song ([F09](../09-timed-scoring/design.md#summary)) with judging on and at least one note graded. With judging off, or nothing graded ("End of song"), there is no analysis.
-- It is a section under the last line of music, reached by scrolling once the summary shows and scrolling unlocks ([F10](../10-scrolling-song-view/design.md#the-end)). The [pinned bar](../../glossary.md) keeps the summary and tuning list and gains an "Analysis ↓" link that scrolls to the section.
+- It is a section under the last line of music, reached by scrolling once the summary shows and scrolling unlocks ([F10](../10-scrolling-song-view/design.md#the-end)). The [pinned bar](../../glossary.md) keeps the summary and tuning list and gains an "Analysis ↓" link that scrolls to the section. The link shows only while the section's heading is below what can be seen, since on a window tall enough to hold the whole page it has nowhere to go (decided 2026-11-23 at acceptance, [F11-S05](stories/F11-S05-breakdown-table.md)).
 - A tap on the start prompt starts again as before: the section and the practice-spot shading clear with the lanes.
 
 **Where the score went**
@@ -27,6 +27,15 @@ How the graded note time splits, in shares that add up to 100%. Graded note time
 - **Silent in the middle:** silent time between its first and last right readings.
 - **Wrong note:** confirmed wrong readings.
 - **Not played:** the silent time of a note with no right reading at all (decided 2026-11-23: skipping a note is a different fault from starting late, so it is named apart).
+
+It is shown as a table headed "Where the note time went", whose figures are each a share of all graded note time (decided 2026-11-23 at acceptance, [F11-S05](stories/F11-S05-breakdown-table.md): the first build's line showed "55% in tune" beside the summary's "88% in tune", which is a share of right-note time only). The rows are grouped, and every row shows every time, 0% included, in this fixed order, so takes can be compared by position:
+
+- **On the right note:** in tune, out of tune.
+- **Silent:** before the note started, in the middle of the note, after the note stopped.
+- **Wrong note.**
+- **Not played.**
+
+A group's figure is the sum of its rows. Whole percentages are rounded so that the rows add up to their group and the groups add up to 100%.
 
 Rests are reported apart, in one line: the share of graded rest time that had sound in it. With no graded rests the line is left out.
 
@@ -88,3 +97,4 @@ In build order (written 2026-11-23). Each story is visible or testable on its ow
 - [F11-S02: Practice spots](stories/F11-S02-practice-spots.md)
 - [F11-S03: The analysis section](stories/F11-S03-analysis-section.md)
 - [F11-S04: Shaded practice spots](stories/F11-S04-shaded-practice-spots.md)
+- [F11-S05: Breakdown table](stories/F11-S05-breakdown-table.md) (added 2026-11-23 at acceptance; replaces the breakdown line of S03 AC2 and narrows when S03 AC5's link shows)

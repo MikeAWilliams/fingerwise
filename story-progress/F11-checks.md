@@ -12,6 +12,8 @@ Done once at Closing, after all four stories are built; `fw-execute` does not st
 
 ## Look
 
+- **Breakdown table (S05):** "Where the note time went" is a table with the nine rows in fixed order, 0% rows shown, groups bold and the rows under them indented. The groups add to 100% and each group's rows add to it. Read against the summary: "On the right note" × the summary's in-tune share ≈ "in tune".
+- **Link shows only when needed (S05):** on a tall window where the whole page fits, there is no "Analysis ↓". Make the window short (or 360x640) and it shows; scroll down until the "Analysis" heading is above the bar and it goes; scroll back up to the music and it comes back. After Tab and Enter on it, focus is on the "Analysis" heading.
 - **Link:** "Analysis ↓" scrolls smoothly to the section, with the section's heading just under the sticky header. With reduced motion on (Firefox: `ui.prefersReducedMotion` = 1 in `about:config`), it jumps. Tab to it and press Enter: it scrolls and does **not** restart the song.
 - **Restart:** from the summary, tap the start prompt. The section, link and shading go, the page goes back to line 1, the count-in starts.
 - **No analysis:** judging off, then play to the end: "End of song", no link, no section. Judging on and stay silent: does it grade anything? If nothing is graded, there should be no link either.
