@@ -36,7 +36,7 @@ For the recording this design came from: 45% in tune, 12% out of tune, 11% silen
 
 Typical figures over the graded notes that have a right reading, each the median, so one fluffed note does not move it:
 
-- **Start:** how far the first right reading is from the note's written start, in ms, as "notes start about 110 ms late" or "early".
+- **Start:** how far the note's sound starts from its written start, in ms, as "notes start about 110 ms late" or "early". The sound starts at the unbroken run of the right pitch leading into the first right reading, so it can be before the written start ([F11-S01 AC4](stories/F11-S01-breakdown-and-habits.md#acceptance-criteria), amended at breakdown).
 - **Length:** how much of its written length a note sounds, from its written start to its last right reading, as "notes sound for about 70% of their length". When the song has at least three graded notes of one written length, that length gets its own figure too, such as "half notes 72%".
 - **Gap:** at plain [joins](../../glossary.md) where both notes have a right reading, the time from the first note's last right reading to the next note's first, as "gaps between notes are about 200 ms".
 - **Tempo drift:** the trend of the start offsets over the song, from a robust line fit (such as Theil–Sen) of each note's start offset against its written start. Shown only when the fitted change from the first note to the last is larger than the timing tolerance, as "notes started about 50 ms late in the first bars and about 400 ms late by the end: you slowed down" (or "rushed" when they get earlier). Added on 2026-11-23: a player who falls behind has every later note scored against the wrong written note, and without this line the analysis would blame pitch or length instead of tempo.
@@ -64,7 +64,7 @@ The exact wording of every line is a story's job.
 ## Modules touched
 
 - **New core module, probably `src/core/analysis`:** pure. From the coverage run's finished segments, its result and the song's bars, it computes the breakdown, the habits and the practice spots, including the rank test, written by hand (no new dependency). Imports coverage and song; the layer rule holds.
-- **coverage (`src/core/coverage`):** possibly nothing; the analysis needs the segments as well as the result, which the run already gives through `progress()`.
+- **coverage (`src/core/coverage`):** two added per-item fields that change no figure: where a note's sound starts (for the start habit) and how long a rest had sound in it (pending readings show as silent in the segments); the analysis needs the segments as well as the result, which the run already gives through `progress()`.
 - **staff (`src/render/staff`):** shading over a range of bars, from the layout it already returns.
 - **app:** the analysis section under the music, the "Analysis ↓" link in the pinned bar, the text in a `*-text.ts` module like `judge-text.ts`, and clearing on restart.
 
