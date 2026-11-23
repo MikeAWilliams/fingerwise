@@ -35,6 +35,7 @@ const SETTINGS: Settings = {
 	useSong: false,
 	keepTempo: false,
 	metronome: false,
+	scoring: "live",
 	barsPerLine: 2,
 	songAbc: "",
 };
@@ -155,6 +156,21 @@ describe("state", () => {
 			songSectionSummary({ ...SETTINGS, useSong: true, keepTempo: true }),
 		).toBe("on, keep tempo");
 		expect(songSectionSummary({ ...SETTINGS, keepTempo: true })).toBe("off");
+	});
+});
+
+describe("the closed section with scoring (F12-S01)", () => {
+	test("says scored after the song only when it applies", () => {
+		const on = { ...SETTINGS, useSong: true, keepTempo: true };
+		expect(
+			songSectionSummary({ ...on, judgeEnabled: true, scoring: "after" }),
+		).toBe("on, keep tempo, scored after the song");
+		expect(
+			songSectionSummary({ ...on, judgeEnabled: false, scoring: "after" }),
+		).toBe("on, keep tempo");
+		expect(
+			songSectionSummary({ ...on, judgeEnabled: true, scoring: "live" }),
+		).toBe("on, keep tempo");
 	});
 });
 
