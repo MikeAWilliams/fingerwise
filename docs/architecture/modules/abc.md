@@ -20,13 +20,16 @@ Turns pasted ABC notation into a [`Song`](song.md) of written pitches with their
 
 Before `setUpAudio`, every `el_type: "tempo"` element is removed from the voices (a mid-tune `Q:` line or inline `[Q:…]`): abcjs otherwise rescales the durations of every later note by the tempo ratio, which would change the written lengths. The tempo comes from the tune's first `Q:` in `metaText.tempo` (`bpm` times its beat length in quarter notes), and is `null` when there is none or no rate. The meter comes from `getMeter()`: `specified` with plain numbers gives that meter, `cut_time` gives 2/2, and anything else (no `M:`, `M:none`, `M:C`, a compound top number such as `2+3`) gives `DEFAULT_METER`. A second `Q:` or `M:` is ignored and reports nothing. The song's `firstBar` comes from the first voice's parse tree: the played length of the notes and rests before the first `bar` element (a triplet's notes scaled by its `tripletMultiplier` up to `endTriplet`), less the first note's start, taken modulo a bar; a result of zero or a whole bar, or a tune with no bar line, gives a whole bar. The rest of the parse tree is used only to reject and to explain.
 
+Slurs are read from the parse tree, not the audio sequence, whose `endType` marks articulations, slurs closed on a tied note and jumps wrongly (see the [slur spike](../../research/abcjs-slur-spike.md)). abcjs records a slur on the note's first pitch: one `startSlur` entry per slur that opens and one `endSlur` entry per slur that closes. Walking the written notes in text order, the adapter keeps a depth (dotted slurs count). Event `i` is `slurred` when the depth after its written note (after the last note of a tied group) is above zero, the next event is the written note that follows the group (a jump back for a repeat, or into another ending, is not), and the next event starts where this one ends (no rest). Events and written notes are matched by `startChar`, as for converted notes.
+
 abcjs is imported as `import("abcjs/src/api/abc_tunebook.js")` and nowhere else; it is CommonJS, so the API is `mod.default ?? mod`. The package has no `exports` map, so the deep path resolves, but it is not a documented API: abcjs is pinned to an exact version (6.7.2) and a bump reruns the tests. `abcjs.d.ts` types only the fields read.
 
 ## Supported subset and rejections
 
-Slurs, decorations, chord symbols, lyrics and dynamics are read and not kept; rests, triplets, note lengths, tempo and meter are kept as rhythm (see above). Each of these is a problem with a position and a plain message:
+Slurs are kept as the `slurred` flag (above); decorations, chord symbols, lyrics and dynamics are read and not kept; rests, triplets, note lengths, tempo and meter are kept as rhythm (see above). Each of these is a problem with a position and a plain message:
 
 - a chord, a grace note, a second voice or staff, more than one tune (the line of the second `X:`), no notes;
+- a slur closed with none open ("Slur closed here was never opened", at the closing note) or still open at the end ("Slur opened here is never closed", at the innermost unclosed opening note), which abcjs does not warn about;
 - a D.C., D.S., fine, coda or segno decoration (on a note or a bar);
 - any abcjs warning (plain prose parses leniently into notes with warnings), with abcjs's line and column and its markup stripped; an exception from abcjs becomes one problem;
 - more than 10,000 characters (checked before parsing) or more than 500 notes after repeats (reported at the first note over);

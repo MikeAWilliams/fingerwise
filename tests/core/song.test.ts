@@ -52,13 +52,27 @@ describe("createSong (AC1)", () => {
 		expect(made.notes.map((n) => n.pitch)).toEqual(made.pitches);
 	});
 
+	test("a missing slurred becomes false and an explicit true is kept (F09-S01 AC1)", () => {
+		const made = createSong(
+			[
+				{ pitch: pitch("C4"), start: 0, beats: 1 },
+				{ pitch: pitch("D4"), start: 1, beats: 1, slurred: true },
+				{ pitch: pitch("E4"), start: 2, beats: 1, slurred: false },
+			],
+			{ tempo: null, meter: DEFAULT_METER },
+		);
+		expect(made.notes.map((n) => n.slurred)).toEqual([false, true, false]);
+	});
+
 	test("keeps starts, lengths, tempo and meter", () => {
 		const meter = { beats: 3, unit: 4 };
 		const made = createSong([{ pitch: pitch("C4"), start: 0, beats: 1.5 }], {
 			tempo: 120,
 			meter,
 		});
-		expect(made.notes).toEqual([{ pitch: pitch("C4"), start: 0, beats: 1.5 }]);
+		expect(made.notes).toEqual([
+			{ pitch: pitch("C4"), start: 0, beats: 1.5, slurred: false },
+		]);
 		expect(made.tempo).toBe(120);
 		expect(made.meter).toEqual(meter);
 	});

@@ -1,9 +1,11 @@
+import { useRef } from "preact/hooks";
 import { glyphFor, type Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import type { StaffOptions } from "../render/staff";
 import { type TabFont, tabView } from "../render/tab";
 import type { Listening, Verdict } from "./card-flow";
 import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
+import { Legend } from "./Legend";
 import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
@@ -27,6 +29,10 @@ interface CardProps {
 	 */
 	timed?: "ready" | "playing" | "summary";
 	timedSummary?: string;
+	/** The line after the summary: the pitches furthest off; absent when none is. */
+	timedTuning?: string | null;
+	/** A timed song with its stream running: the reveal area has room for what is heard now. */
+	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
 	song?: SongView;
 	instrument: Instrument;
@@ -45,6 +51,8 @@ export function Card({
 	need = null,
 	timed,
 	timedSummary,
+	timedTuning = null,
+	readout = false,
 	song,
 	instrument,
 	staffOptions,
@@ -52,20 +60,27 @@ export function Card({
 }: CardProps) {
 	const glyph = glyphFor(instrument, pitch);
 	const view = glyph === undefined ? null : tabView(glyph, font);
+	// Its text is set each frame by the song overlay, not by Preact.
+	const heard = useRef<HTMLParagraphElement>(null);
 	return (
 		<div class={song ? "card card-song" : "card"}>
 			<div class="card-staff">
 				{song ? (
-					<SongStaff view={song} options={staffOptions} />
+					<SongStaff view={song} options={staffOptions} readout={heard} />
 				) : (
 					<Staff pitch={pitch} options={staffOptions} beats={beats} />
 				)}
 			</div>
+			{song && judging && <Legend />}
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
 			>
 				{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
 				{timed === "summary" && <p class="card-status">{timedSummary}</p>}
+				{timed === "summary" && timedTuning && (
+					<p class="card-status">{timedTuning}</p>
+				)}
+				{readout && <p class="card-status card-readout" ref={heard} />}
 				{!revealed && listening === "locked" && (
 					<p class="card-status">{LISTEN_PROMPT}</p>
 				)}

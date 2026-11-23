@@ -76,7 +76,11 @@ export function frequencyBand(instrument: Instrument): FrequencyBand {
 	};
 }
 
-function counts(reading: Reading, options: StabilityOptions): boolean {
+/** Whether a reading counts at all: a frequency, clear enough, loud enough and inside the band. */
+export function passesChecks(
+	reading: Reading,
+	options: StabilityOptions,
+): boolean {
 	const hz = reading.frequency;
 	if (hz === null || !Number.isFinite(hz) || hz <= 0) return false;
 	if (!(reading.clarity >= options.clarity)) return false;
@@ -126,7 +130,7 @@ export function createToneTracker(options: StabilityOptions): ToneTracker {
 		push(reading) {
 			if (start === null || reported) return null;
 			if (reading.time < start + options.holdOffMs) return null;
-			if (!counts(reading, options)) {
+			if (!passesChecks(reading, options)) {
 				run = [];
 				return null;
 			}

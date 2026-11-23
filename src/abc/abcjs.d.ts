@@ -3,6 +3,12 @@
 declare module "abcjs/src/api/abc_tunebook.js" {
 	export interface AbcPitch {
 		name: string;
+		/** On a note that ties to the next one. */
+		startTie?: unknown;
+		/** One entry for each slur that opens on the pitch's note (`style: "dotted"` for `.(`). */
+		startSlur?: { label: number; style?: string }[];
+		/** One entry for each slur that closes on the pitch's note. */
+		endSlur?: number[];
 	}
 
 	export interface AbcElement {

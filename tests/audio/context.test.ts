@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createAudio } from "../../src/audio/context";
+import { createAudio, outputLatencySeconds } from "../../src/audio/context";
 import { FakeContext } from "./fake-audio";
 
 function counted(ctx: FakeContext) {
@@ -82,5 +82,33 @@ describe("unlock", () => {
 		// An unhandled rejection would fail the run once the tick passes.
 		await new Promise((r) => setTimeout(r, 0));
 		expect(ctx.resumeCalls).toBe(1);
+	});
+});
+
+describe("outputLatencySeconds (F09-S03)", () => {
+	function latencyOf(value: unknown): number | null {
+		const ctx = new FakeContext();
+		(ctx as { outputLatency?: unknown }).outputLatency = value;
+		return outputLatencySeconds(createAudio(() => ctx));
+	}
+
+	test("gives a finite non-negative number as it is", () => {
+		expect(latencyOf(0.042)).toBe(0.042);
+		expect(latencyOf(0)).toBe(0);
+	});
+
+	test.each([
+		["missing", undefined],
+		["negative", -0.01],
+		["NaN", Number.NaN],
+		["infinite", Number.POSITIVE_INFINITY],
+		["a string", "0.04"],
+		["null", null],
+	])("gives null when it is %s", (_name, value) => {
+		expect(latencyOf(value)).toBeNull();
+	});
+
+	test("gives null with no audio context", () => {
+		expect(outputLatencySeconds(createAudio(null))).toBeNull();
 	});
 });

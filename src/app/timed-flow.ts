@@ -1,4 +1,12 @@
 import type { ListenResult, PitchReading } from "../audio/listener";
+import {
+	buildTimeline,
+	type CoverageOptions,
+	type CoverageResult,
+	type CoverageRun,
+	createCoverageRun,
+	type Progress,
+} from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import {
 	countIn,
@@ -7,23 +15,31 @@ import {
 	type SongNote,
 	songSlotsMs,
 } from "../core/song";
-import type { NoteMark } from "../render/staff";
-import type { CardListen, Listening, Verdict } from "./card-flow";
+import type { Listening } from "./card-flow";
 
 /** Time between the start tap and the first click, so a resuming audio context is running by then. */
 export const LEAD_SECONDS = 0.1;
 
 /**
- * How long after a slot starts a tone must hold before it is judged. Provisional:
- * to be tuned in the live check with an ocarina (F08-S03).
+ * How much later than the audio clock a sound reaches the readings: the key-tap
+ * measurement of the microphone path (about 55 ms on Linux with a headset),
+ * before the output latency is added. To be tuned on desktop and Android.
  */
-export const TIMED_HOLD_OFF_MS = 0;
+export const INPUT_ALLOWANCE_MS = 55;
+
+/** The scoring lag when the browser does not report `outputLatency`. */
+export const FALLBACK_LAG_MS = 100;
 
 /**
- * A slot shorter than this is shown in time but not listened to, as a tone
- * cannot settle in it. Provisional, like `TIMED_HOLD_OFF_MS`.
+ * How long after it is played a note reaches the scoring: the input allowance
+ * plus the output latency (seconds, as the context reports it), or the fixed
+ * fallback when that is not known.
  */
-export const MIN_GRADED_SLOT_MS = 300;
+export function scoringLagMs(outputLatency: number | null): number {
+	return outputLatency === null
+		? FALLBACK_LAG_MS
+		: INPUT_ALLOWANCE_MS + outputLatency * 1000;
+}
 
 /** How far past a slot's end metronome clicks are scheduled ahead, in seconds, so timer jitter cannot make one late. */
 export const METRONOME_LOOKAHEAD_SECONDS = 1;
@@ -37,18 +53,6 @@ const CLOCK_EPSILON = 1e-9;
  */
 export type TimedPhase = "ready" | "count-in" | "playing" | "summary";
 
-/** What the song's play-through came to; nothing is graded until the flow listens. */
-export interface TimedSummary {
-	correct: number;
-	graded: number;
-}
-
-/**
- * How a graded note came out once its slot ended: a correct tone heard, only
- * wrong tones heard, or nothing heard.
- */
-export type NoteResult = "correct" | "incorrect" | "missed";
-
 export interface TimedState {
 	/** The index in the song of the note on the staff. */
 	index: number;
@@ -59,14 +63,24 @@ export interface TimedState {
 	phase: TimedPhase;
 	/** The count-in's beat sounding, from 0; null outside the count-in. */
 	countBeat: number | null;
-	/** The judge's answer for the note playing; null when none has been heard or it is not listened to. */
-	verdict: Verdict | null;
 	/** Where listening stands; `off` without judging. */
 	listening: Listening;
-	/** The summary once the last slot ends, otherwise null. */
-	summary: TimedSummary | null;
-	/** Each note's result by its index in the song; null until its slot ends, and for a note not graded. */
-	results: readonly (NoteResult | null)[];
+	/** The flow clock's seconds at the first note's start, song time 0; null until the count-in starts. */
+	origin: number | null;
+	/**
+	 * The coverage result one scoring lag after the last slot ends; null before
+	 * that, and in the summary when nothing was scored.
+	 */
+	summary: CoverageResult | null;
+}
+
+/** What the flow needs to score a timed song from the microphone. */
+export interface TimedListen {
+	listener: {
+		start(onReading: (reading: PitchReading) => void): Promise<ListenResult>;
+		stop(): void;
+	};
+	coverage: CoverageOptions;
 }
 
 export interface TimedFlowOptions {
@@ -77,8 +91,10 @@ export interface TimedFlowOptions {
 	clicker: { click(atSeconds: number): void; stop(): void } | null;
 	/** Click on every beat while the song plays, continuing the count-in's grid; false by default. */
 	metronome?: boolean;
-	/** Judges each slot from the microphone; null or absent turns judging off. */
-	listen?: CardListen | null;
+	/** Scores the song from the microphone; null or absent turns judging off. */
+	listen?: TimedListen | null;
+	/** The audio context's output latency in seconds, read once as the song starts; null when not reported. */
+	outputLatency?: () => number | null;
 	onChange: (state: TimedState) => void;
 }
 
@@ -89,25 +105,10 @@ export interface TimedFlow {
 	step(): void;
 	/** Cancel the timer and every click. */
 	stop(): void;
-}
-
-/**
- * The marks the staff shows: each result so far, a miss marked as incorrect,
- * and the note playing in its verdict's colour as soon as it is heard.
- */
-export function songMarks(state: TimedState): Map<number, NoteMark> {
-	const marks = new Map<number, NoteMark>();
-	for (const [index, result] of state.results.entries()) {
-		if (result === null) continue;
-		marks.set(index, result === "correct" ? "correct" : "incorrect");
-	}
-	const grade = state.verdict?.grade;
-	if (
-		state.phase === "playing" &&
-		(grade === "correct" || grade === "incorrect")
-	)
-		marks.set(state.index, grade);
-	return marks;
+	/** The scoring so far, for drawing it live; null when nothing is scored (judging off, a stream not running) and after the summary. */
+	progress(): Progress | null;
+	/** The newest reading from the microphone, or null when there is none. */
+	reading(): PitchReading | null;
 }
 
 export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
@@ -121,6 +122,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const bar = countIn(song.meter, tempo);
 
 	let phase: TimedPhase = "ready";
+	let origin: number | null = null;
 	let countBeat: number | null = null;
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let stopped = false;
@@ -132,19 +134,16 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	let opening = false;
 	// Bumped on every start of the stream and on stop, so a late result knows it is stale.
 	let attempt = 0;
-	// The slot being listened to: whether the window is open, and what it has heard.
-	let windowOpen = false;
-	let slotGraded = false;
-	let slotCorrect = false;
-	let verdict: Verdict | null = null;
-	let correct = 0;
-	let graded = 0;
-	let results: (NoteResult | null)[] = notes.map(() => null);
-	// The note on the staff, for judging a reading against.
-	let currentIndex = 0;
-	let currentPitch = notes[0]?.pitch as Pitch;
+	let latest: PitchReading | null = null;
+	// The song's scoring while it plays and until its summary; null when nothing is scored.
+	let scoring: {
+		run: CoverageRun;
+		/** The audio clock's seconds at the first slot's start: song time 0. */
+		firstSlot: number;
+		lagMs: number;
+	} | null = null;
 
-	function emit(index: number, summary: TimedSummary | null = null): void {
+	function emit(index: number, summary: CoverageResult | null = null): void {
 		if (stopped) return;
 		const note = (notes[index] ?? notes[0]) as SongNote;
 		onChange({
@@ -153,10 +152,9 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			beats: note.beats,
 			phase,
 			countBeat,
-			verdict,
 			listening,
+			origin,
 			summary,
-			results,
 		});
 	}
 
@@ -186,58 +184,40 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		arm();
 	}
 
-	/** Close the slot's window: it counts as graded only if it opened and nothing failed. */
-	function closeSlot(): void {
-		if (slotGraded) {
-			graded++;
-			if (slotCorrect) correct++;
-			// A new array, so a change shows to whoever keeps the last one.
-			results = results.slice();
-			results[currentIndex] = slotCorrect
-				? "correct"
-				: verdict?.grade === "incorrect"
-					? "incorrect"
-					: "missed";
-		}
-		windowOpen = false;
-		slotGraded = false;
-		slotCorrect = false;
-		verdict = null;
-	}
-
-	/** Open the listening window for a slot, when the stream runs and the slot is long enough. */
-	function openSlot(index: number): void {
-		windowOpen = false;
-		slotGraded = false;
-		slotCorrect = false;
-		verdict = null;
-		if (!listen || listening !== "running") return;
-		if ((slotsMs[index] as number) < MIN_GRADED_SLOT_MS) return;
-		try {
-			listen.tracker.reset(listen.now());
-			windowOpen = true;
-			slotGraded = true;
-		} catch {
-			// A tracker that fails leaves the slot ungraded.
-		}
-	}
-
+	/** Places a reading and its level blocks in song time and feeds them to the scoring. */
 	function onReading(reading: PitchReading): void {
-		if (!listen || !windowOpen || slotCorrect || phase !== "playing") return;
+		latest = reading;
+		const current = scoring;
+		if (!current || reading.audioTime === undefined) return;
+		const audioTime = reading.audioTime;
+		if (!Number.isFinite(audioTime)) return;
+		const songTime = (audioSeconds: number) =>
+			(audioSeconds - current.firstSlot) * 1000 - current.lagMs;
 		try {
-			const hz = listen.tracker.push(reading);
-			if (hz === null) return;
-			const pitch = currentPitch;
-			const grade = listen.grade(pitch, hz);
-			verdict = { grade, frequency: hz };
-			if (grade === "correct") slotCorrect = true;
-			else listen.tracker.reset(listen.now());
-			emit(currentIndex);
+			current.run.pushEnvelope(
+				(reading.envelope ?? []).map((block) => ({
+					time: songTime(block.time),
+					level: block.level,
+				})),
+			);
+			current.run.pushReading({
+				time: songTime(audioTime),
+				frequency: reading.frequency,
+				clarity: reading.clarity,
+				level: reading.level,
+			});
 		} catch {
-			// A failing judge leaves the slot ungraded.
-			windowOpen = false;
-			slotGraded = false;
-			slotCorrect = false;
+			// A scoring that fails leaves the song playing in time and unscored.
+			scoring = null;
+		}
+	}
+
+	/** The output latency, read as the song starts; null when it is not reported or cannot be read. */
+	function readOutputLatency(): number | null {
+		try {
+			return options.outputLatency?.() ?? null;
+		} catch {
+			return null;
 		}
 	}
 
@@ -245,19 +225,27 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	function run(): void {
 		cancel();
 		clicker?.stop();
-		correct = 0;
-		graded = 0;
-		results = notes.map(() => null);
-		verdict = null;
 		const t0 = clock.now() + LEAD_SECONDS;
 		for (let i = 0; i < bar.beats; i++) {
 			clicker?.click(t0 + (i * bar.beatMs) / 1000);
 		}
 		const firstSlot = t0 + (bar.beats * bar.beatMs) / 1000;
+		// Readings count from here, for the whole song, count-in included.
+		scoring = null;
+		if (listen && listening === "running") {
+			try {
+				scoring = {
+					run: createCoverageRun(buildTimeline(song, tempo), listen.coverage),
+					firstSlot,
+					lagMs: scoringLagMs(readOutputLatency()),
+				};
+			} catch {
+				// A scoring that cannot start leaves the song unscored.
+			}
+		}
+		origin = firstSlot;
 		phase = "count-in";
 		countBeat = null;
-		currentIndex = 0;
-		currentPitch = notes[0]?.pitch as Pitch;
 		emit(0);
 
 		// Each boundary is the first slot's start plus the summed slots so far,
@@ -281,23 +269,30 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			}
 		};
 		scheduleBeats((boundaries[0] as number) + METRONOME_LOOKAHEAD_SECONDS);
-		const show = (index: number): void => {
-			closeSlot();
-			if (index > last) {
-				phase = "summary";
-				emit(last, { correct, graded });
-				return;
+		// The last note's sound reaches the scoring one lag after its slot ends.
+		const summarise = (): void => {
+			let summary: CoverageResult | null = null;
+			try {
+				summary = scoring?.run.finish() ?? null;
+			} catch {
+				// A scoring that fails to finish leaves nothing to report.
 			}
+			scoring = null;
+			phase = "summary";
+			emit(last, summary);
+		};
+		const show = (index: number): void => {
 			phase = "playing";
 			countBeat = null;
-			currentIndex = index;
-			currentPitch = notes[index]?.pitch as Pitch;
-			openSlot(index);
 			scheduleBeats(
 				(boundaries[index] as number) + METRONOME_LOOKAHEAD_SECONDS,
 			);
 			emit(index);
-			at(boundaries[index] as number, () => show(index + 1));
+			at(boundaries[index] as number, () => {
+				if (index < last) show(index + 1);
+				else if (scoring) at(songEnd + scoring.lagMs / 1000, summarise);
+				else summarise();
+			});
 		};
 		// Each count-in beat shows on its click; the beat after the last is the first slot.
 		const tick = (beat: number): void => {
@@ -349,6 +344,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		start() {
 			stopped = false;
 			phase = "ready";
+			origin = null;
 			countBeat = null;
 			emit(0);
 		},
@@ -356,10 +352,13 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			if (stopped || opening) return;
 			if (phase === "ready" || phase === "summary") begin();
 		},
+		progress: () => scoring?.run.progress() ?? null,
+		reading: () => latest,
 		stop() {
 			stopped = true;
 			attempt++;
-			windowOpen = false;
+			scoring = null;
+			latest = null;
 			cancel();
 			clicker?.stop();
 			if (!listen) return;

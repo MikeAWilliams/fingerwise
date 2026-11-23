@@ -185,6 +185,73 @@ function warningProblem(warning: string): AbcProblem {
 	};
 }
 
+/**
+ * Slur depth after each written note (same order as `notes`), counting every
+ * `startSlur` and `endSlur` entry, dotted slurs included. A close with nothing
+ * open and a slur still open at the end are problems; abcjs warns of neither.
+ */
+function slurDepths(notes: AbcElement[]): {
+	after: number[];
+	problems: { startChar: number | undefined; message: string }[];
+} {
+	const after: number[] = [];
+	const problems: { startChar: number | undefined; message: string }[] = [];
+	const open: (number | undefined)[] = [];
+	for (const el of notes) {
+		for (let n = el.pitches?.[0]?.startSlur?.length ?? 0; n > 0; n--) {
+			open.push(el.startChar);
+		}
+		for (let n = el.pitches?.[0]?.endSlur?.length ?? 0; n > 0; n--) {
+			if (open.length === 0) {
+				problems.push({
+					startChar: el.startChar,
+					message: "Slur closed here was never opened",
+				});
+			} else open.pop();
+		}
+		after.push(open.length);
+	}
+	if (open.length > 0) {
+		problems.push({
+			startChar: open[open.length - 1],
+			message: "Slur opened here is never closed",
+		});
+	}
+	return { after, problems };
+}
+
+/**
+ * Whether each event is slurred to the next one: the depth after its written
+ * note (or after the last note of a tied group) is above zero, the next event
+ * is the written note that follows the group, and no rest lies between them.
+ */
+function slurredFlags(
+	events: { startChar: number | undefined; start: number; duration: number }[],
+	notes: AbcElement[],
+): boolean[] {
+	const index = new Map<number, number>();
+	notes.forEach((el, i) => {
+		if (el.startChar !== undefined) index.set(el.startChar, i);
+	});
+	const { after } = slurDepths(notes);
+	return events.map((e, i) => {
+		const next = events[i + 1];
+		if (!next || e.startChar === undefined || next.startChar === undefined)
+			return false;
+		const first = index.get(e.startChar);
+		const following = index.get(next.startChar);
+		if (first === undefined || following === undefined) return false;
+		// The group ends at the written note just before the next event's; a jump back or into another ending finds none.
+		const last = following - 1;
+		if (last < first) return false;
+		for (let j = first; j < last; j++) {
+			if (!notes[j]?.pitches?.[0]?.startTie) return false;
+		}
+		if ((after[last] ?? 0) <= 0) return false;
+		return Math.abs(next.start - (e.start + e.duration)) <= 1e-3;
+	});
+}
+
 function letterOf(name: string): string {
 	return (/[A-Ga-g]/.exec(name)?.[0] ?? "").toUpperCase();
 }
@@ -202,6 +269,9 @@ function structuralProblems(
 	};
 
 	const notes = noteElements(tune);
+	for (const { startChar, message } of slurDepths(notes).problems) {
+		add(startChar, message);
+	}
 	for (const el of notes) {
 		if ((el.pitches?.length ?? 0) > 1) {
 			add(el.startChar, "Chords are not supported; write one note at a time");
@@ -369,13 +439,15 @@ export async function parseAbc(
 	let song: Song;
 	try {
 		const origin = (events[0] as { start: number }).start;
-		const notes: SongNote[] = events.map((e) => ({
+		const slurred = slurredFlags(events, notes);
+		const songNotes: SongNote[] = events.map((e, i) => ({
 			pitch: e.pitch,
 			start: e.start - origin,
 			beats: e.duration,
+			slurred: slurred[i] ?? false,
 		}));
 		const meter = meterOf(tune);
-		song = createSong(notes, {
+		song = createSong(songNotes, {
 			tempo: tempoOf(tune),
 			meter,
 			firstBar: firstBarOf(tune, origin, meter),

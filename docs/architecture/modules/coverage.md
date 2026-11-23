@@ -1,0 +1,47 @@
+# coverage
+
+`src/core/coverage/index.ts`
+
+## Purpose
+
+Scores a timed song by coverage: how much of each note was played on the right note, in tune and on time, and how well the notes were separated. It takes detector readings and level blocks placed on the song's timeline in ms, classifies each reading against the note or rest due, and keeps segments, timing faults and separation as the run goes, so a display can draw them live. Pure: time comes only from the readings and the timeline, never from a clock or timer. It knows pitch, frequency and the song; it knows nothing of staff, audio or UI. Rules from [ADR 0009](../decisions/0009-timed-songs-scored-by-coverage.md) and the [F09 design](../../features/09-timed-scoring/design.md#scoring-model); built in [F09-S02](../../features/09-timed-scoring/stories/F09-S02-coverage-core.md).
+
+## Public interface
+
+Constants (the starting values from the design, in one block to tune in the live check): `EDGE_GRACE_MS = 40`, `WRONG_RUN = 3`, `TIMING_TOLERANCE_MS = 60`, `GAP_DIP_DB = 10`, `GAP_MEDIAN_WINDOW_MS = 100`, `MIN_SCORED_SPAN_MS = 50`, `RIGHT_NOTE_BAND_CENTS = 50`, `TRACE_SPAN_CENTS = 150`, and `MIN_GRADED_MS = 2 * EDGE_GRACE_MS + MIN_SCORED_SPAN_MS` (130).
+
+Types:
+
+- `CoverageReading`: the judge's `Reading` (`time`, `frequency`, `clarity`, `level`), with `time` in ms of song time: 0 is the first note's start, and the count-in has negative times.
+- `EnvelopeBlock { time, level }`: the RMS level in dBFS of a short block, `time` its end in song time.
+- `CoverageOptions { toleranceCents, checks: StabilityOptions, sounding(written): Pitch }`: the instrument's transposition is a parameter, so the core compares in sounding pitch and keeps written pitch for the tuning list.
+- `Timeline { notes, rests, joins }` from `buildTimeline(song, tempo)`: each note `{ index, written, startMs, endMs, graded }` over its written length (not its slot); each rest `{ startMs, endMs, graded }` between one note's end and the next note's start (more than 0.001 beat, as `songBars` finds them); each join `{ before, after, atMs, kind: "plain" | "slurred" }` between neighbours with no rest, from the earlier note's `slurred`. `graded` is a length of at least `MIN_GRADED_MS`.
+- `classify(reading, expected | null, options): Classified`: `{ kind: "right", inTune, cents }` when the reading passes the judge's [`passesChecks`](judge.md) and is within `RIGHT_NOTE_BAND_CENTS` of the expected pitch (in tune within the tolerance), `{ kind: "pending", nearest, cents }` when it passes but is another note (or any sound on a rest, where `expected` is null), and `{ kind: "silent" }` otherwise.
+- `createCoverageRun(timeline, options): CoverageRun` with:
+  - `pushReading(reading)`: readings in time order. The newest `WRONG_RUN - 1` readings can still change on a later push; everything before is settled.
+  - `pushEnvelope(blocks)`: level blocks in time order.
+  - `progress(): Progress`: `segments` (those of finished notes and rests, the same array growing, nothing in it changing), `open` (the segments of the notes and rests still open, recomputed each call), `timingFaults` and `notSeparated` (each found as its note finishes; the same arrays growing).
+  - `finish(): CoverageResult`: settles every reading, finishes what is left and returns the result. Later pushes are ignored.
+- `Segment { startMs, endMs, kind: "right-in-tune" | "right-out" | "wrong" | "silent", on: "note" | "rest", graded, points: { timeMs, cents }[] }`: a run of readings of one class inside one note or rest; `graded` is false in a note or rest too short to grade, which the lane never fills. A point is a sounding reading (right or confirmed wrong) with its offset in cents from the expected pitch (from the nearest note on a rest).
+- `TimingFault { index, edge: "start" | "end", kind: "late" | "early" }` and `JoinFault { before, after, atMs }`.
+- `CoverageResult`: `coverage` (0 to 1, null when nothing was graded), `inTune` (null with no right-note time), `graded`, `tooShort` (ungraded notes) and `tooShortRests`, `timing` (`startedLate`, `startedEarly`, `endedEarly`, `endedLate`, each `{ faults, withEdge }`), `separation { notSeparated, plainJoins }`, `tuning` (up to three `{ pitch, cents }`, written pitch), and `items`, the per-note and per-rest `ItemScore`s (`coverage`, `inTune`, `startEdge`, `endEdge`), with the fault lists.
+
+## Rules
+
+- **Classifying.** Each reading is classified against the note or rest due at its `time`. A passing reading that is not the expected note is pending; the same other nearest note for `WRONG_RUN` readings in a row confirms the run, and the whole run counts as wrong from its first reading. Until then, pending readings count as silent. A right, silent or different pending reading restarts the run. A reading before the first note or after the last note is kept for the edge checks but is in no segment. Each reading covers the time until the next one; the newest reading covers none until another comes (and at `finish`, as long as the interval before it). Readings are not capped, so a long hole in the readings keeps the last class.
+- **Note coverage.** The share of `[start + grace, end - grace]` filled by right readings (in tune or not). At a slurred join the grace on that side is not cut: it is counted, and readings of the neighbour's pitch there fill it, but silence and any other pitch do not. A rest's coverage is its graced span's share filled by silent readings (pending ones included). Not-graded notes and rests have no coverage.
+- **Song figures.** Coverage is the unweighted mean over graded notes and rests. A note's in-tune share is its in-tune right-note time over its right-note time; the song figure is the mean over graded notes with any right-note time. Timing figures count graded notes only.
+- **Timing.** A note's start edge is its first right reading and its end edge the end of its last, even with silence between. Late: more than `TIMING_TOLERANCE_MS` after the start or before the end. Early start or late end: the expected pitch's readings (passing, within the band) run unbroken from more than the tolerance before the start, or to more than the tolerance past the end, counting readings classified against the neighbours. A note with no right-note time has no edges. A same-pitch join where nothing shows the change gives no edge on either side: a plain join with no gap detected, and (an extension of the design) any slurred join. At a same-pitch join with a gap, the unbroken run stops at the note's own readings.
+- **Separation.** For each plain join, within `TIMING_TOLERANCE_MS` of it: a reading that fails the checks, or a level block at least `GAP_DIP_DB` below the median of the blocks within `GAP_MEDIAN_WINDOW_MS / 2` either side, followed by a block back above that line within the same half-span. A join is looked at when its first note finishes. Slurred joins are skipped.
+- **Finishing.** A note or rest is finished when the settled readings pass its end by `TIMING_TOLERANCE_MS + GAP_MEDIAN_WINDOW_MS`, so the late edge and the level check have what they need. Progress therefore reports faults and finished segments about 160 ms after a note ends; `open` shows the rest.
+- **Tuning list.** For each written pitch, the mean offset in cents of every passing reading within `TRACE_SPAN_CENTS` of the expected pitch while a note of that pitch is due (graces included, ungraded notes included). Pitches whose mean is beyond the tolerance, worst first, three at most.
+
+## Dependencies
+
+`src/core/judge`, `src/core/pitch` and `src/core/song` only. No clock, timer or browser API.
+
+## Tests
+
+- `tests/core/coverage.test.ts`: generated readings every 16.7 ms and level blocks every 2.67 ms in song time. The constants; the timeline (lengths, rests, joins, the graded cut-off, eighths at ♩ = 80, 160 and 240); `classify`; a note played fully, half and not at all; a sagging note going right in tune, right out of tune, then wrong; slivers inside the graces; silence inside a note; a one-reading blip, a confirmed run and jumpy wrong notes; a rest kept silent and overheld; notes and rests too short to grade; equal weighting, the in-tune mean, transposition; each timing fault at the tolerance and just past it; separation by silence, by a level dip, a dip outside the tolerance, a shallow dip and no recovery; a held same-pitch join; slurred joins with and without a break and both graces; the tuning list; live progress (finished segments only grow, open segments, a late-confirmed wrong run); the imports and the absence of clocks.
+- `tests/core/coverage-fixtures.test.ts`: the clips in [`tests/fixtures/audio/`](../../../tests/fixtures/audio/README.md) (the user's own playing), framed as the listener frames the microphone (2048 samples every 800 and 128-sample blocks) with `detectPitch` and `rmsDb`: tongued joins separated, the held note and the slurred joins not, the sagging notes right out of tune within 50 cents and wrong beyond, the semitone-flat slurred notes confirmed wrong.
+- `tests/core/core-imports.test.ts` covers this folder too.

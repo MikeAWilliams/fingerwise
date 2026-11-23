@@ -51,10 +51,82 @@ main {
 }
 
 .song-staff {
+	position: relative;
 	width: 100%;
 }
 
-.song-staff svg,
+.song-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.lane-graded {
+	fill: #d0d0d0;
+}
+
+.playhead {
+	stroke: #1a56db;
+	stroke-width: 2;
+	vector-effect: non-scaling-stroke;
+}
+
+.lane-guides {
+	fill: none;
+	stroke: #888;
+	stroke-width: 0.5;
+	stroke-dasharray: 2 2;
+	opacity: 0.6;
+}
+
+.fill-green {
+	fill: #17692e;
+}
+
+.fill-amber {
+	fill: #b26a00;
+}
+
+.fill-red {
+	fill: #b3261e;
+}
+
+.lane-marks {
+	fill: #222;
+	stroke: #222;
+	stroke-width: 1;
+}
+
+.lane-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	margin: 0.5rem 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: 0.8rem;
+	color: #555;
+}
+
+.lane-legend li {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.lane-legend-icon {
+	width: 2rem;
+	height: auto;
+}
+
+.lane-ungraded {
+	fill: #ececec;
+}
+
+.song-staff-music svg,
 .staff svg {
 	display: block;
 	width: 100%;
@@ -80,6 +152,8 @@ main {
 	margin: 0;
 	padding-top: 1rem;
 	opacity: 0.7;
+	/* The timed summary is a long line: it wraps rather than scrolls. */
+	overflow-wrap: anywhere;
 }
 
 .card-glyph {

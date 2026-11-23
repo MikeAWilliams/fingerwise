@@ -120,6 +120,8 @@ export class FakeContext implements AudioContextLike {
 	state = "running";
 	currentTime = 0;
 	sampleRate = 48000;
+	/** Left out, as in a browser that does not report it, until a test sets it. */
+	outputLatency?: number;
 	destination = { name: "destination" };
 	analysers: FakeAnalyser[] = [];
 	sources: FakeSource[] = [];

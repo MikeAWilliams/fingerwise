@@ -56,6 +56,8 @@ export interface AudioContextLike {
 	readonly state: string;
 	readonly currentTime: number;
 	readonly sampleRate: number;
+	/** Seconds from the context to the speakers; browsers that do not report it leave it out. */
+	readonly outputLatency?: number;
 	readonly destination: unknown;
 	resume(): Promise<void>;
 	createOscillator(): OscillatorLike;
@@ -108,6 +110,19 @@ export function createAudio(create: (() => AudioContextLike) | null): Audio {
 			return unlockRequested;
 		},
 	};
+}
+
+/** The context's reported output latency in seconds, or null when it is not reported or not a plain non-negative number. */
+export function outputLatencySeconds(audio: Audio): number | null {
+	let latency: unknown;
+	try {
+		latency = audio.context()?.outputLatency;
+	} catch {
+		return null;
+	}
+	return typeof latency === "number" && Number.isFinite(latency) && latency >= 0
+		? latency
+		: null;
 }
 
 /** A factory for the browser's `AudioContext`, or null when there is none. */

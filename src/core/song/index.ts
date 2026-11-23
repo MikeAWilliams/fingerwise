@@ -14,6 +14,8 @@ export interface SongNote {
 	/** Counted from the first note's start. */
 	readonly start: number;
 	readonly beats: number;
+	/** Slurred to the next played note: the two sound as one. A missing flag means not slurred. */
+	readonly slurred?: boolean;
 }
 
 /** A time signature: the top and bottom numbers. */
@@ -62,7 +64,7 @@ export function barBeats(meter: Meter): number {
 /**
  * Throws `SongError` for an empty list, a tempo, length, meter number or first
  * bar that is not finite and positive, or starts that decrease. The first bar
- * defaults to a whole bar. The list is copied.
+ * defaults to a whole bar and a note's `slurred` to false. The list is copied.
  */
 export function createSong(
 	notes: readonly SongNote[],
@@ -87,7 +89,7 @@ export function createSong(
 			throw new SongError("note starts must not decrease");
 		previous = note.start;
 	}
-	const copy = notes.map((n) => ({ ...n }));
+	const copy = notes.map((n) => ({ ...n, slurred: n.slurred ?? false }));
 	return {
 		notes: copy,
 		pitches: copy.map((n) => n.pitch),

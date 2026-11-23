@@ -2,6 +2,7 @@ import { Formatter, Renderer, type SVGContext } from "vexflow/bravura";
 import type { Pitch } from "../../core/pitch";
 import { buildNote, buildStave, noteLayout, type StaffOptions } from "./layout";
 
+export { type RowMap, rowMap, type Stop } from "./lane-map";
 export {
 	buildNote,
 	buildStave,
@@ -14,10 +15,14 @@ export {
 	StaffRangeError,
 } from "./layout";
 export {
+	colourSong,
 	drawSongLines,
 	GREY,
+	LANE_GAP,
+	LANE_HEIGHT,
 	lineOfNote,
-	type NoteMark,
+	type RowLayout,
+	type SongLayout,
 	splitBeats,
 } from "./song-lines";
 

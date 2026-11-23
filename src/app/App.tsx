@@ -4,9 +4,14 @@ import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
 import { parseAbc } from "../abc";
 import { createClicker } from "../audio/click";
-import { browserAudioFactory, createAudio } from "../audio/context";
+import {
+	browserAudioFactory,
+	createAudio,
+	outputLatencySeconds,
+} from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer } from "../audio/tone";
+import { buildTimeline } from "../core/coverage";
 import { buildPool } from "../core/drill";
 import { loadInstrument, soundingPitch } from "../core/instrument";
 import {
@@ -29,7 +34,7 @@ import {
 	type Settings,
 	smartSamplingApplies,
 } from "../core/settings";
-import { songLines } from "../core/song";
+import { DEFAULT_TEMPO, songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
@@ -43,15 +48,15 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { summaryText } from "./judge-text";
+import { summaryText, tuningText } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
 import {
 	createTimedFlow,
-	songMarks,
-	TIMED_HOLD_OFF_MS,
+	type TimedFlow,
+	type TimedListen,
 	type TimedState,
 } from "./timed-flow";
 
@@ -81,20 +86,35 @@ const clicker = createClicker(audio);
 /** The audio clock, or the page clock when there is no audio context (the song then runs silent but in time). */
 const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
+/** The playhead's clocks: stable functions, so its frame loop restarts only with the song. */
+const playheadNow = () => timedClock.now();
+const playheadLatency = () => outputLatencySeconds(audio);
+/** The timed flow now running, for the overlay to read its scoring and readings; stable functions, so its frame loop restarts only with the song. */
+let activeTimed: TimedFlow | null = null;
+const fillProgress = () => activeTimed?.progress() ?? null;
+const fillReading = () => activeTimed?.reading() ?? null;
 
-function listenFor(settings: Settings, holdOffMs?: number): CardListen | null {
+function listenFor(settings: Settings): CardListen | null {
 	if (!settings.judgeEnabled) return null;
 	return {
 		listener,
-		tracker: createToneTracker({
-			...DEFAULT_THRESHOLDS,
-			...(holdOffMs === undefined ? {} : { holdOffMs }),
-			band: BAND,
-		}),
+		tracker: createToneTracker({ ...DEFAULT_THRESHOLDS, band: BAND }),
 		grade: (p, hz) =>
 			judge(soundingPitch(instrument, p), hz, settings.toleranceCents),
 		// The same clock as the requestAnimationFrame timestamps on readings.
 		now: () => performance.now(),
+	};
+}
+
+function timedListenFor(settings: Settings): TimedListen | null {
+	if (!settings.judgeEnabled) return null;
+	return {
+		listener,
+		coverage: {
+			toleranceCents: settings.toleranceCents,
+			checks: { ...DEFAULT_THRESHOLDS, band: BAND },
+			sounding: (p) => soundingPitch(instrument, p),
+		},
 	};
 }
 
@@ -189,12 +209,13 @@ export function App() {
 		() => (song === null ? [] : songLines(song, barsPerLine)),
 		[song, barsPerLine],
 	);
+	const songTempo = song?.tempo ?? DEFAULT_TEMPO;
+	const timeline = useMemo(
+		() => (song === null ? null : buildTimeline(song, songTempo)),
+		[song, songTempo],
+	);
 	// Waiting for the tap or counting in: no note is lit yet.
 	const counting = timed?.phase === "ready" || timed?.phase === "count-in";
-	const marks = useMemo(
-		() => (timed === null ? new Map() : songMarks(timed)),
-		[timed],
-	);
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
@@ -238,7 +259,8 @@ export function App() {
 						clicker,
 						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
 						metronome: metronomeApplies(settings),
-						listen: listenFor(settings, TIMED_HOLD_OFF_MS),
+						listen: timedListenFor(settings),
+						outputLatency: playheadLatency,
 						onChange: (state) => {
 							setTimed(state);
 							if (state.listening === "unavailable") setJudgeUnavailable(true);
@@ -286,8 +308,10 @@ export function App() {
 		};
 		document.addEventListener("click", onClick);
 		window.addEventListener("keydown", onKeyDown);
+		if (timedSong && song !== null) activeTimed = flow as TimedFlow;
 		flow.start();
 		return () => {
+			if (activeTimed === flow) activeTimed = null;
 			document.removeEventListener("click", onClick);
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
@@ -326,15 +350,19 @@ export function App() {
 					beats={timed.beats}
 					revealed={false}
 					judging={settings.judgeEnabled}
-					verdict={timed.verdict}
 					timed={
 						timed.phase === "count-in" || timed.listening === "opening"
 							? "playing"
 							: timed.phase
 					}
-					timedSummary={summaryText(timed.summary ?? { correct: 0, graded: 0 })}
+					timedSummary={summaryText(timed.summary)}
+					timedTuning={tuningText(timed.summary?.tuning ?? [])}
+					readout={
+						timed.listening === "running" &&
+						(timed.phase === "count-in" || timed.phase === "playing")
+					}
 					song={
-						song === null
+						song === null || timeline === null
 							? undefined
 							: {
 									lines,
@@ -343,7 +371,23 @@ export function App() {
 									// Before the first slot the first rest is lit, then each beat's.
 									current: counting ? -1 : timed.index,
 									countBeat: counting ? (timed.countBeat ?? 0) : null,
-									marks,
+									timeline,
+									tempo: songTempo,
+									playhead: {
+										running:
+											timed.phase === "count-in" || timed.phase === "playing",
+										origin: timed.origin,
+										now: playheadNow,
+										outputLatency: playheadLatency,
+									},
+									fill: settings.judgeEnabled
+										? {
+												progress: fillProgress,
+												reading: fillReading,
+												tolerance: settings.toleranceCents,
+												instrument,
+											}
+										: null,
 								}
 					}
 					instrument={instrument}
