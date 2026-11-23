@@ -20,7 +20,6 @@ function timelineOf(notes: [Pitch, number, number][]) {
 function row(line: number, stops: Stop[]): RowLayout {
 	return {
 		line,
-		row: line % 2,
 		top: 0,
 		bottom: 0,
 		laneTop: 0,
@@ -184,6 +183,37 @@ describe("laneSegments (AC3, AC4)", () => {
 				starts: false,
 				ends: true,
 			},
+		]);
+	});
+
+	test("a note over two line breaks has a segment on each of three rows (F10-S02 AC1)", () => {
+		const { song, timeline } = timelineOf([[C, 0, 9]]);
+		const lines = songLines(song, 1);
+		const layout = layoutOf(
+			row(0, [
+				{ x: 10, beat: 0 },
+				{ x: 40, beat: 0 },
+				{ x: 120, beat: 4 },
+			]),
+			row(1, [
+				{ x: 10, beat: 4 },
+				{ x: 30, beat: 4 },
+				{ x: 110, beat: 8 },
+			]),
+			row(2, [
+				{ x: 10, beat: 8 },
+				{ x: 30, beat: 8 },
+				{ x: 70, beat: 12 },
+			]),
+		);
+		const notes = laneSegments(timeline, lines, layout, 60).filter(
+			(s) => s.kind === "note",
+		);
+		expect(notes.map((s) => s.row)).toEqual([0, 1, 2]);
+		expect(notes.map((s) => [s.starts, s.ends])).toEqual([
+			[true, false],
+			[false, false],
+			[false, true],
 		]);
 	});
 

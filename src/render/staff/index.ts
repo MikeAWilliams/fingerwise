@@ -20,9 +20,13 @@ export {
 	GREY,
 	LANE_GAP,
 	LANE_HEIGHT,
-	lineOfNote,
+	ROW_HEIGHT,
+	ROW_SPACING,
+	type RowFrame,
 	type RowLayout,
+	rowFrame,
 	type SongLayout,
+	songHeight,
 	splitBeats,
 } from "./song-lines";
 

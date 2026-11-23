@@ -24,7 +24,7 @@ export interface LaneSegment {
 }
 
 /**
- * The lane's segments for the lines on show: a note or rest spanning its
+ * The lane's segments for every line of the song: a note or rest spanning its
  * written length on every row it reaches, so a note tied over a bar line is one
  * continuous segment and a note over a line break has one on each row. The
  * count-in bar has none. `tempo` is quarter notes per minute, to turn the
@@ -85,7 +85,7 @@ export function laneSegments(
 	return segments;
 }
 
-/** What the fill needs of each row on show: its beats, its map and its lane. */
+/** What the fill needs of each row: its beats, its map and its lane. */
 export function laneRows(
 	lines: readonly Bar[][],
 	layout: SongLayout,

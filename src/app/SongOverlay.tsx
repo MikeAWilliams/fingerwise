@@ -16,6 +16,7 @@ import {
 	emptyPaths,
 	type LaneRow,
 	type RowPaths,
+	rowsToUpdate,
 	segmentPaths,
 	TRACE_COLOURS,
 	traceY,
@@ -91,12 +92,15 @@ function guidePath(layout: SongLayout, tolerance: number): string {
  * redrawing the staff. Graded segments are a neutral colour and ungraded ones
  * lighter.
  *
- * One animation-frame loop runs while the song is running and is cancelled when
- * it stops, when the rows change (it restarts) or when the overlay goes away.
- * Each frame it sets the playhead line's attributes, appends the segments the
- * scoring has finished to the fill's settled paths (one per colour per row),
- * redraws the few still open, and updates the readout's text node. It holds no
- * Preact state, so a frame redraws neither the staff nor the component.
+ * It covers every row of the song. One animation-frame loop runs while the
+ * song is running and is cancelled when it stops, when the layout changes (it
+ * restarts) or when the overlay goes away. Each frame it sets the playhead
+ * line's attributes, appends the segments the scoring has finished to the
+ * fill's settled paths (one per colour per row, written only to rows that got
+ * something), redraws the open fill on the rows `rowsToUpdate` names (the
+ * playhead's row and any row an open segment reaches), and updates the
+ * readout's text node. It holds no Preact state, so a frame redraws neither
+ * the staff nor the component.
  */
 export function SongOverlay({
 	layout,
@@ -142,6 +146,8 @@ export function SongOverlay({
 		let consumed = 0;
 		let settled: RowPaths[] = rows.map(emptyPaths);
 		let openD: string[] = [];
+		// The rows whose open paths were written last frame.
+		let openRows: number[] = [];
 		// The fault marks drawn so far: which array of faults, how many of each kind, and each row's path data.
 		let faultsFrom: unknown = null;
 		let faultsDone = 0;
@@ -169,6 +175,7 @@ export function SongOverlay({
 					settled = rows.map(emptyPaths);
 					clear();
 					openD = [];
+					openRows = [];
 				}
 				if (scored.segments.length > consumed) {
 					const fresh = segmentPaths(
@@ -180,6 +187,7 @@ export function SongOverlay({
 					consumed = scored.segments.length;
 					fresh.forEach((add, r) => {
 						TRACE_COLOURS.forEach((colour, c) => {
+							if (add[colour] === "") return;
 							const have = settled[r] as RowPaths;
 							have[colour] += add[colour];
 							set(r, c, 0, have[colour]);
@@ -208,19 +216,40 @@ export function SongOverlay({
 					faultsDone = scored.timingFaults.length;
 					joinsDone = scored.notSeparated.length;
 					added.forEach((add, r) => {
+						if (add === "") return;
 						marks[r] += add;
 						markPaths.current[r]?.setAttribute("d", marks[r] as string);
 					});
 				}
-				const open = segmentPaths(scored.open, rows, tempo, tolerance);
-				open.forEach((now, r) => {
-					TRACE_COLOURS.forEach((colour, c) => {
+				const touched = rowsToUpdate(
+					rows,
+					place?.row ?? null,
+					scored.open,
+					tempo,
+				);
+				// A row that left the set has its open fill emptied once.
+				for (const r of openRows) {
+					if (touched.includes(r)) continue;
+					TRACE_COLOURS.forEach((_, c) => {
 						const key = r * TRACE_COLOURS.length + c;
-						if (openD[key] === now[colour]) return;
-						openD[key] = now[colour];
-						set(r, c, 1, now[colour]);
+						if (openD[key] === "") return;
+						openD[key] = "";
+						set(r, c, 1, "");
 					});
-				});
+				}
+				openRows = touched;
+				const subset = touched.map((r) => rows[r] as LaneRow);
+				segmentPaths(scored.open, subset, tempo, tolerance).forEach(
+					(now, i) => {
+						const r = touched[i] as number;
+						TRACE_COLOURS.forEach((colour, c) => {
+							const key = r * TRACE_COLOURS.length + c;
+							if (openD[key] === now[colour]) return;
+							openD[key] = now[colour];
+							set(r, c, 1, now[colour]);
+						});
+					},
+				);
 			}
 			const node = readout?.current;
 			if (node && reading && instrument) {

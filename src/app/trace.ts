@@ -60,6 +60,32 @@ export function emptyPaths(): RowPaths {
 	return { green: "", amber: "", red: "" };
 }
 
+/**
+ * The rows a frame must touch, sorted: the playhead's row, and every row an
+ * open segment reaches by its beat range (a stretch over a line break has
+ * fill on both rows). Finished and not-yet-reached rows are left alone.
+ */
+export function rowsToUpdate(
+	rows: readonly LaneRow[],
+	playheadRow: number | null,
+	open: readonly Segment[],
+	tempo: number,
+): number[] {
+	const touched = new Set<number>();
+	if (playheadRow !== null && playheadRow >= 0 && playheadRow < rows.length)
+		touched.add(playheadRow);
+	for (const segment of open) {
+		const b0 = (segment.startMs * tempo) / 60000;
+		const b1 = (segment.endMs * tempo) / 60000;
+		rows.forEach((row, r) => {
+			const lo = Math.max(b0, row.from);
+			const hi = Math.min(b1, row.to);
+			if (hi - lo > BEAT_EPSILON / 100) touched.add(r);
+		});
+	}
+	return [...touched].sort((a, b) => a - b);
+}
+
 const round = (n: number) => Math.round(n * 10) / 10;
 
 /**

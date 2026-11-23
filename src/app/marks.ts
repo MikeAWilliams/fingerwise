@@ -37,11 +37,11 @@ const POINTER_WIDTH = 4;
 const SLUR_HALF = 3.5;
 
 /**
- * Where each reported fault is drawn, on the rows on show. A timing fault sits
+ * Where each reported fault is drawn, on every row. A timing fault sits
  * at the start or end edge of its note's segment on the row that holds that
  * edge; a not-separated join sits at the join, which is the end of the note
- * before it (or the start of the note after, when only that row is on show). A
- * fault whose edge is on a row that is not on show gives no mark.
+ * before it (or the start of the note after, when only that row has it). A
+ * fault whose edge is on no row gives no mark.
  */
 export function faultMarks(
 	faults: readonly TimingFault[],

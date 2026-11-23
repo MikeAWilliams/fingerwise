@@ -31,7 +31,6 @@ describe("playheadBeat (F09-S05 AC1, AC3, AC7)", () => {
 function row(line: number, stops: Stop[]): RowLayout {
 	return {
 		line,
-		row: line % 2,
 		top: 0,
 		bottom: 0,
 		laneTop: 0,
@@ -103,6 +102,30 @@ describe("playheadPlace (F09-S05 AC2, AC3, AC4)", () => {
 
 	test("waits at the end of the last row", () => {
 		expect(playheadPlace(9, rows)).toEqual({ row: 1, x: 120 });
+	});
+
+	describe("three rows (F10-S02 AC4)", () => {
+		const three = [
+			...rows,
+			row(2, [
+				{ x: 0, beat: 8 },
+				{ x: 30, beat: 8 },
+				{ x: 90, beat: 10 },
+			]),
+		];
+
+		test("at the first break it moves to row 1's start, not row 2", () => {
+			expect(playheadPlace(4, three)).toEqual({ row: 1, x: 20 });
+			expect(playheadPlace(7.99, three)?.row).toBe(1);
+		});
+
+		test("at the second break it moves to row 2's start", () => {
+			expect(playheadPlace(8, three)).toEqual({ row: 2, x: 30 });
+		});
+
+		test("on the last row it waits at the end", () => {
+			expect(playheadPlace(12, three)).toEqual({ row: 2, x: 90 });
+		});
 	});
 
 	test("has no place without rows", () => {

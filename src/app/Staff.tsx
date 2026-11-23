@@ -7,7 +7,6 @@ import {
 	colourSong,
 	drawSongLines,
 	drawStaff,
-	lineOfNote,
 	type SongLayout,
 	type StaffOptions,
 } from "../render/staff";
@@ -53,9 +52,10 @@ export interface SongView {
 }
 
 /**
- * The line holding the note to play and the line after it, with the lane under
- * each. The staff is drawn only when the lines on show change; a change of note
- * recolours what is drawn.
+ * Every line of the song, one under another, with the lane under each. The
+ * staff is drawn once per song (and again only when the song, bars per line or
+ * the instrument's range change); a change of note recolours what is drawn, and
+ * a resize scales the SVG by CSS without redrawing it.
  */
 export function SongStaff({
 	view,
@@ -81,7 +81,6 @@ export function SongStaff({
 		playhead,
 		fill,
 	} = view;
-	const first = lineOfNote(lines, current);
 	// What the effects read when they run, without making them redraw.
 	const now = useRef({ current, countBeat });
 	now.current = { current, countBeat };
@@ -90,17 +89,16 @@ export function SongStaff({
 		const drawn = drawSongLines(
 			music.current,
 			lines,
-			first,
 			options,
 			meter,
 			barsPerLine,
 		);
-		// The view box is fixed for the options and bars per line, so the height holds when the rows change.
+		// The card grows with the song: the box takes the whole drawing's proportions.
 		if (box.current)
 			box.current.style.aspectRatio = `${drawn.width} / ${drawn.height}`;
 		colourSong(drawn, now.current.current, now.current.countBeat);
 		setLayout(drawn);
-	}, [lines, first, options, meter, barsPerLine]);
+	}, [lines, options, meter, barsPerLine]);
 	useEffect(() => {
 		if (layout) colourSong(layout, current, countBeat);
 	}, [layout, current, countBeat]);
