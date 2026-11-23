@@ -832,6 +832,125 @@ describe("live progress (AC10)", () => {
 	});
 });
 
+describe("where the sound starts and how long a rest sounded", () => {
+	/** Within one reading step. */
+	const within = (value: number | null | undefined, expected: number) => {
+		expect(value).not.toBeNull();
+		expect(Math.abs((value as number) - expected)).toBeLessThanOrEqual(STEP);
+	};
+	const s = quarters("C4", "D4");
+
+	test("a note on time starts at its written start", () => {
+		const r = score(s, spans([0, 470, hz("C4")], [500, 970, hz("D4")]));
+		within(r.items[0]?.soundStartMs, 0);
+		within(r.items[1]?.soundStartMs, 500);
+	});
+
+	test("a late note starts at its first right reading", () => {
+		const r = score(s, spans([0, 470, hz("C4")], [500 + 110, 970, hz("D4")]));
+		within(r.items[1]?.soundStartMs, 610);
+	});
+
+	test("an early run from the count-in counts back before the written start", () => {
+		const r = score(s, spans([-150, 470, hz("C4")], [500, 970, hz("D4")]));
+		within(r.items[0]?.soundStartMs, -150);
+	});
+
+	test("an early run from a rest counts back into the rest", () => {
+		const withRest = song([
+			["C4", 0, 1],
+			["D4", 2, 1],
+		]);
+		const r = score(
+			withRest,
+			spans([0, 460, hz("C4")], [1000 - 120, 1470, hz("D4")]),
+		);
+		const d = r.items.find((i) => i.kind === "note" && i.index === 1);
+		within(d?.soundStartMs, 880);
+	});
+
+	test("an early run from a different-pitch previous note counts back into it", () => {
+		const r = score(s, spans([0, 380, hz("C4")], [380, 970, hz("D4")]));
+		within(r.items[1]?.soundStartMs, 380);
+	});
+
+	test("a same-pitch neighbour's own readings stop the run", () => {
+		const same = quarters("C4", "C4");
+		const r = score(same, spans([0, 470, hz("C4")], [490, 970, hz("C4")]));
+		within(r.items[1]?.soundStartMs, 490);
+	});
+
+	test("a note with no right reading has none, and so does a rest", () => {
+		const r = score(s, spans([500, 970, hz("D4")]));
+		expect(r.items[0]?.soundStartMs).toBeNull();
+		const withRest = song([
+			["C4", 0, 1],
+			["D4", 2, 1],
+		]);
+		const rest = score(withRest, spans([0, 460, hz("C4")])).items.find(
+			(i) => i.kind === "rest",
+		);
+		expect(rest?.soundStartMs).toBeNull();
+	});
+
+	test("a blind start edge still has its sound start", () => {
+		const held = score(quarters("C4", "C4"), spans([0, 970, hz("C4")]));
+		expect(held.items[1]).toMatchObject({ startEdge: false });
+		expect(held.items[1]?.soundStartMs).not.toBeNull();
+	});
+
+	const withRest = song([
+		["C4", 0, 1],
+		["D4", 2, 1],
+	]);
+	const rest = (r: CoverageResult) => r.items.find((i) => i.kind === "rest");
+
+	test("a rest kept silent sounded for 0", () => {
+		const r = score(
+			withRest,
+			spans([0, 460, hz("C4")], [1000, 1470, hz("D4")]),
+		);
+		expect(rest(r)?.soundedMs).toBe(0);
+	});
+
+	test("a pending blip shorter than a wrong run counts", () => {
+		const r = score(
+			withRest,
+			spans(
+				[0, 460, hz("C4")],
+				[700, 700 + STEP, hz("G4")],
+				[1000, 1470, hz("D4")],
+			),
+		);
+		within(rest(r)?.soundedMs, STEP);
+	});
+
+	test("a confirmed wrong run counts", () => {
+		const r = score(
+			withRest,
+			spans([0, 460, hz("C4")], [600, 800, hz("G4")], [1000, 1470, hz("D4")]),
+		);
+		within(rest(r)?.soundedMs, 200);
+	});
+
+	test("notes and ungraded rests have none", () => {
+		const r = score(
+			withRest,
+			spans([0, 460, hz("C4")], [1000, 1470, hz("D4")]),
+		);
+		expect(r.items.find((i) => i.kind === "note")?.soundedMs).toBeNull();
+		const short = score(
+			song([
+				["C4", 0, 1],
+				["D4", 1.1, 1],
+			]),
+			spans([0, 460, hz("C4")]),
+		);
+		expect(rest(short)?.graded).toBe(false);
+		expect(rest(short)?.soundedMs).toBeNull();
+	});
+});
+
 describe("module rules (AC13)", () => {
 	test("imports only core modules and uses no clock, timer or browser API", () => {
 		const imports = [

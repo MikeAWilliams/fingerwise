@@ -97,6 +97,7 @@ describe("ready (AC3)", () => {
 			listening: "off",
 			origin: null,
 			summary: null,
+			analysis: null,
 		});
 		vi.advanceTimersByTime(60000);
 		expect(states).toHaveLength(1);
@@ -255,6 +256,7 @@ describe("the end (AC7)", () => {
 			listening: "off",
 			origin: LEAD_SECONDS + 2,
 			summary: null,
+			analysis: null,
 		});
 		const count = states.length;
 		vi.advanceTimersByTime(60000);
@@ -725,6 +727,43 @@ describe("scoring by coverage (F09-S03)", () => {
 				vi.advanceTimersByTime(16);
 			}
 			expect(last().summary?.items[0]?.coverage).toBe(0);
+		});
+	});
+
+	describe("the analysis (F11-S03 AC1, AC6, AC7)", () => {
+		test("a scored run has one with the summary, and nowhere else; a restart clears it", async () => {
+			const song = songOf([1, 1, 1]);
+			const { flow, listener } = listenSetup(song, {}, 0.045);
+			await run(flow, listener, played(song), 100, FIRST_SLOT_MS + 1500 + 150);
+			expect(last().phase).toBe("summary");
+			const analysis = last().analysis;
+			expect(analysis).not.toBeNull();
+			expect(analysis?.breakdown.inTune).toBeGreaterThan(0.8);
+			expect(
+				states.filter((s) => s.phase !== "summary").map((s) => s.analysis),
+			).toEqual(states.filter((s) => s.phase !== "summary").map(() => null));
+			flow.step();
+			await settle();
+			expect(last().phase).toBe("count-in");
+			expect(last().analysis).toBeNull();
+			flow.stop();
+		});
+
+		test("judging off gives none", () => {
+			const flow = setup(songOf([1]));
+			flow.step();
+			vi.advanceTimersByTime((LEAD_SECONDS + 2) * 1000 + 600);
+			expect(last()).toMatchObject({ phase: "summary", analysis: null });
+		});
+
+		test("nothing graded gives none", async () => {
+			// Notes of 125 ms are too short to grade.
+			const song = songOf([0.25, 0.25]);
+			const { flow, listener } = listenSetup(song, {}, 0.045);
+			await run(flow, listener, played(song), 100, FIRST_SLOT_MS + 250 + 300);
+			expect(last().phase).toBe("summary");
+			expect(last().summary?.graded).toBe(0);
+			expect(last().analysis).toBeNull();
 		});
 	});
 

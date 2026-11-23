@@ -1,9 +1,11 @@
 import type { RefObject } from "preact";
 import { useEffect, useRef } from "preact/hooks";
+import type { Spot } from "../core/analysis";
 import { type Progress, RIGHT_NOTE_BAND_CENTS } from "../core/coverage";
 import type { Instrument } from "../core/instrument";
 import type { Reading } from "../core/judge";
-import type { SongLayout } from "../render/staff";
+import { beatRangeOnRows, type SongLayout } from "../render/staff";
+import { spotLabel } from "./analysis-text";
 import {
 	createReadoutThrottle,
 	HEARING_NOTHING,
@@ -33,6 +35,9 @@ export interface PlayheadSource {
 	/** The output latency in seconds, or null when not reported. */
 	outputLatency(): number | null;
 }
+
+/** The height of a practice spot's label, in view-box units. */
+const SPOT_LABEL_SIZE = 11;
 
 /** The gap between neighbouring segments, so each shows as its own, in view-box units. */
 const SEGMENT_GAP = 1;
@@ -111,6 +116,7 @@ export function SongOverlay({
 	fill,
 	readout,
 	onRow,
+	spots = [],
 }: {
 	layout: SongLayout;
 	segments: readonly LaneSegment[];
@@ -124,6 +130,8 @@ export function SongOverlay({
 	readout?: RefObject<HTMLElement | null>;
 	/** Called when the playhead reaches a row it has not reported (the first frame reports row 0). */
 	onRow?: (row: number) => void;
+	/** Practice spots to shade, behind the lane; none outside the summary. */
+	spots?: readonly Spot[];
 }) {
 	const onRowRef = useRef(onRow);
 	onRowRef.current = onRow;
@@ -295,6 +303,35 @@ export function SongOverlay({
 			viewBox={`0 0 ${layout.width} ${layout.height}`}
 			aria-hidden="true"
 		>
+			{spots.map((spot) =>
+				beatRangeOnRows(layout.rows, spot.startBeat, spot.endBeat).map(
+					(part, i) => {
+						const row = layout.rows[part.row];
+						if (!row) return null;
+						return (
+							<g key={`${spot.firstBar}-${part.row}`}>
+								<rect
+									class="practice-spot"
+									x={part.x0}
+									y={row.top}
+									width={Math.max(0, part.x1 - part.x0)}
+									height={row.laneBottom - row.top}
+								/>
+								{i === 0 && (
+									<text
+										class="practice-spot-label"
+										x={part.x0 + 3}
+										y={row.top + SPOT_LABEL_SIZE}
+										font-size={SPOT_LABEL_SIZE}
+									>
+										{spotLabel(spot.firstBar, spot.lastBar)}
+									</text>
+								)}
+							</g>
+						);
+					},
+				),
+			)}
 			<path class="lane-graded" d={lanePath(layout, segments, true)} />
 			<path class="lane-ungraded" d={lanePath(layout, segments, false)} />
 			{tolerance !== undefined && (

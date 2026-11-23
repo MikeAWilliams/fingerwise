@@ -91,6 +91,82 @@ main {
 	max-width: 56rem;
 }
 
+/* The analysis under the last line of music, in flow above the bar. */
+.song-analysis {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 56rem;
+	margin: 1rem auto 0;
+	padding: 0 1rem;
+	overflow-wrap: anywhere;
+}
+
+.song-analysis h2 {
+	margin: 0 0 0.5rem;
+	font-size: 1.25rem;
+}
+
+.song-analysis h3 {
+	margin: 1rem 0 0.25rem;
+	font-size: 1rem;
+}
+
+.song-analysis p {
+	margin: 0.25rem 0;
+}
+
+/* Where the note time went: groups bold, the rows under them indented. */
+.song-analysis .breakdown {
+	border-collapse: collapse;
+	margin: 0.25rem 0;
+}
+
+.breakdown th,
+.breakdown td {
+	padding: 0.125rem 0.75rem 0.125rem 0;
+	font-weight: normal;
+	text-align: left;
+	vertical-align: baseline;
+}
+
+.breakdown thead th {
+	font-size: 0.875rem;
+	font-style: italic;
+}
+
+.breakdown tbody td {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.breakdown tbody th {
+	padding-left: 1.5rem;
+}
+
+.breakdown .breakdown-group th,
+.breakdown .breakdown-group td {
+	padding-left: 0;
+	font-weight: bold;
+}
+
+.breakdown .breakdown-group td {
+	padding-left: 0.75rem;
+}
+
+.song-analysis ul {
+	margin: 0.25rem 0;
+	padding-left: 1.25rem;
+}
+
+/* A tap target in the pinned bar, at least 44 px tall. */
+.analysis-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	padding: 0 0.75rem;
+}
+
 .song-staff {
 	/* What the header and the bar take of the screen height. */
 	--song-chrome: 13rem;
@@ -119,6 +195,30 @@ main {
 	left: 0;
 	width: 100%;
 	height: 100%;
+	pointer-events: none;
+}
+
+/* A light tint, multiplied into what is under it, so black glyphs stay black. */
+.practice-spot {
+	fill: #f2c94c;
+	opacity: 0.55;
+	mix-blend-mode: multiply;
+}
+
+.practice-spot-label {
+	fill: CanvasText;
+	stroke: Canvas;
+	stroke-width: 3px;
+	paint-order: stroke;
+	font-family: sans-serif;
+}
+
+/* The target of a spot's analysis link, at the top of its first row. */
+.practice-spot-anchor {
+	position: absolute;
+	left: 0;
+	width: 1px;
+	height: 1px;
 	pointer-events: none;
 }
 

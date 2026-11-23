@@ -306,6 +306,12 @@ export function App() {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.repeat || event.ctrlKey || event.metaKey || event.altKey)
 				return;
+			// Enter on the focused "Analysis ↓" link, or a key in a field, is not a start.
+			if (
+				event.target instanceof Element &&
+				event.target.closest("a, button, input, select, label")
+			)
+				return;
 			flow.step();
 		};
 		document.addEventListener("click", onClick);
@@ -365,6 +371,7 @@ export function App() {
 					timed={cardPhase(timed)}
 					timedSummary={summaryText(timed.summary)}
 					timedTuning={tuningText(timed.summary?.tuning ?? [])}
+					timedAnalysis={settings.judgeEnabled ? timed.analysis : null}
 					readout={
 						timed.listening === "running" &&
 						(timed.phase === "count-in" || timed.phase === "playing")
@@ -388,6 +395,11 @@ export function App() {
 										now: playheadNow,
 										outputLatency: playheadLatency,
 									},
+									// The shading goes with the summary: a restart empties it.
+									spots:
+										settings.judgeEnabled && timed.phase === "summary"
+											? (timed.analysis?.practice.spots ?? [])
+											: [],
 									fill: settings.judgeEnabled
 										? {
 												progress: fillProgress,

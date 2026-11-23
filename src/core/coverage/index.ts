@@ -206,6 +206,14 @@ export interface ItemScore {
 	/** A graded note has an edge where it has right-note time, except at a join with no gap to see. */
 	startEdge: boolean;
 	endEdge: boolean;
+	/**
+	 * Where a graded note's sound starts: the start of the unbroken run of the
+	 * expected pitch leading into its first right reading, so before `startMs`
+	 * when the pitch already sounds. Null with no right reading, and on rests.
+	 */
+	soundStartMs: number | null;
+	/** The time in a graded rest's graced span covered by readings that pass the checks (pending or wrong); null on notes and ungraded rests. */
+	soundedMs: number | null;
 }
 
 export interface Figure {
@@ -555,6 +563,8 @@ export function createCoverageRun(
 			inTune: null,
 			startEdge: false,
 			endEdge: false,
+			soundStartMs: null,
+			soundedMs: null,
 		};
 		if (!item.graded) return base;
 		const before =
@@ -577,6 +587,7 @@ export function createCoverageRun(
 		let covered = 0;
 		let right = 0;
 		let inTune = 0;
+		let sounded = 0;
 		for (let i = lowerBound(entries, a) - 1; i < entries.length; i++) {
 			const e = entries[i];
 			if (!e) continue;
@@ -586,6 +597,7 @@ export function createCoverageRun(
 			if (e.item === k) {
 				if (item.kind === "rest") {
 					if (e.kind === "silent") covered += ov;
+					else if (e.passes) sounded += ov;
 				} else if (e.kind === "right-in-tune" || e.kind === "right-out") {
 					covered += ov;
 					right += ov;
@@ -603,7 +615,10 @@ export function createCoverageRun(
 			}
 		}
 		base.coverage = Math.min(1, covered / span);
-		if (item.kind === "rest") return base;
+		if (item.kind === "rest") {
+			base.soundedMs = sounded;
+			return base;
+		}
 		base.inTune = right > 0 ? inTune / right : null;
 
 		// The edges are the first and last right-note readings, wherever silence falls between.
@@ -622,26 +637,25 @@ export function createCoverageRun(
 		const blindEnd = blindEdge(after, item, after?.join.after ?? -1);
 		const fault = (edge: "start" | "end", kind: "late" | "early") =>
 			timingFaults.push({ index: item.index, edge, kind });
+		const startEdge = (entries[first] as Entry).time;
+		// The right pitch already sounding before the note starts; a same-pitch neighbour's own sound is not.
+		const own = sameSoundingPitch(
+			items[noteItem.get(before?.join.before ?? -1) as number],
+			item,
+		);
+		let runStart = startEdge;
+		for (let j = first - 1; j >= 0; j--) {
+			const e = entries[j] as Entry;
+			if (!matches(e, expected) || (own && e.item !== k)) break;
+			runStart = e.time;
+		}
+		base.soundStartMs = runStart;
 		if (!blindStart) {
 			base.startEdge = true;
-			const startEdge = (entries[first] as Entry).time;
 			if (startEdge - item.startMs > TIMING_TOLERANCE_MS) {
 				fault("start", "late");
-			} else {
-				// The right pitch already sounding before the note starts; a same-pitch neighbour's own sound is not.
-				const own = sameSoundingPitch(
-					items[noteItem.get(before?.join.before ?? -1) as number],
-					item,
-				);
-				let runStart = startEdge;
-				for (let j = first - 1; j >= 0; j--) {
-					const e = entries[j] as Entry;
-					if (!matches(e, expected) || (own && e.item !== k)) break;
-					runStart = e.time;
-				}
-				if (item.startMs - runStart > TIMING_TOLERANCE_MS) {
-					fault("start", "early");
-				}
+			} else if (item.startMs - runStart > TIMING_TOLERANCE_MS) {
+				fault("start", "early");
 			}
 		}
 		if (!blindEnd) {
