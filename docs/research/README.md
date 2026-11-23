@@ -7,6 +7,6 @@ Background investigation that informs the plans but is not itself a plan or a sp
 - how panzi's `ocarina_tabs` fonts are structured
 - findings about pitch-detection accuracy on ocarina
 - [note lengths in real flue music](flue-music-tempos.md)
-- [gap detection between notes](gap-detection-spike.md) (F09 spike, planned)
+- [gap detection between notes](gap-detection-spike.md) (F09 spike)
 
 Each file should say what question it answers, what was found, and the date, since facts here can go stale.

@@ -37,14 +37,14 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Keep tempo**                 | A setting: with use song on, each song card lasts its note's length at the tune's tempo and the song moves on regardless; graded within the slot when judging is on ([F08](features/08-timed-play-along/design.md)). Default off. |
 | **Tempo**                      | How fast a song is played, from its ABC `Q:` line; ♩ = 90 when it has none ([ADR 0008](architecture/decisions/0008-songs-keep-rhythm.md)). |
 | **Slot**                       | With keep tempo, the time a song note's card is shown and listened to: from its start to the next note's start, so a rest's time goes to the note before it. |
-| **Coverage**                   | In a timed song, the share of a note's written length filled with the correct pitch, or of a rest filled with silence, edges aside. The song's coverage is the mean over graded notes and rests ([ADR 0009](architecture/decisions/0009-timed-songs-scored-by-coverage.md)). |
+| **Coverage**                   | In a timed song, the share of a note's written length filled with the right note (nearest the expected pitch, in tune or not), or of a rest filled with silence, edges aside. Tuning is reported apart, as the in-tune share of the right-note time. The song's coverage is the mean over graded notes and rests ([ADR 0009](architecture/decisions/0009-timed-songs-scored-by-coverage.md)). |
 | **Scoring lag**                | A fixed allowance for audio latency: each reading is placed on the song's timeline this long before it arrived ([F09](features/09-timed-scoring/design.md)). |
 | **Edge grace**                 | A short time at each edge of a note or rest not counted in its coverage, for release tails and the previous pitch blurring through the analyser. |
 | **Join**                       | Where one song note meets the next: **plain** (a silence is required, even at the same pitch) or **slurred** (no break, the pitch changes). A tie makes one note, so it has no join. |
 | **Separation**                 | A detected gap, silent readings or a dip in level, at a plain join. |
 | **Timing fault**               | A note that started late, started early, ended early or ended late, beyond a tolerance after the scoring lag. |
 | **Playhead**                   | The vertical line moving through a timed song's staff at the time the player hears. |
-| **Score lane**                 | The strip under each staff line where each note's and rest's segment fills with colour as it is played. |
+| **Score lane**                 | The strip under each staff line where each note's and rest's segment fills as it is played. On a note the fill is a pitch trace: its height follows the cents offset over about ±150 cents, green in tune, amber out of tune but the right note, red beyond ±50 cents, and pinned to an edge when further off. |
 | **Count-in**                   | One bar of clicks in the tune's meter before the first note of a timed song. |
 | **Metronome**                  | A setting under keep tempo: a click on every beat while the song plays, not just the count-in. Default off. |
 | **ABC notation**               | A plain-text format for tunes, used by tune books and online editors. Only its pitches are used. |

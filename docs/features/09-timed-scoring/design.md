@@ -2,7 +2,7 @@
 
 - **Status:** draft
 
-> **Provisional.** This design started from a review of how [F08](../08-timed-play-along/design.md) scores a timed song (2026-11-22). The scoring model below was chosen in dialog on 2026-11-22 and is recorded, as proposed, in [ADR 0009](../../architecture/decisions/0009-timed-songs-scored-by-coverage.md). The numbers in it are starting values, to be tuned in the live check.
+> **Provisional.** This design started from a review of how [F08](../08-timed-play-along/design.md) scores a timed song (2026-11-22). The scoring model below was chosen in dialog on 2026-11-22 and is recorded in [ADR 0009](../../architecture/decisions/0009-timed-songs-scored-by-coverage.md). The numbers in it are starting values, to be tuned in the live check.
 
 ## Goal
 
@@ -54,18 +54,21 @@ All of this follows [ADR 0009](../../architecture/decisions/0009-timed-songs-sco
 
 Each reading is classified on its own against the note (or rest) due at its song time:
 
-- **Correct:** it passes the judge's clarity, level and band checks, and is within the tolerance of the expected pitch.
-- **Wrong:** it passes those checks but is off the expected pitch, and so are the readings just before it, for about 3 in a row (about 50 ms). This stops one octave jump or attack transient from showing red.
+- **Right note:** it passes the judge's clarity, level and band checks, and its nearest note is the expected pitch (within ±50 cents). It is also **in tune** when it is within the tolerance setting, otherwise **out of tune**. Each right-note reading keeps its offset in cents.
+- **Wrong:** it passes those checks but its nearest note is another one, and so are the readings just before it, for about 3 in a row (about 50 ms). This stops one octave jump or attack transient from showing red.
 - **Silent:** anything else, including a wrong reading that is not yet confirmed, low level, low clarity and metronome clicks.
 
 Each reading covers the time until the next one. Runs with the same classification merge into one segment.
 
+Coverage counts the right note, not tuning. The first spike recording showed why (see [gap detection spike](../../research/gap-detection-spike.md#first-recording)): a novice's correctly fingered notes start 10 to 30 cents flat and sag to 60 to 100 cents flat as the breath eases. Under a 40-cent rule they would score about 20 to 60% and show mostly red, so the score would measure tuning rather than fingering or timing. Tuning is reported separately instead.
+
 #### Coverage
 
-- **A note's coverage** is the share of its written length filled with correct readings. It uses the note's own length, not its slot, so a following rest is not part of it.
+- **A note's coverage** is the share of its written length filled with right-note readings, in tune or not. It uses the note's own length, not its slot, so a following rest is not part of it.
 - **A rest's coverage** is the share of the rest filled with silence. A rest is a gap between one note's end and the next note's start, as [`songBars`](../../architecture/modules/song.md) already finds it.
 - **Edge grace.** A short grace (about 40 ms, at least the analyser fill plus a normal articulation gap) at each edge of a note or rest is not counted, so a decaying release or the previous pitch blurring through the analyser window is not penalised. At a slurred join the grace forgives only the previous pitch; silence there still counts, so a broken slur shows.
 - **Song coverage** is the mean over every graded note and rest, each counting equally, so a sixteenth counts as much as a whole note.
+- **In tune:** a note's in-tune share is the share of its right-note time within the tolerance. The song's in-tune figure is the mean over the notes that have any right-note time.
 
 Silence inside a note is unfilled, never wrong: it lowers coverage and is drawn in the lane's own colour. Wrong pitch also lowers coverage and is drawn in red.
 
@@ -83,7 +86,7 @@ Every pair of neighbouring notes meets at a join:
 
 #### Timing
 
-From the edges of each note's run of correct readings, beyond a timing tolerance (about ±60 ms):
+From the edges of each note's run of right-note readings, beyond a timing tolerance (about ±60 ms):
 
 - **Started late:** the first correct reading comes after the note's start.
 - **Started early:** the correct pitch is already sounding before the note's start.
@@ -96,7 +99,9 @@ Each is a percentage of the notes that have that edge. A note never played corre
 
 After the last note's window closes (one lag after the last slot ends), the reveal area shows, for example:
 
-> 82% covered · started late 12%, early 3% · ended early 5%, late 20% · not separated 10% · 2 notes too short to grade
+> 82% covered · 64% in tune · started late 12%, early 3% · ended early 5%, late 20% · not separated 10% · 2 notes too short to grade
+
+Below it, a **tuning list** names up to three written pitches whose average offset is furthest outside the tolerance, worst first, for example "Furthest off: D4 +70¢ · E5 +40¢ · C4 −35¢". The average uses every reading within ±150 cents of the expected pitch while notes of that pitch are due, so a note that drifted out of the right-note band still counts towards its own pitch. Pitches whose average is within the tolerance are not listed, and with none outside it the list is left out. It points at a particular fingering or breath habit. It is feedback only and does not change the score.
 
 The exact wording is a story's job. With nothing graded it says "End of song".
 
@@ -104,7 +109,7 @@ The exact wording is a story's job. With nothing graded it says "End of song".
 
 - **Playhead:** a vertical line across the current staff line and its lane. It shows the time the player hears: the audio clock, less the context's reported output latency where available. Notes are not spaced by time on the staff, so its x is interpolated piecewise between the drawn positions of notes, rests and bar lines. It speeds up over wide spacing and slows over crowded runs. It runs through the count-in bar, starts each line at the first note (after the clef and key signature), and jumps to the other row at a line break. Rows stay fixed as in F08 (line *n* in row *n* mod 2).
 - **Score lane:** a thin strip under each staff line, on the same time-to-x map. Each graded note and rest has a segment spanning its written length, drawn in a neutral colour. Ungraded notes have a segment in a lighter style that never fills.
-- **Fill:** as readings arrive, segments fill: green for correct (on a note) or silence (on a rest), red for wrong pitch or sound during a rest, and the neutral colour left showing for silence on a note. Wrong pitch is drawn offset up when sharp and down when flat, so colour is not the only signal. The fill trails the playhead by about the scoring lag; the playhead is not pulled back to meet it, because a player following it would then play late.
+- **Fill, a pitch trace:** on a note, each sounding reading draws a thick line whose height in the lane follows its offset in cents from the expected pitch: centred is in tune, up is sharp, down is flat. The lane spans about ±150 cents, with faint lines at the tolerance and at ±50 cents (the right-note band). The line is green within the tolerance, amber from there to ±50 cents, and red beyond. A wrong reading within ±150 cents is drawn at its offset, so a note that drifts a semitone flat is a continuous line sinking out of the band. A reading further off, such as a wrong fingering a tone or more away, is pinned to the lane's top or bottom edge. The player can therefore tell drift (breath) from a wrong fingering. Silence on a note leaves the neutral colour showing. On a rest, silence fills green and sound fills red. Height carries tuning and direction, so colour is never the only signal. The fill trails the playhead by about the scoring lag; the playhead is not pulled back to meet it, because a player following it would then play late.
 - **Fault marks:** drawn live in the lane as the fill reaches them: a tick at a segment's edge for each timing fault, and a mark at a plain join with no gap.
 - **Note heads:** black for the notes on show and grey for the rest, as during F08's count-in. They are no longer coloured by result; the lane carries it.
 - **Redraws:** the staff is drawn only when the rows change. The playhead and lane are an overlay updated each animation frame outside Preact state, so a frame never redraws VexFlow. A line that scrolls out of view takes its fill with it.
@@ -116,10 +121,11 @@ The F08 fixes, revised for coverage:
 
 - **F1: Scoring lag (fixes P1 and P2).** Each reading is placed on the timeline at its time less a fixed scoring lag (about 100 ms, the measured round trip), possibly the input allowance plus the context's `outputLatency`. It is tuned on desktop and Android. A note's fill completes one lag after the playhead has passed it.
 - **F2: Minimum graded length (fixes P3).** A note or rest is graded when its length less both edge graces is at least a minimum scored span (about 50 ms), so about 130 ms. Below that it is drawn and not graded. The value follows from the graces, so it moves when they do.
-- **F3: The new summary (fixes P4).** Coverage, the four timing figures, separation, and the count of notes too short to grade (see [Summary](#summary)).
+- **F3: The new summary (fixes P4).** Coverage, the in-tune figure, the tuning list, the four timing figures, separation, and the count of notes too short to grade (see [Summary](#summary)).
 - **F4: dropped.** A faster settle rule for the expected pitch is no longer needed: coverage has no settle time.
 - **F5: Feedback while playing (fixes P5).** The [visual feedback](#visual-feedback) above.
-- **F6: Faster, finer readings (for the stretch tier and for separation).** Readings come once per animation frame (16.7 ms) from a 2048-sample window (43 ms). Reading 1024 samples every 5 ms from an audio worklet would cut the blur at each edge to about 12 ms, allow smaller edge graces, and make short tongued gaps visible. It changes how the audio module reads the microphone and what the detector sees ([ADR 0005](../../architecture/decisions/0005-yin-pitch-detector.md)), so it needs its own ADR and a spike.
+- **Separation uses a fine level envelope.** Each frame, the RMS of 128-sample blocks over the samples new since the last frame, from the analyser the app already has ([spike](../../research/gap-detection-spike.md#results)). A gap is a dip of about 10 dB below the surrounding level that recovers.
+- **F6: Faster, finer readings (for the stretch tier).** Separation no longer needs it. Readings come once per animation frame (16.7 ms) from a 2048-sample window (43 ms). Reading 1024 samples every 5 ms from an audio worklet would cut the blur at each edge to about 12 ms, allow smaller edge graces, and make short tongued gaps visible. It changes how the audio module reads the microphone and what the detector sees ([ADR 0005](../../architecture/decisions/0005-yin-pitch-detector.md)), so it needs its own ADR and a spike.
 
 ## Out of scope
 
@@ -144,13 +150,15 @@ No settings or stored state. The scoring lag, edge grace, wrong-reading run, tim
 
 ## Risks and open questions
 
-- **Gap detection.** Can a 20–50 ms tongued gap be told from a held note? Today's per-reading level probably cannot (a 43 ms window shows a 30 ms gap as a 5 dB dip at best). A fine level envelope from the analyser's overlapping windows might, without F6. See the [gap detection spike](../../research/gap-detection-spike.md). If neither works, separation waits for F6, or the gap rule is relaxed. ADR 0009 stays proposed until this is answered.
+- **Gap detection.** Answered for a headset microphone by the [gap detection spike](../../research/gap-detection-spike.md#results): a fine level envelope from the analyser's overlapping windows separates gaps of 10 ms or more from held and slurred playing with a wide margin, without F6. Today's per-reading level also works for gaps of 20 ms or more, but with a thin margin. Still untested: laptop microphones, Android, and real fast playing.
+- **The right-note band stays ±50 cents.** The spike's tongued scale had 82% of readings within it; ±75 cents would have given 95%. The user chose not to widen it to fit their own playing (2026-11-22): the score should show what was played, and the trace and tuning list are there to help the player improve.
 - **The lag's accuracy.** Coverage tolerates an error of tens of milliseconds, but timing figures report it on every note. Repeat the key-tap measurement on Android. Is a fixed lag good enough, or does calibration have to come into scope?
 - **The two clocks.** How readings are placed on the audio clock: `AudioContext.getOutputTimestamp()`, or reading both clocks when each reading is taken. Browser support varies.
 - **Slurs from abcjs.** The audio sequence carries no slurs. They must come from the parse tree and be matched to sequence notes, through repeats and endings, possibly by source position. Spike before the story.
 - **Constants.** Edge grace, the wrong-reading run, timing tolerance, the gap dip and the minimum scored span are guesses. Tune them in the live check.
 - **The verdict row in timed cards.** F08 shows an icon, label and judged note under the staff while playing. Keep it as a live "what I hear" readout, or drop it now that the lane carries the result?
 - **Rests at speed.** A rest shorter than the minimum graded length is not graded, so a staccato passage written with short rests scores no rests.
+- **A flat instrument.** Part of the flatness in the first recording may be the ocarina (cold, or tuned low) rather than breath. A whole instrument 50 cents off would make every reading near the boundary between two notes. Check it against a tuner; a per-session tuning reference may be needed later.
 - **Breaths.** A song with no rests forces a breath somewhere, which costs coverage and a timing fault. Accepted for now.
 - **Metronome clicks.** A click during a note is silent readings, so it shows as a small unfilled sliver. Watch it in the live check.
 - **Performance.** A redraw on every animation frame on a mid-range phone, with two staff rows and lanes. Keep the overlay cheap: one path per segment colour, or a canvas.
