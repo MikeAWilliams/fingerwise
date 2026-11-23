@@ -557,7 +557,8 @@ export function createCoverageRun(
 			endEdge: false,
 		};
 		if (!item.graded) return base;
-		const before = item.kind === "note" ? joinBefore.get(item.index) : undefined;
+		const before =
+			item.kind === "note" ? joinBefore.get(item.index) : undefined;
 		const after = item.kind === "note" ? joinAfter.get(item.index) : undefined;
 		const slurredStart = before?.join.kind === "slurred";
 		const slurredEnd = after?.join.kind === "slurred";
@@ -707,21 +708,17 @@ export function createCoverageRun(
 		const done = scores as ItemScore[];
 		const graded = done.filter((s) => s.graded);
 		const noteScores = done.filter((s) => s.kind === "note");
-		const tuned = graded.filter(
-			(s) => s.kind === "note" && s.inTune !== null,
-		);
+		const tuned = graded.filter((s) => s.kind === "note" && s.inTune !== null);
 		const mean = (values: number[]) =>
 			values.length === 0
 				? null
 				: values.reduce((sum, v) => sum + v, 0) / values.length;
-		const figure = (
-			edge: "start" | "end",
-			kind: "late" | "early",
-		): Figure => ({
+		const figure = (edge: "start" | "end", kind: "late" | "early"): Figure => ({
 			faults: timingFaults.filter((f) => f.edge === edge && f.kind === kind)
 				.length,
-			withEdge: noteScores.filter((s) => (edge === "start" ? s.startEdge : s.endEdge))
-				.length,
+			withEdge: noteScores.filter((s) =>
+				edge === "start" ? s.startEdge : s.endEdge,
+			).length,
 		});
 		finished = {
 			coverage: mean(graded.map((s) => s.coverage as number)),
