@@ -12,9 +12,9 @@ This file is temporary like [`F09.md`](F09.md) and is deleted before the merge. 
 
 ## After S02: coverage core
 
-- [ ] Skim `tests/fixtures/audio/README.md`: each clip's description and note times look like what you played. No need to stop the run for this.
+- [x] Skim `tests/fixtures/audio/README.md`: each clip's description and note times look like what you played. No need to stop the run for this.
 
-Observed:
+Observed: Looks good
 
 ## Setup, after S03 (once)
 
