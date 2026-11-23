@@ -9,6 +9,7 @@ import {
 	frequencyBand,
 	judge,
 	nearestPitch,
+	passesChecks,
 	type Reading,
 	type StabilityOptions,
 } from "../../src/core/judge";
@@ -365,6 +366,22 @@ describe("custom thresholds (AC7)", () => {
 		expect(
 			run(jumpy, { ...WITH_BAND, spreadCents: 35, clarity: 0.75, gateDb: -60 }),
 		).toHaveLength(1);
+	});
+});
+
+describe("passesChecks (F09-S02)", () => {
+	test("needs a frequency, clarity, level and the band, each at its threshold", () => {
+		const ok = tone(0, A4);
+		expect(passesChecks(ok, WITH_BAND)).toBe(true);
+		expect(passesChecks({ ...ok, frequency: null }, WITH_BAND)).toBe(false);
+		expect(passesChecks({ ...ok, clarity: 0.9 }, WITH_BAND)).toBe(true);
+		expect(passesChecks({ ...ok, clarity: 0.89 }, WITH_BAND)).toBe(false);
+		expect(passesChecks({ ...ok, level: -55 }, WITH_BAND)).toBe(true);
+		expect(passesChecks({ ...ok, level: -56 }, WITH_BAND)).toBe(false);
+		expect(passesChecks({ ...ok, frequency: 50 }, WITH_BAND)).toBe(false);
+		expect(passesChecks({ ...ok, frequency: 50 }, DEFAULT_THRESHOLDS)).toBe(
+			true,
+		);
 	});
 });
 

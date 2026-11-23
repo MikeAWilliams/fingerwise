@@ -17,6 +17,7 @@ Turns a heard frequency into a note, an offset and a verdict, and turns a stream
 - `frequencyBand(instrument): FrequencyBand`: one octave below the lowest sounding pitch to one octave above the highest, so an octave error is still heard. 220 to about 2793.8 Hz for the alto C.
 - `interface StabilityOptions { band, clarity, gateDb, spreadCents, settleMs, holdOffMs }`: `band` null counts every frequency.
 - `DEFAULT_THRESHOLDS`: clarity 0.9, gate -55 dBFS, spread 25 cents, settle 200 ms, hold-off 500 ms, no band. The app adds the instrument's band. Every function takes the thresholds as a parameter; nothing reads a global.
+- `passesChecks(reading, options): boolean`: whether a reading counts at all: its frequency is present, finite and positive, its clarity and level are at or above the thresholds and it is inside the band (when there is one). The tone tracker uses it unchanged, and the [coverage](coverage.md) module reuses it for its per-reading classification.
 - `createToneTracker(options): ToneTracker` with:
   - `reset(startMs)`: start listening afresh; clears the run and re-arms the report.
   - `push(reading): number | null`: ignores readings before `startMs + holdOffMs`. A reading counts when its frequency is present, its clarity and level are at or above the thresholds and it is inside the band; a failing reading clears the run. While the run's spread (max over min, in cents) exceeds `spreadCents`, the oldest readings are dropped. When the run spans at least `settleMs` (newest time minus oldest), it returns the median frequency once, then null until the next `reset`. Before the first `reset` it returns null.
@@ -32,4 +33,5 @@ The values are provisional, from the [detector spike](../../research/pitch-detec
 ## Tests
 
 - `tests/core/judge.test.ts`: `nearestPitch` for A4 and equal-tempered values, rounding near ±50; midway C5/C♯5 is +50 and -50; the tolerance boundary (40 correct, 40.01 incorrect), neighbouring semitone and octaves incorrect; the alto C band; the default thresholds; reading sequences at 16.7 ms steps for a steady tone, a wobble within 25 cents, jumps, a jump to another note, a breath glide, a rough start, silence, low clarity, low level, thresholds at their exact values, a 50 Hz hum at clarity 1, above the band, an octave error, a failing reading mid-run, a second tone, reset, before the first reset, the hold-off and custom thresholds; the source imports exactly `../pitch` and `../instrument`, uses no clock or timer, and the drill does not import it.
+- `passesChecks`: a reading at each threshold passes and just below fails; no frequency and a frequency outside the band fail (F09-S02).
 - `tests/core/core-imports.test.ts`: covers this folder too (relative imports, no browser globals).
