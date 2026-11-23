@@ -8,7 +8,7 @@ A flashcard drill for learning ocarina fingerings. A note appears on the staff, 
 
 The first target is the 12-hole ocarina. The design keeps instruments, clefs and staff styles as swappable data and layers so other instruments can be added later.
 
-**Status:** features 1 to 8 are done.
+**Status:** features 1 to 9 are done.
 
 - **Cards:** a random note is drawn on the staff. Its name and fingering appear after the delay or on a click or key press, and the next click or key shows another note. The next note also appears on its own after an advance delay.
 - **Sound:** after the reveal the app plays the note as a plain tone, with a settable delay and duration.
@@ -16,7 +16,7 @@ The first target is the 12-hole ocarina. The design keeps instruments, clefs and
 - **Settings:** note range, sharps, reveal delay, auto-advance and its delay, sound, and judging. They are kept in the browser.
 - **App:** published to GitHub Pages from `main` (every push is verified), lays out for phone and tablet, installs to the home screen, works offline and updates itself silently (see [`deployment.md`](docs/architecture/deployment.md)).
 
-Feature 9 (timed scoring) is a draft design; feature 10 (other instruments) is parked. See [`docs/features/`](docs/features/) for the list.
+Feature 10 (scrolling song view) is designed; other instruments and clefs is a parked idea. See [`docs/features/`](docs/features/) for the list.
 
 ## Documentation
 

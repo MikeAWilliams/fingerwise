@@ -45,6 +45,8 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Timing fault**               | A note that started late, started early, ended early or ended late, beyond a tolerance after the scoring lag. |
 | **Playhead**                   | The vertical line moving through a timed song's staff at the time the player hears. |
 | **Score lane**                 | The strip under each staff line where each note's and rest's segment fills as it is played. On a note the fill is a pitch trace: its height follows the cents offset over about ±150 cents, green in tune, amber out of tune but the right note, red beyond ±50 cents, and pinned to an edge when further off. |
+| **Pinned header**              | The app header, pinned to the top of the screen: the name, the Settings button, the tune's title (with use song on and a `T:` line) and, while keep tempo applies, the tempo. Planned in [F10](features/10-scrolling-song-view/design.md). |
+| **Pinned bar**                 | The bar pinned to the bottom of the screen during a timed song: the start prompt, the live readout, the summary and tuning list, and the legend. Planned in [F10](features/10-scrolling-song-view/design.md). |
 | **Count-in**                   | One bar of clicks in the tune's meter before the first note of a timed song. |
 | **Metronome**                  | A setting under keep tempo: a click on every beat while the song plays, not just the count-in. Default off. |
 | **ABC notation**               | A plain-text format for tunes, used by tune books and online editors. Only its pitches are used. |
