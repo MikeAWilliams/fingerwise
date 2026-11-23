@@ -143,9 +143,11 @@ describe("start (AC1)", () => {
 		env.tick(0);
 		expect(readings[0]).toEqual({
 			time: 0,
+			audioTime: 0,
 			frequency: null,
 			clarity: 0,
 			level: Number.NEGATIVE_INFINITY,
+			envelope: [],
 		});
 	});
 
@@ -172,6 +174,125 @@ describe("start (AC1)", () => {
 		env.tick(16);
 		expect(calls).toBe(1);
 		expect(env.frames.size).toBe(0);
+	});
+});
+
+describe("the audio clock and the level envelope (F09-S03 AC1, AC2)", () => {
+	const RATE = 48000;
+	/** A frame later by `samples` samples of the audio clock. */
+	const later = (samples: number) => samples / RATE;
+
+	/** A window that is silent for its first `quiet` samples and 0.1 after. */
+	function steps(quiet: number): Float32Array {
+		const out = new Float32Array(WINDOW_SIZE);
+		out.fill(0.1, quiet);
+		return out;
+	}
+
+	test("each reading carries the audio clock read with the samples, and the page time is unchanged", async () => {
+		const { ctx, env, listener, readings, onReading } = setup();
+		await listener.start(onReading);
+		ctx.currentTime = 12.5;
+		env.tick(100);
+		ctx.currentTime = 12.517;
+		env.tick(116.7);
+		expect(readings.map((r) => [r.time, r.audioTime])).toEqual([
+			[100, 12.5],
+			[116.7, 12.517],
+		]);
+	});
+
+	test("the first frame has no envelope: nothing is known to be new", async () => {
+		const { ctx, env, listener, readings, onReading } = setup();
+		ctx.samples = [steps(0)];
+		await listener.start(onReading);
+		ctx.currentTime = 3;
+		env.tick(0);
+		expect(readings[0]?.envelope).toEqual([]);
+	});
+
+	test("overlapping frames give each block once, 128 samples apart, timed on the audio clock", async () => {
+		const { ctx, env, listener, readings, onReading } = setup();
+		ctx.samples = [steps(0)];
+		await listener.start(onReading);
+		let t = 3;
+		ctx.currentTime = t;
+		env.tick(0);
+		const blocks: { time: number; level: number }[] = [];
+		// 800 samples a frame is 16.7 ms: six blocks and a carry of 32, then 64, 96, and so on.
+		for (let frame = 1; frame <= 8; frame++) {
+			t += later(800);
+			ctx.currentTime = t;
+			env.tick(frame * 16.7);
+			blocks.push(...(readings[frame]?.envelope ?? []));
+		}
+		// 6400 samples new in all: 50 whole blocks.
+		expect(blocks).toHaveLength(50);
+		for (const [i, block] of blocks.entries()) {
+			expect(block.level).toBeCloseTo(-20, 5);
+			if (i > 0) {
+				expect(
+					block.time - (blocks[i - 1] as { time: number }).time,
+				).toBeCloseTo(later(128), 9);
+			}
+		}
+		// The newest block ends within one block of the newest sample.
+		const newest = blocks[blocks.length - 1] as { time: number };
+		expect(t - newest.time).toBeGreaterThanOrEqual(0);
+		expect(t - newest.time).toBeLessThan(later(128));
+		// The first one starts at the clock of the first frame.
+		expect((blocks[0] as { time: number }).time).toBeCloseTo(3 + later(128), 9);
+	});
+
+	test("the blocks come from the tail of the window, where the new samples are", async () => {
+		const { ctx, env, listener, readings, onReading } = setup();
+		// Silent until sample 1024, then 0.1.
+		ctx.samples = [steps(1024)];
+		await listener.start(onReading);
+		ctx.currentTime = 1;
+		env.tick(0);
+		// 1536 new samples: twelve blocks from sample 512, the first four silent.
+		ctx.currentTime = 1 + later(1536);
+		env.tick(16);
+		const levels = (readings[1]?.envelope ?? []).map((b) => b.level);
+		expect(levels).toHaveLength(12);
+		expect(levels.slice(0, 4)).toEqual(Array(4).fill(Number.NEGATIVE_INFINITY));
+		for (const level of levels.slice(4)) expect(level).toBeCloseTo(-20, 5);
+	});
+
+	test("a frame gap longer than the window leaves a hole, not invented blocks", async () => {
+		const { ctx, env, listener, readings, onReading } = setup();
+		ctx.samples = [steps(0)];
+		await listener.start(onReading);
+		ctx.currentTime = 1;
+		env.tick(0);
+		ctx.currentTime = 1.5;
+		env.tick(500);
+		const blocks = readings[1]?.envelope ?? [];
+		expect(blocks).toHaveLength(WINDOW_SIZE / 128);
+		expect((blocks[0] as { time: number }).time).toBeCloseTo(
+			1.5 - later(WINDOW_SIZE - 128),
+			9,
+		);
+		expect((blocks[blocks.length - 1] as { time: number }).time).toBe(1.5);
+		// Nothing between the first frame (1.0) and the first block (about 1.457).
+		expect((blocks[0] as { time: number }).time).toBeGreaterThan(1.4);
+		// And the grid carries on from here without the old carry.
+		ctx.currentTime = 1.5 + later(256);
+		env.tick(516);
+		const times = (readings[2]?.envelope ?? []).map((b) => b.time);
+		expect(times).toHaveLength(2);
+		expect(times[0]).toBeCloseTo(1.5 + later(128), 9);
+		expect(times[1]).toBeCloseTo(1.5 + later(256), 9);
+	});
+
+	test("a frame with no new samples gives no blocks", async () => {
+		const { ctx, env, listener, readings, onReading } = setup();
+		await listener.start(onReading);
+		ctx.currentTime = 2;
+		env.tick(0);
+		env.tick(16);
+		expect(readings[1]?.envelope).toEqual([]);
 	});
 });
 

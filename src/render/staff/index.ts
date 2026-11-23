@@ -17,7 +17,6 @@ export {
 	drawSongLines,
 	GREY,
 	lineOfNote,
-	type NoteMark,
 	splitBeats,
 } from "./song-lines";
 

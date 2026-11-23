@@ -1,5 +1,7 @@
 // Texts about judging shared by the card and the settings view.
 
+import type { CoverageResult } from "../core/coverage";
+
 export const JUDGE_HELP =
 	"The microphone is open while you drill with this on. Only the time before each reveal is analysed, and no audio is stored or sent.";
 
@@ -12,12 +14,9 @@ export const START_PROMPT = "Tap or press a key to start";
 
 export const END_OF_SONG = "End of song";
 
-/** What a timed song's summary says: the score over graded notes, or the plain end when none were graded. */
-export function summaryText(summary: {
-	correct: number;
-	graded: number;
-}): string {
-	return summary.graded === 0
+/** What a timed song's summary says: the share covered, or the plain end when nothing was graded or scored. */
+export function summaryText(result: CoverageResult | null): string {
+	return result === null || result.coverage === null
 		? END_OF_SONG
-		: `${summary.correct} of ${summary.graded} correct`;
+		: `${Math.round(result.coverage * 100)}% covered`;
 }

@@ -1,23 +1,26 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import type { CardListen } from "../../src/app/card-flow";
+import { END_OF_SONG, summaryText } from "../../src/app/judge-text";
 import {
 	createTimedFlow,
+	FALLBACK_LAG_MS,
+	INPUT_ALLOWANCE_MS,
 	LEAD_SECONDS,
 	METRONOME_LOOKAHEAD_SECONDS,
-	MIN_GRADED_SLOT_MS,
-	songMarks,
-	TIMED_HOLD_OFF_MS,
+	scoringLagMs,
 	type TimedFlow,
+	type TimedListen,
 	type TimedState,
 } from "../../src/app/timed-flow";
 import type { ListenResult, PitchReading } from "../../src/audio/listener";
-import { createToneTracker, DEFAULT_THRESHOLDS } from "../../src/core/judge";
-import type { Pitch } from "../../src/core/pitch";
+import type { CoverageOptions, CoverageResult } from "../../src/core/coverage";
+import { DEFAULT_THRESHOLDS } from "../../src/core/judge";
+import { type Pitch, toFrequency } from "../../src/core/pitch";
 import {
 	createSong,
 	DEFAULT_METER,
 	DEFAULT_TEMPO,
 	type Meter,
+	type Song,
 } from "../../src/core/song";
 
 let states: TimedState[];
@@ -91,10 +94,8 @@ describe("ready (AC3)", () => {
 			beats: 1,
 			phase: "ready",
 			countBeat: null,
-			verdict: null,
 			listening: "off",
 			summary: null,
-			results: [null, null, null],
 		});
 		vi.advanceTimersByTime(60000);
 		expect(states).toHaveLength(1);
@@ -235,10 +236,8 @@ describe("the end (AC7)", () => {
 			beats: 1,
 			phase: "summary",
 			countBeat: null,
-			verdict: null,
 			listening: "off",
-			summary: { correct: 0, graded: 0 },
-			results: [null, null, null],
+			summary: null,
 		});
 		const count = states.length;
 		vi.advanceTimersByTime(60000);
@@ -348,13 +347,16 @@ describe("no audio (AC4, AC5)", () => {
 	});
 });
 
-describe("grading within the slot (F08-S03)", () => {
+describe("scoring by coverage (F09-S03)", () => {
 	const RUNNING: ListenResult = { status: "running" };
 	const LOCKED: ListenResult = { status: "locked" };
 	const DENIED: ListenResult = { status: "unavailable", reason: "denied" };
-	const RIGHT = 440;
-	const WRONG = 330;
-	const FIRST_SLOT_MS = (LEAD_SECONDS + 2) * 1000;
+	/** The tap is at 0 ms, so the first slot starts after the lead and the 4/4 count-in at 120. */
+	const FIRST_SLOT_S = LEAD_SECONDS + 2;
+	const FIRST_SLOT_MS = FIRST_SLOT_S * 1000;
+	const hz = (pitch: number) => toFrequency(pitch as Pitch);
+	/** Where song time stands on the fake clock, in ms. */
+	const songMs = () => (now() - FIRST_SLOT_S) * 1000;
 
 	class FakeListener {
 		starts = 0;
@@ -374,12 +376,14 @@ describe("grading within the slot (F08-S03)", () => {
 		stop() {
 			this.stops++;
 		}
-		read(frequency: number | null) {
+		read(reading: Partial<PitchReading> & Pick<PitchReading, "frequency">) {
 			this.onReading?.({
 				time: Date.now(),
-				frequency,
+				audioTime: now(),
 				clarity: 0.98,
 				level: -30,
+				envelope: [],
+				...reading,
 			});
 		}
 	}
@@ -388,54 +392,84 @@ describe("grading within the slot (F08-S03)", () => {
 		for (let k = 0; k < 5; k++) await Promise.resolve();
 	}
 
-	/** Steady readings every 16 ms for `ms`. */
-	function play(listener: FakeListener, hz: number, ms: number) {
-		for (let t = 0; t < ms; t += 16) {
-			listener.read(hz);
-			vi.advanceTimersByTime(16);
-		}
-	}
+	const coverage: CoverageOptions = {
+		toleranceCents: 25,
+		checks: DEFAULT_THRESHOLDS,
+		sounding: (p) => p,
+	};
 
 	function listenSetup(
 		song = songOf([1, 1, 1]),
 		over: Partial<FakeListener> = {},
+		outputLatency: number | null = 0.045,
 	) {
 		const listener = Object.assign(new FakeListener(), over);
-		const graded: { pitch: Pitch; hz: number }[] = [];
-		const listen: CardListen = {
-			listener,
-			tracker: createToneTracker({
-				...DEFAULT_THRESHOLDS,
-				holdOffMs: TIMED_HOLD_OFF_MS,
-			}),
-			grade: (pitch, hz) => {
-				graded.push({ pitch, hz });
-				return hz === RIGHT ? "correct" : "incorrect";
-			},
-			now: () => Date.now(),
-		};
+		const listen: TimedListen = { listener, coverage };
 		const flow = createTimedFlow({
 			song,
 			clock: { now },
 			clicker,
 			listen,
+			outputLatency: () => outputLatency,
 			onChange: (s) => states.push(s),
 		});
 		flow.start();
-		return { flow, listener, listen, graded };
+		return { flow, listener, listen };
 	}
 
-	/** Runs to the first slot's start. */
-	function toFirstSlot() {
-		vi.advanceTimersByTime(FIRST_SLOT_MS);
+	/** The song's notes sounding in their own slots, a `gap` ms short of the end so joins are tongued. */
+	function played(song: Song, gap = 30) {
+		return (ms: number): number | null => {
+			for (const n of song.notes) {
+				const start = n.start * 500;
+				if (ms >= start && ms < start + n.beats * 500 - gap) return hz(n.pitch);
+			}
+			return null;
+		};
 	}
 
-	test("the constants start at 0 ms and 300 ms (AC8)", () => {
-		expect(TIMED_HOLD_OFF_MS).toBe(0);
-		expect(MIN_GRADED_SLOT_MS).toBe(300);
+	/**
+	 * Reads a frame every 16 ms until `untilMs` on the fake clock. What the
+	 * microphone hears at an audio time is what was played `latencyMs` earlier.
+	 */
+	function hear(
+		listener: FakeListener,
+		sound: (songMs: number) => number | null,
+		latencyMs: number,
+		untilMs: number,
+		level: (songMs: number) => number = () => -30,
+	) {
+		while (Date.now() < untilMs) {
+			const heard = songMs() - latencyMs;
+			listener.read({ frequency: sound(heard), level: level(heard) });
+			vi.advanceTimersByTime(Math.min(16, untilMs - Date.now()));
+		}
+	}
+
+	/** Taps, lets the stream open, then plays until `untilMs`. */
+	async function run(
+		flow: TimedFlow,
+		listener: FakeListener,
+		sound: (songMs: number) => number | null,
+		latencyMs: number,
+		untilMs: number,
+		level?: (songMs: number) => number,
+	) {
+		flow.step();
+		await settle();
+		hear(listener, sound, latencyMs, untilMs, level);
+	}
+
+	test("the scoring lag is the input allowance plus the output latency, or the fallback (AC3)", () => {
+		expect(INPUT_ALLOWANCE_MS).toBe(55);
+		expect(FALLBACK_LAG_MS).toBe(100);
+		expect(scoringLagMs(0.042)).toBeCloseTo(97, 9);
+		expect(scoringLagMs(0)).toBe(55);
+		expect(scoringLagMs(0.25)).toBeCloseTo(305, 9);
+		expect(scoringLagMs(null)).toBe(100);
 	});
 
-	describe("the stream (AC1, AC9)", () => {
+	describe("the stream (AC8)", () => {
 		test("the count-in waits for the start result, which opens the stream on the tap", async () => {
 			const { flow, listener } = listenSetup(songOf([1, 1]), { auto: null });
 			expect(last().listening).toBe("locked");
@@ -458,17 +492,25 @@ describe("grading within the slot (F08-S03)", () => {
 			["locked", LOCKED, "locked"],
 			["unavailable", DENIED, "unavailable"],
 		])(
-			"a %s result still starts the count-in",
+			"a %s result still starts the count-in and plays the song in time, unscored",
 			async (_name, result, listening) => {
-				const { flow } = listenSetup(songOf([1]), { auto: result });
+				const { flow, listener } = listenSetup(songOf([1, 1]), {
+					auto: result,
+				});
 				flow.step();
 				await settle();
 				expect(last()).toMatchObject({ phase: "count-in", listening });
+				hear(listener, played(songOf([1, 1])), 100, FIRST_SLOT_MS + 999);
+				expect(last().phase).toBe("playing");
+				vi.advanceTimersByTime(1000);
+				// No lag is waited for when nothing is scored.
+				expect(last()).toMatchObject({ phase: "summary", summary: null });
+				flow.stop();
 			},
 		);
 
 		test.each(["throw", "reject"] as const)(
-			"a start that does a %s counts as unavailable",
+			"a start that does a %s counts as unavailable and plays unscored",
 			async (mode) => {
 				const { flow } = listenSetup(songOf([1]), { mode });
 				flow.step();
@@ -477,6 +519,8 @@ describe("grading within the slot (F08-S03)", () => {
 					phase: "count-in",
 					listening: "unavailable",
 				});
+				vi.advanceTimersByTime(FIRST_SLOT_MS + 500);
+				expect(last()).toMatchObject({ phase: "summary", summary: null });
 			},
 		);
 
@@ -484,7 +528,7 @@ describe("grading within the slot (F08-S03)", () => {
 			const { flow, listener } = listenSetup(songOf([1]));
 			flow.step();
 			await settle();
-			vi.advanceTimersByTime(FIRST_SLOT_MS + 500);
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 500 + 100);
 			expect(last().phase).toBe("summary");
 			flow.step();
 			expect(last().phase).toBe("count-in");
@@ -525,207 +569,244 @@ describe("grading within the slot (F08-S03)", () => {
 		});
 	});
 
-	describe("a slot (AC2 to AC5)", () => {
-		async function playing(
-			song = songOf([1, 1, 1]),
-			over: Partial<FakeListener> = {},
-		) {
-			const setup = listenSetup(song, over);
-			setup.flow.step();
-			await settle();
-			toFirstSlot();
-			return setup;
-		}
+	describe("coverage with the lag (AC3, AC4)", () => {
+		test("a note played on time is fully covered once the lag is applied", async () => {
+			const song = songOf([1, 1, 1]);
+			const { flow, listener } = listenSetup(song, {}, 0.045);
+			// Heard 100 ms late: 45 ms of output and 55 ms of input.
+			await run(flow, listener, played(song), 100, FIRST_SLOT_MS + 1500 + 150);
+			expect(last().phase).toBe("summary");
+			const summary = last().summary;
+			expect(summary?.coverage).toBeGreaterThan(0.95);
+			expect(summary?.graded).toBe(3);
+			expect(summary?.separation).toEqual({ notSeparated: 0, plainJoins: 2 });
+			expect(summary?.timingFaults).toEqual([]);
+		});
 
-		test("a correct tone shows its verdict at once and the card stays until the slot ends", async () => {
-			const { listener, graded } = await playing();
-			play(listener, RIGHT, 300);
-			expect(last()).toMatchObject({
-				phase: "playing",
-				pitch: 60,
-				verdict: { grade: "correct", frequency: RIGHT },
+		test("a slower output path is followed through the reported latency", async () => {
+			const song = songOf([1, 1, 1]);
+			// Bluetooth: 195 ms of output, so heard 250 ms late.
+			const { flow, listener } = listenSetup(song, {}, 0.195);
+			await run(flow, listener, played(song), 250, FIRST_SLOT_MS + 1500 + 300);
+			expect(last().phase).toBe("summary");
+			expect(last().summary?.coverage).toBeGreaterThan(0.95);
+			expect(last().summary?.timingFaults).toEqual([]);
+		});
+
+		test("without the output latency the fallback lag is used", async () => {
+			const song = songOf([1, 1, 1]);
+			const { flow, listener } = listenSetup(song, {}, null);
+			// Heard exactly as late as the fallback assumes.
+			await run(
+				flow,
+				listener,
+				played(song),
+				FALLBACK_LAG_MS,
+				FIRST_SLOT_MS + 1500 + 150,
+			);
+			expect(last().phase).toBe("summary");
+			expect(last().summary?.coverage).toBeGreaterThan(0.95);
+		});
+
+		test("a lag that is wrong shows as late notes", async () => {
+			const song = songOf([1, 1, 1]);
+			// The flow assumes 100 ms but the sound is 250 ms late.
+			const { flow, listener } = listenSetup(song, {}, 0.045);
+			await run(flow, listener, played(song), 250, FIRST_SLOT_MS + 1500 + 300);
+			const summary = last().summary;
+			expect(summary?.timing.startedLate.faults).toBeGreaterThan(0);
+		});
+
+		test("a note not played is not covered", async () => {
+			const song = songOf([1, 1, 1]);
+			const second = played(song);
+			const { flow, listener } = listenSetup(song);
+			await run(
+				flow,
+				listener,
+				(ms) => (ms >= 500 && ms < 1000 ? null : second(ms)),
+				100,
+				FIRST_SLOT_MS + 1500 + 150,
+			);
+			const items = last().summary?.items ?? [];
+			expect(items[0]?.coverage).toBeGreaterThan(0.9);
+			expect(items[1]?.coverage).toBe(0);
+			expect(items[2]?.coverage).toBeGreaterThan(0.9);
+		});
+
+		test("the level blocks are placed in song time too: a dip at a same-pitch join separates it", async () => {
+			const song = createSong(
+				[
+					{ pitch: 60 as Pitch, start: 0, beats: 1 },
+					{ pitch: 60 as Pitch, start: 1, beats: 1 },
+				],
+				{ tempo: 120, meter: DEFAULT_METER },
+			);
+			const sound = () => hz(60);
+			const dip = (ms: number) => (ms >= 485 && ms < 515 ? -60 : -30);
+			const blocks = async (withDip: boolean) => {
+				states = [];
+				vi.setSystemTime(0);
+				const { flow, listener } = listenSetup(song);
+				flow.step();
+				await settle();
+				const level = withDip ? dip : () => -30;
+				while (Date.now() < FIRST_SLOT_MS + 1000 + 150) {
+					const heard = songMs() - 100;
+					const audioTime = now();
+					listener.read({
+						frequency: sound(),
+						// Six blocks of 2.67 ms for the 16 ms frame, as the listener gives them.
+						envelope: Array.from({ length: 6 }, (_, j) => {
+							const time = audioTime - ((5 - j) * 128) / 48000;
+							return {
+								time,
+								level: level((time - FIRST_SLOT_S) * 1000 - 100),
+							};
+						}),
+						level: level(heard),
+					});
+					vi.advanceTimersByTime(16);
+				}
+				const summary = last().summary;
+				flow.stop();
+				return summary?.separation;
+			};
+			expect(await blocks(true)).toEqual({ notSeparated: 0, plainJoins: 1 });
+			expect(await blocks(false)).toEqual({ notSeparated: 1, plainJoins: 1 });
+		});
+
+		test("readings from the count-in are scored from the first note's start", async () => {
+			const song = songOf([1]);
+			const { flow, listener } = listenSetup(song);
+			// The note sounds 200 ms before it should: seen as started early.
+			await run(
+				flow,
+				listener,
+				(ms) => (ms >= -200 && ms < 470 ? hz(60) : null),
+				100,
+				FIRST_SLOT_MS + 500 + 150,
+			);
+			expect(last().summary?.timingFaults).toContainEqual({
+				index: 0,
+				edge: "start",
+				kind: "early",
 			});
-			expect(graded[0]).toEqual({ pitch: 60, hz: RIGHT });
-			vi.advanceTimersByTime(150);
-			expect(last().pitch).toBe(60);
-			vi.advanceTimersByTime(60);
-			expect(last()).toMatchObject({ pitch: 61, verdict: null });
 		});
 
-		test("an incorrect tone shows incorrect and keeps listening; a correct one replaces it", async () => {
-			const { listener } = await playing(songOf([4, 1]));
-			play(listener, WRONG, 300);
-			expect(last().verdict).toMatchObject({ grade: "incorrect" });
-			expect(last().pitch).toBe(60);
-			play(listener, RIGHT, 300);
-			expect(last().verdict).toMatchObject({ grade: "correct" });
-			vi.advanceTimersByTime(2000);
-			expect(last().summary).toEqual({ correct: 1, graded: 2 });
-		});
-
-		test("later readings after a correct tone change nothing", async () => {
-			const { listener } = await playing(songOf([4, 1]));
-			play(listener, RIGHT, 300);
-			play(listener, WRONG, 600);
-			expect(last().verdict).toMatchObject({ grade: "correct" });
-		});
-
-		test("a slot with nothing heard is a miss that shows nothing", async () => {
-			await playing(songOf([1, 1]));
-			vi.advanceTimersByTime(500);
-			expect(last().verdict).toBeNull();
-			vi.advanceTimersByTime(500);
-			expect(last().summary).toEqual({ correct: 0, graded: 2 });
-		});
-
-		test("the verdict clears at the slot's end", async () => {
-			const { listener } = await playing();
-			play(listener, WRONG, 300);
-			expect(last().verdict).not.toBeNull();
-			vi.advanceTimersByTime(300);
-			expect(last().pitch).toBe(61);
-			expect(last().verdict).toBeNull();
-		});
-
-		test("a tone spanning a boundary counts only for the slot it settles in", async () => {
-			const { listener } = await playing(songOf([1, 1, 1]));
-			// Starts 100 ms before the first slot ends, so it settles in the second.
-			vi.advanceTimersByTime(400);
-			play(listener, RIGHT, 500);
-			expect(last().pitch).toBe(61);
-			expect(last().verdict).toMatchObject({ grade: "correct" });
-			vi.advanceTimersByTime(600);
-			expect(last().summary).toEqual({ correct: 1, graded: 3 });
-		});
-
-		test("each note keeps its result once its slot ends, and a restart clears them", async () => {
-			const { flow, listener } = await playing(songOf([1, 1, 1]));
-			play(listener, RIGHT, 300);
-			expect(last().results).toEqual([null, null, null]);
-			vi.advanceTimersByTime(200);
-			play(listener, WRONG, 300);
-			vi.advanceTimersByTime(200);
-			vi.advanceTimersByTime(500);
-			expect(last().phase).toBe("summary");
-			expect(last().results).toEqual(["correct", "incorrect", "missed"]);
-			flow.step();
-			expect(last().results).toEqual([null, null, null]);
-		});
-
-		test("the staff marks results and the note playing, and a miss as incorrect", async () => {
-			const { listener } = await playing(songOf([4, 1]));
-			play(listener, WRONG, 300);
-			expect([...songMarks(last())]).toEqual([[0, "incorrect"]]);
-			play(listener, RIGHT, 300);
-			expect([...songMarks(last())]).toEqual([[0, "correct"]]);
-			vi.advanceTimersByTime(2000);
-			expect(last().phase).toBe("summary");
-			expect([...songMarks(last())]).toEqual([
-				[0, "correct"],
-				[1, "incorrect"],
-			]);
-		});
-
-		test("readings after the last slot's end do not count", async () => {
-			const { listener } = await playing(songOf([1]));
-			vi.advanceTimersByTime(500);
-			expect(last().phase).toBe("summary");
-			const count = states.length;
-			play(listener, RIGHT, 500);
-			expect(states).toHaveLength(count);
-		});
-	});
-
-	describe("slots that are not listened to (AC6)", () => {
-		test("a slot under the minimum shows no verdict and is not counted", async () => {
-			// 1/4-beat notes at 120 are 125 ms.
-			const { flow, listener } = listenSetup(songOf([0.25, 1]));
-			flow.step();
-			await settle();
-			toFirstSlot();
-			play(listener, RIGHT, 100);
-			expect(last().verdict).toBeNull();
-			vi.advanceTimersByTime(50);
-			expect(last().pitch).toBe(61);
-			vi.advanceTimersByTime(500);
-			expect(last().summary).toEqual({ correct: 0, graded: 1 });
-		});
-
-		test("a slot exactly the minimum is listened to", async () => {
-			const song = songOf([0.3 * 2], { tempo: 120 }); // 300 ms
-			expect(MIN_GRADED_SLOT_MS).toBe(300);
+		test("a reading with no audio time is dropped", async () => {
+			const song = songOf([1]);
 			const { flow, listener } = listenSetup(song);
 			flow.step();
 			await settle();
-			toFirstSlot();
-			play(listener, RIGHT, 250);
-			expect(last().verdict).toMatchObject({ grade: "correct" });
-		});
-
-		test("with a locked or unavailable stream every slot is shown in time and none counted", async () => {
-			for (const auto of [LOCKED, DENIED]) {
-				states = [];
-				const { flow, listener } = listenSetup(songOf([1, 1]), { auto });
-				flow.step();
-				await settle();
-				toFirstSlot();
-				play(listener, RIGHT, 400);
-				expect(last().verdict).toBeNull();
-				vi.advanceTimersByTime(700);
-				expect(last().phase).toBe("summary");
-				expect(last().summary).toEqual({ correct: 0, graded: 0 });
-				flow.stop();
+			while (Date.now() < FIRST_SLOT_MS + 500 + 150) {
+				listener.read({
+					frequency: hz(60),
+					audioTime: undefined,
+					envelope: undefined,
+				});
+				vi.advanceTimersByTime(16);
 			}
-		});
-
-		test("a tracker that throws leaves the slot ungraded and the song running", async () => {
-			const { flow, listener, listen } = listenSetup(songOf([1, 1]));
-			listen.tracker.push = () => {
-				throw new Error("tracker threw");
-			};
-			flow.step();
-			await settle();
-			toFirstSlot();
-			play(listener, RIGHT, 300);
-			expect(last().verdict).toBeNull();
-			vi.advanceTimersByTime(1000);
-			expect(last().summary).toEqual({ correct: 0, graded: 1 });
-		});
-
-		test("a grade that throws leaves the slot ungraded", async () => {
-			const { flow, listener, listen } = listenSetup(songOf([1]));
-			listen.grade = () => {
-				throw new Error("grade threw");
-			};
-			flow.step();
-			await settle();
-			toFirstSlot();
-			play(listener, RIGHT, 300);
-			vi.advanceTimersByTime(500);
-			expect(last().summary).toEqual({ correct: 0, graded: 0 });
+			expect(last().summary?.items[0]?.coverage).toBe(0);
 		});
 	});
 
-	describe("the summary (AC7)", () => {
-		test("counts correct over graded notes and a restart resets them", async () => {
-			const { flow, listener } = listenSetup(songOf([1, 1, 1]));
+	describe("the end of the run (AC5, AC6)", () => {
+		test("the run ends one lag after the last slot ends, and the summary shows then", async () => {
+			const { flow } = listenSetup(songOf([1]), {}, 0.145);
 			flow.step();
 			await settle();
-			toFirstSlot();
-			play(listener, RIGHT, 500); // first slot, ends 500 ms in
-			play(listener, WRONG, 500); // second slot
-			vi.advanceTimersByTime(500); // third: nothing
+			// The lag is 55 + 145 = 200 ms: the slot ends 500 ms in, the summary 700 ms in.
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 500 + 199);
 			expect(last()).toMatchObject({
-				phase: "summary",
-				summary: { correct: 1, graded: 3 },
+				phase: "playing",
+				index: 0,
+				summary: null,
 			});
-			flow.step();
-			expect(last().phase).toBe("count-in");
-			expect(last().summary).toBeNull();
-			await settle();
-			vi.advanceTimersByTime(FIRST_SLOT_MS + 1500);
-			expect(last().summary).toEqual({ correct: 0, graded: 3 });
+			vi.advanceTimersByTime(1);
+			expect(last().phase).toBe("summary");
+			expect(last().summary).not.toBeNull();
 		});
+
+		test("without the output latency it ends after the fallback lag", async () => {
+			const { flow } = listenSetup(songOf([1]), {}, null);
+			flow.step();
+			await settle();
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 500 + 99);
+			expect(last().phase).toBe("playing");
+			vi.advanceTimersByTime(1);
+			expect(last().phase).toBe("summary");
+		});
+
+		test("the summary of an unscored song has nothing graded to report", async () => {
+			const { flow } = listenSetup(songOf([1]), { auto: LOCKED });
+			flow.step();
+			await settle();
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 500);
+			expect(last().summary).toBeNull();
+			expect(summaryText(last().summary)).toBe(END_OF_SONG);
+		});
+
+		test("a restart starts a fresh scoring", async () => {
+			const song = songOf([1]);
+			const { flow, listener } = listenSetup(song);
+			await run(flow, listener, played(song), 100, FIRST_SLOT_MS + 500 + 150);
+			expect(last().summary?.coverage).toBeGreaterThan(0.9);
+			const before = Date.now();
+			flow.step();
+			expect(last().summary).toBeNull();
+			// Nothing is played the second time.
+			hear(listener, () => null, 100, before + FIRST_SLOT_MS + 500 + 150);
+			expect(last().phase).toBe("summary");
+			expect(last().summary?.coverage).toBe(0);
+		});
+
+		test("readings after the summary change nothing", async () => {
+			const song = songOf([1]);
+			const { flow, listener } = listenSetup(song);
+			await run(flow, listener, played(song), 100, FIRST_SLOT_MS + 500 + 150);
+			const count = states.length;
+			hear(listener, () => hz(60), 100, Date.now() + 500);
+			expect(states).toHaveLength(count);
+		});
+
+		test("a scoring that throws leaves the song playing in time with nothing to report", async () => {
+			const song = songOf([1]);
+			const { flow, listener, listen } = listenSetup(song);
+			(listen.coverage as { sounding: unknown }).sounding = () => {
+				throw new Error("sounding threw");
+			};
+			flow.step();
+			await settle();
+			expect(() =>
+				hear(listener, played(song), 100, FIRST_SLOT_MS + 500 + 150),
+			).not.toThrow();
+			expect(last().phase).toBe("summary");
+			expect(last().summary).toBeNull();
+		});
+
+		test("with judging off the song plays in time and reports nothing (AC8)", () => {
+			const flow = setup(songOf([1, 1]));
+			flow.step();
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 1000);
+			expect(last()).toMatchObject({ phase: "summary", summary: null });
+		});
+	});
+});
+
+describe("summaryText (F09-S03 AC6)", () => {
+	const result = (coverage: number | null) => ({ coverage }) as CoverageResult;
+
+	test("gives the share covered, rounded", () => {
+		expect(summaryText(result(0.824))).toBe("82% covered");
+		expect(summaryText(result(0.825))).toBe("83% covered");
+		expect(summaryText(result(1))).toBe("100% covered");
+		expect(summaryText(result(0))).toBe("0% covered");
+	});
+
+	test("gives the end of the song when nothing was graded or scored", () => {
+		expect(summaryText(result(null))).toBe(END_OF_SONG);
+		expect(summaryText(null)).toBe(END_OF_SONG);
 	});
 });
 

@@ -4,7 +4,11 @@ import ocarinaJson from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaultsJson from "../../data/settings/defaults.json";
 import { parseAbc } from "../abc";
 import { createClicker } from "../audio/click";
-import { browserAudioFactory, createAudio } from "../audio/context";
+import {
+	browserAudioFactory,
+	createAudio,
+	outputLatencySeconds,
+} from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer } from "../audio/tone";
 import { buildPool } from "../core/drill";
@@ -50,8 +54,7 @@ import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
 import {
 	createTimedFlow,
-	songMarks,
-	TIMED_HOLD_OFF_MS,
+	type TimedListen,
 	type TimedState,
 } from "./timed-flow";
 
@@ -82,19 +85,27 @@ const clicker = createClicker(audio);
 const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
 
-function listenFor(settings: Settings, holdOffMs?: number): CardListen | null {
+function listenFor(settings: Settings): CardListen | null {
 	if (!settings.judgeEnabled) return null;
 	return {
 		listener,
-		tracker: createToneTracker({
-			...DEFAULT_THRESHOLDS,
-			...(holdOffMs === undefined ? {} : { holdOffMs }),
-			band: BAND,
-		}),
+		tracker: createToneTracker({ ...DEFAULT_THRESHOLDS, band: BAND }),
 		grade: (p, hz) =>
 			judge(soundingPitch(instrument, p), hz, settings.toleranceCents),
 		// The same clock as the requestAnimationFrame timestamps on readings.
 		now: () => performance.now(),
+	};
+}
+
+function timedListenFor(settings: Settings): TimedListen | null {
+	if (!settings.judgeEnabled) return null;
+	return {
+		listener,
+		coverage: {
+			toleranceCents: settings.toleranceCents,
+			checks: { ...DEFAULT_THRESHOLDS, band: BAND },
+			sounding: (p) => soundingPitch(instrument, p),
+		},
 	};
 }
 
@@ -191,10 +202,6 @@ export function App() {
 	);
 	// Waiting for the tap or counting in: no note is lit yet.
 	const counting = timed?.phase === "ready" || timed?.phase === "count-in";
-	const marks = useMemo(
-		() => (timed === null ? new Map() : songMarks(timed)),
-		[timed],
-	);
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
@@ -238,7 +245,8 @@ export function App() {
 						clicker,
 						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
 						metronome: metronomeApplies(settings),
-						listen: listenFor(settings, TIMED_HOLD_OFF_MS),
+						listen: timedListenFor(settings),
+						outputLatency: () => outputLatencySeconds(audio),
 						onChange: (state) => {
 							setTimed(state);
 							if (state.listening === "unavailable") setJudgeUnavailable(true);
@@ -326,13 +334,12 @@ export function App() {
 					beats={timed.beats}
 					revealed={false}
 					judging={settings.judgeEnabled}
-					verdict={timed.verdict}
 					timed={
 						timed.phase === "count-in" || timed.listening === "opening"
 							? "playing"
 							: timed.phase
 					}
-					timedSummary={summaryText(timed.summary ?? { correct: 0, graded: 0 })}
+					timedSummary={summaryText(timed.summary)}
 					song={
 						song === null
 							? undefined
@@ -343,7 +350,6 @@ export function App() {
 									// Before the first slot the first rest is lit, then each beat's.
 									current: counting ? -1 : timed.index,
 									countBeat: counting ? (timed.countBeat ?? 0) : null,
-									marks,
 								}
 					}
 					instrument={instrument}

@@ -1,12 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
-import {
-	drawSongLines,
-	drawStaff,
-	type NoteMark,
-	type StaffOptions,
-} from "../render/staff";
+import { drawSongLines, drawStaff, type StaffOptions } from "../render/staff";
 
 interface StaffProps {
 	pitch: Pitch;
@@ -32,8 +27,6 @@ export interface SongView {
 	current: number;
 	/** The count-in beat clicking, from 0; null when none is. */
 	countBeat: number | null;
-	/** How each note played so far came out, by index; the note to play shows its live verdict. */
-	marks: ReadonlyMap<number, NoteMark>;
 }
 
 /** The line holding the note to play and the line after it. */
@@ -45,7 +38,7 @@ export function SongStaff({
 	options: StaffOptions;
 }) {
 	const ref = useRef<HTMLDivElement>(null);
-	const { lines, meter, barsPerLine, current, countBeat, marks } = view;
+	const { lines, meter, barsPerLine, current, countBeat } = view;
 	useEffect(() => {
 		if (ref.current)
 			drawSongLines(
@@ -56,8 +49,7 @@ export function SongStaff({
 				meter,
 				barsPerLine,
 				countBeat,
-				marks,
 			);
-	}, [lines, current, options, meter, barsPerLine, countBeat, marks]);
+	}, [lines, current, options, meter, barsPerLine, countBeat]);
 	return <div class="song-staff" ref={ref} />;
 }

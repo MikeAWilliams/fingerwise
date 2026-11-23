@@ -38,13 +38,6 @@ const ARROW_SPACE = 24;
 export const GREY = "#a0a0a0";
 const GREY_STYLE = { fillStyle: GREY, strokeStyle: GREY };
 
-/** How a played note came out; the same colours as the card's verdict. */
-export type NoteMark = "correct" | "incorrect";
-const MARK_COLOURS: Record<NoteMark, string> = {
-	correct: "#17692e",
-	incorrect: "#b3261e",
-};
-
 /** Lengths one note (with at most one dot) can show, longest first. */
 const NOTE_BEATS = [6, 4, 3, 2, 1.5, 1, 0.75, 0.5, 0.375, 0.25, 0.125];
 
@@ -104,9 +97,6 @@ function lastItem(line: readonly Bar[] | undefined): BarItem | undefined {
  * The first line starts with a bar of rests, one per count-in beat. Rest
  * `countBeat` is black while that beat clicks; null leaves them all grey.
  *
- * A note in `marks` takes its mark's colour instead, the one to play included,
- * so how each note went shows where it is written.
- *
  * Lines never move: line n is drawn in row n mod 2, so the eye reads down to
  * the lower row and finds it where it was. Once the lower row is playing, the
  * upper row holds the next line, and an arrow at the lower row's end points up
@@ -120,7 +110,6 @@ export function drawSongLines(
 	meter: Meter,
 	barsPerLine: number,
 	countBeat: number | null = null,
-	marks: ReadonlyMap<number, NoteMark> = new Map(),
 ): void {
 	const first = lineOfNote(lines, current);
 	const shown = lines.slice(first, first + 2);
@@ -152,14 +141,7 @@ export function drawSongLines(
 	};
 
 	/** The style of note `index`'s head, stem and ties; null leaves it black. */
-	const styleOf = (index: number) => {
-		const mark = marks.get(index);
-		if (mark) {
-			const colour = MARK_COLOURS[mark];
-			return { fillStyle: colour, strokeStyle: colour };
-		}
-		return index === current ? null : GREY_STYLE;
-	};
+	const styleOf = (index: number) => (index === current ? null : GREY_STYLE);
 
 	const rowOf = (lineIndex: number) => lineIndex % 2;
 	shown.forEach((line, i) => {
