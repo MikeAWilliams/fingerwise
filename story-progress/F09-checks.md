@@ -105,13 +105,13 @@ Observed: Discussed, added legend
 
 ## After S08: the summary
 
-- [ ] After a real take of the example song, the summary shows coverage, in tune, the timing figures and separation, and the tuning line when a note was off.
-- [ ] It wraps without sideways scroll at 360x640 and looks right at 1024x768.
-- [ ] With a screen reader (Orca on Linux), the summary and tuning line are read as text.
-- [ ] A tap restarts from the count-in, with the lane, fill and marks cleared.
-- [ ] With judging off it says "End of song".
+- [x] After a real take of the example song, the summary shows coverage, in tune, the timing figures and separation, and the tuning line when a note was off.
+- [x] It wraps without sideways scroll at 360x640 and looks right at 1024x768.
+- [x] With a screen reader (Orca on Linux), the summary and tuning line are read as text.
+- [x] A tap restarts from the count-in, with the lane, fill and marks cleared.
+- [x] With judging off it says "End of song".
 
-Observed:
+Observed: Looks good
 
 ## Before acceptance (optional, from the design's risks)
 
