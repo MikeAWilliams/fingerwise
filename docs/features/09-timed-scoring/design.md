@@ -111,15 +111,17 @@ The exact wording is a story's job. With nothing graded it says "End of song".
 - **Score lane:** a thin strip under each staff line, on the same time-to-x map. Each graded note and rest has a segment spanning its written length, drawn in a neutral colour. Ungraded notes have a segment in a lighter style that never fills.
 - **Fill, a pitch trace:** on a note, each sounding reading draws a thick line whose height in the lane follows its offset in cents from the expected pitch: centred is in tune, up is sharp, down is flat. The lane spans about ±150 cents, with faint lines at the tolerance and at ±50 cents (the right-note band). The line is green within the tolerance, amber from there to ±50 cents, and red beyond. A wrong reading within ±150 cents is drawn at its offset, so a note that drifts a semitone flat is a continuous line sinking out of the band. A reading further off, such as a wrong fingering a tone or more away, is pinned to the lane's top or bottom edge. The player can therefore tell drift (breath) from a wrong fingering. Silence on a note leaves the neutral colour showing. On a rest, silence fills green and sound fills red. Height carries tuning and direction, so colour is never the only signal. The fill trails the playhead by about the scoring lag; the playhead is not pulled back to meet it, because a player following it would then play late.
 - **Fault marks:** drawn live in the lane as the fill reaches them: a tick at a segment's edge for each timing fault, and a mark at a plain join with no gap.
+- **Live readout:** while playing, the reveal area replaces F08's verdict row with what the microphone hears now, in written pitch with its offset, such as "Hearing D4 +62¢", or "Hearing nothing". No correct or incorrect label: the lane carries the result, and the readout names the note when the trace is red. It changes at most about ten times a second so it stays readable.
 - **Note heads:** black for the notes on show and grey for the rest, as during F08's count-in. They are no longer coloured by result; the lane carries it.
 - **Redraws:** the staff is drawn only when the rows change. The playhead and lane are an overlay updated each animation frame outside Preact state, so a frame never redraws VexFlow. A line that scrolls out of view takes its fill with it.
 - A tie or slur over a line break has a segment on each row.
+- **Judging off:** with keep tempo on and judging off, the playhead runs as usual and the lane shows every segment in its neutral colour, never filling. There is no readout, and the summary says "End of song".
 
 ### Fixes
 
 The F08 fixes, revised for coverage:
 
-- **F1: Scoring lag (fixes P1 and P2).** Each reading is placed on the timeline at its time less a fixed scoring lag (about 100 ms, the measured round trip), possibly the input allowance plus the context's `outputLatency`. It is tuned on desktop and Android. A note's fill completes one lag after the playhead has passed it.
+- **F1: Scoring lag (fixes P1 and P2).** Each reading is placed on the timeline at its time less the scoring lag: a fixed input allowance (55 ms to start, the measured value) plus the audio context's reported `outputLatency`, read when the song starts. So it follows Bluetooth headphones and other output paths, which can add 150 to 250 ms. Where the browser does not report `outputLatency`, the lag is a fixed 100 ms. Decided 2026-11-22. The input allowance is tuned on desktop and Android. A note's fill completes one lag after the playhead has passed it.
 - **F2: Minimum graded length (fixes P3).** A note or rest is graded when its length less both edge graces is at least a minimum scored span (about 50 ms), so about 130 ms. Below that it is drawn and not graded. The value follows from the graces, so it moves when they do.
 - **F3: The new summary (fixes P4).** Coverage, the in-tune figure, the tuning list, the four timing figures, separation, and the count of notes too short to grade (see [Summary](#summary)).
 - **F4: dropped.** A faster settle rule for the expected pitch is no longer needed: coverage has no settle time.
@@ -140,7 +142,7 @@ The F08 fixes, revised for coverage:
 - **abc (`src/abc`):** reads slurs from the parse tree and matches them to the played notes by `startChar`, using the [rule from the slur spike](../../research/abcjs-slur-spike.md#proposed-rule), not the audio sequence's `endType`. An unbalanced slur becomes a positioned problem ("Slur opened here is never closed", "Slur closed here was never opened").
 - **New core module, probably `src/core/coverage`:** classifying readings against a note timeline, coverage per note and rest, timing faults, separation and the song summary. Pure; imports pitch, judge and song. The layer rule holds.
 - **judge (`src/core/judge`):** possibly a per-reading check (gates, band, tolerance) exported for the coverage module to reuse. The tone tracker is unchanged.
-- **audio (`src/audio`):** placing readings on the audio clock (readings are stamped with `performance.now()` while the timed flow runs on the audio context's clock), and read access to `outputLatency`.
+- **audio (`src/audio`):** each reading also carries the audio context's `currentTime` when the analyser is read. The analyser's newest sample and `currentTime` come from the same audio thread, so readings, clicks and slots share one clock with no conversion, and a reading's song time is its audio time less the scoring lag less the song's start. Decided 2026-11-22, over converting `performance.now()` with `getOutputTimestamp()`, whose support and accuracy vary by browser. Also read access to `outputLatency`, and the fine level envelope for separation.
 - **staff (`src/render/staff`):** `drawSongLines` also returns its layout: each row's y-range and lane position, and the x of every note, rest and bar line, for the time-to-x map. Room under each staff for the lane.
 - **app:** `timed-flow.ts` feeds readings to the coverage module instead of a tone tracker per slot, and drops slot verdicts and `songMarks`. A new overlay component draws the playhead, lane, fill and marks on each animation frame. `judge-text.ts` holds the summary text.
 
@@ -152,11 +154,9 @@ No settings or stored state. The scoring lag, edge grace, wrong-reading run, tim
 
 - **Gap detection.** Answered for a headset microphone by the [gap detection spike](../../research/gap-detection-spike.md#results): a fine level envelope from the analyser's overlapping windows separates gaps of 10 ms or more from held and slurred playing with a wide margin, without F6. Today's per-reading level also works for gaps of 20 ms or more, but with a thin margin. Still untested: laptop microphones, Android, and real fast playing.
 - **The right-note band stays ±50 cents.** The spike's tongued scale had 82% of readings within it; ±75 cents would have given 95%. The user chose not to widen it to fit their own playing (2026-11-22): the score should show what was played, and the trace and tuning list are there to help the player improve.
-- **The lag's accuracy.** Coverage tolerates an error of tens of milliseconds, but timing figures report it on every note. Repeat the key-tap measurement on Android. Is a fixed lag good enough, or does calibration have to come into scope?
-- **The two clocks.** How readings are placed on the audio clock: `AudioContext.getOutputTimestamp()`, or reading both clocks when each reading is taken. Browser support varies.
+- **The lag's accuracy.** Coverage tolerates an error of tens of milliseconds, but timing figures report it on every note. Android's input latency is unmeasured; repeat the key-tap measurement there. If the input allowance differs a lot between devices, calibration may have to come into scope. Also check that `outputLatency` is reported and plausible in Firefox, Chrome and Safari.
 - **Slurs from abcjs.** Answered by the [slur spike](../../research/abcjs-slur-spike.md). Still open: how many real tunes from the web have unbalanced slurs and would now be rejected.
 - **Constants.** Edge grace, the wrong-reading run, timing tolerance, the gap dip and the minimum scored span are guesses. Tune them in the live check.
-- **The verdict row in timed cards.** F08 shows an icon, label and judged note under the staff while playing. Keep it as a live "what I hear" readout, or drop it now that the lane carries the result?
 - **Rests at speed.** A rest shorter than the minimum graded length is not graded, so a staccato passage written with short rests scores no rests.
 - **A flat instrument.** Part of the flatness in the first recording may be the ocarina (cold, or tuned low) rather than breath. A whole instrument 50 cents off would make every reading near the boundary between two notes. Check it against a tuner; a per-session tuning reference may be needed later.
 - **Breaths.** A song with no rests forces a breath somewhere, which costs coverage and a timing fault. Accepted for now.
@@ -166,4 +166,13 @@ No settings or stored state. The scoring lag, edge grace, wrong-reading run, tim
 
 ## Stories
 
-Not written yet. Likely: slurs in the song; a coverage core with timing and separation; readings on the audio clock with the lag; staff layout export and the lane; the playhead and live fill; fault marks and the summary.
+One feature, in this order (decided 2026-11-22). Each story is visible or testable on its own.
+
+- [F09-S01: Slurs in the song](stories/F09-S01-slurs-in-the-song.md)
+- [F09-S02: Coverage core](stories/F09-S02-coverage-core.md)
+- [F09-S03: Readings on the audio clock](stories/F09-S03-readings-on-the-audio-clock.md)
+- [F09-S04: Lane under the staff](stories/F09-S04-lane-under-the-staff.md)
+- [F09-S05: Playhead](stories/F09-S05-playhead.md)
+- [F09-S06: Live fill and readout](stories/F09-S06-live-fill-and-readout.md)
+- [F09-S07: Fault marks](stories/F09-S07-fault-marks.md)
+- [F09-S08: The summary](stories/F09-S08-the-summary.md)
