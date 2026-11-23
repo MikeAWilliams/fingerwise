@@ -1038,7 +1038,7 @@ describe("scoring by coverage (F09-S03)", () => {
 			expect(states.filter((st) => st.overrun).length).toBeGreaterThan(0);
 		});
 
-		test("overrunReadings are exactly the readings after the last note, and the summary is as without them (AC6)", async () => {
+		test("overrunReadings are exactly the readings after the last note, and the summary and analysis are as without them (F12-S03 AC6, F12-S04 AC6)", async () => {
 			const sound = (ms: number) => (ms < SONG_END + 1500 ? hz(62) : null);
 			const times: number[] = [];
 			const listener = new FakeListener();
@@ -1080,6 +1080,7 @@ describe("scoring by coverage (F09-S03)", () => {
 				vi.advanceTimersByTime(16);
 			}
 			expect(withOverrun.summary).toEqual(last().summary);
+			expect(withOverrun.analysis).not.toBeNull();
 			expect(withOverrun.analysis).toEqual(last().analysis);
 			expect(withOverrun.summary?.graded).toBeGreaterThan(0);
 		});

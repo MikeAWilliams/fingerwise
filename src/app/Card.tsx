@@ -38,6 +38,8 @@ interface CardProps {
 	timedTuning?: string | null;
 	/** The analysis of a finished timed song; shown under the music in the summary, with a link to it. */
 	timedAnalysis?: AnalysisResult | null;
+	/** How far past the last note the playing reached, in ms, for the analysis line; null for none (F12-S04). */
+	timedOverrunMs?: number | null;
 	/** A quiet line in the song's bar while it plays (scoring after the song); null for none. */
 	timedNote?: string | null;
 	/** Show the legend under a timed song's staff: judging is on and the lanes are. */
@@ -66,6 +68,7 @@ export function Card({
 	timedSummary,
 	timedTuning = null,
 	timedAnalysis = null,
+	timedOverrunMs = null,
 	timedNote = null,
 	legend = false,
 	readout = false,
@@ -104,7 +107,9 @@ export function Card({
 						bar={bar}
 					/>
 				</div>
-				{showAnalysis && timedAnalysis && <Analysis analysis={timedAnalysis} />}
+				{showAnalysis && timedAnalysis && (
+					<Analysis analysis={timedAnalysis} overrunMs={timedOverrunMs} />
+				)}
 				<div class="song-bar" ref={bar}>
 					{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
 					{timed === "summary" && <p class="card-status">{timedSummary}</p>}

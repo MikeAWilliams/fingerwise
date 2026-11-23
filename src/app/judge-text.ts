@@ -27,6 +27,14 @@ export const END_OF_SONG = "End of song";
 export const SCORING_AFTER = "Scoring after the song";
 
 /** The quiet line once the last note has ended and the player is still being listened to. */
+/** The label of the overrun lane under the last line. */
+export const OVERRUN_LABEL = "after the end";
+
+/** "+3.2 s": how much of the overrun is past the lane's width. */
+export function overrunMoreText(ms: number): string {
+	return `+${(ms / 1000).toFixed(1)} s`;
+}
+
 export const LISTENING_PAST_END = "Listening… stop playing to see your score";
 
 const percent = (share: number) => `${Math.round(share * 100)}%`;

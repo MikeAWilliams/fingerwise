@@ -205,7 +205,8 @@ main {
 	mix-blend-mode: multiply;
 }
 
-.practice-spot-label {
+.practice-spot-label,
+.overrun-label {
 	fill: CanvasText;
 	stroke: Canvas;
 	stroke-width: 3px;

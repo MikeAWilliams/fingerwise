@@ -10,9 +10,12 @@ import {
 	createReadoutThrottle,
 	HEARING_NOTHING,
 	hearingText,
+	OVERRUN_LABEL,
+	overrunMoreText,
 } from "./judge-text";
 import type { LaneSegment } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
+import { OVERRUN_LABEL_SIZE, type OverrunLane } from "./overrun";
 import { playheadBeat, playheadPlace } from "./playhead";
 import {
 	emptyPaths,
@@ -117,6 +120,7 @@ export function SongOverlay({
 	fill,
 	after = false,
 	scored = null,
+	overrun = null,
 	readout,
 	onRow,
 	spots = [],
@@ -133,6 +137,8 @@ export function SongOverlay({
 	after?: boolean;
 	/** The finished scoring, drawn at once in `after`; null until the summary. */
 	scored?: Progress | null;
+	/** The overrun's lane under the last line, or null for none; the view box grows to hold it. */
+	overrun?: OverrunLane | null;
 	/** Where the readout's text goes, when it is on show. */
 	readout?: RefObject<HTMLElement | null>;
 	/** Called when the playhead reaches a row it has not reported (the first frame reports row 0). */
@@ -327,7 +333,7 @@ export function SongOverlay({
 	return (
 		<svg
 			class="song-overlay"
-			viewBox={`0 0 ${layout.width} ${layout.height}`}
+			viewBox={`0 0 ${layout.width} ${layout.height + (overrun?.extraHeight ?? 0)}`}
 			aria-hidden="true"
 		>
 			{spots.map((spot) =>
@@ -391,6 +397,44 @@ export function SongOverlay({
 							}}
 						/>
 					))}
+				</>
+			)}
+			{overrun && (
+				<>
+					<rect
+						class="lane-graded"
+						x={overrun.x0}
+						y={overrun.top}
+						width={Math.max(0, overrun.x1 - overrun.x0)}
+						height={overrun.bottom - overrun.top}
+					/>
+					<path class="lane-guides" d={overrun.guides} />
+					{TRACE_COLOURS.map((colour) => (
+						<path
+							key={colour}
+							class={`fill-${colour}`}
+							d={overrun.paths[colour]}
+						/>
+					))}
+					<text
+						class="overrun-label"
+						x={overrun.x0}
+						y={overrun.labelY}
+						font-size={OVERRUN_LABEL_SIZE}
+					>
+						{OVERRUN_LABEL}
+					</text>
+					{overrun.more !== null && (
+						<text
+							class="overrun-label"
+							x={overrun.moreX}
+							y={overrun.labelY}
+							font-size={OVERRUN_LABEL_SIZE}
+							text-anchor="end"
+						>
+							{overrunMoreText(overrun.more)}
+						</text>
+					)}
 				</>
 			)}
 			<line class="playhead" ref={line} visibility="hidden" />

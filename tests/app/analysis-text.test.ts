@@ -5,6 +5,7 @@ import {
 	lengthName,
 	NO_SPOT,
 	offsetPhrase,
+	overrunText,
 	restText,
 	roundToTotal,
 	spotAnchorId,
@@ -246,5 +247,14 @@ describe("spot label and anchor (F11-S04 AC3)", () => {
 		expect(spotLabel(3, 4)).toBe("Practice: bars 3–4");
 		expect(spotAnchorId(0)).toBe("practice-spot-0");
 		expect(spotAnchorId(1)).not.toBe(spotAnchorId(0));
+	});
+});
+
+describe("overrunText (F12-S04 AC5)", () => {
+	test("a short overrun, a long one and the rounding", () => {
+		expect(overrunText(300)).toBe("You played 0.3 s past the end");
+		expect(overrunText(12400)).toBe("You played 12.4 s past the end");
+		expect(overrunText(1249)).toBe("You played 1.2 s past the end");
+		expect(overrunText(1251)).toBe("You played 1.3 s past the end");
 	});
 });
