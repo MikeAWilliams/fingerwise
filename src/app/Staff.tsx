@@ -1,3 +1,4 @@
+import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
@@ -10,8 +11,12 @@ import {
 	type SongLayout,
 	type StaffOptions,
 } from "../render/staff";
-import { laneSegments } from "./lane";
-import { type PlayheadSource, SongOverlay } from "./SongOverlay";
+import { laneRows, laneSegments } from "./lane";
+import {
+	type FillSource,
+	type PlayheadSource,
+	SongOverlay,
+} from "./SongOverlay";
 
 interface StaffProps {
 	pitch: Pitch;
@@ -43,6 +48,8 @@ export interface SongView {
 	tempo: number;
 	/** What the playhead follows. */
 	playhead: PlayheadSource;
+	/** What the live fill follows; null without judging. */
+	fill: FillSource | null;
 }
 
 /**
@@ -53,9 +60,12 @@ export interface SongView {
 export function SongStaff({
 	view,
 	options,
+	readout,
 }: {
 	view: SongView;
 	options: StaffOptions;
+	/** Where the live readout's text goes, when it is on show. */
+	readout?: RefObject<HTMLElement | null>;
 }) {
 	const box = useRef<HTMLDivElement>(null);
 	const music = useRef<HTMLDivElement>(null);
@@ -69,6 +79,7 @@ export function SongStaff({
 		timeline,
 		tempo,
 		playhead,
+		fill,
 	} = view;
 	const first = lineOfNote(lines, current);
 	// What the effects read when they run, without making them redraw.
@@ -97,6 +108,10 @@ export function SongStaff({
 		() => (layout ? laneSegments(timeline, lines, layout, tempo) : []),
 		[layout, timeline, lines, tempo],
 	);
+	const rows = useMemo(
+		() => (layout ? laneRows(lines, layout) : []),
+		[layout, lines],
+	);
 	return (
 		<div class="song-staff" ref={box}>
 			<div class="song-staff-music" ref={music} />
@@ -104,8 +119,11 @@ export function SongStaff({
 				<SongOverlay
 					layout={layout}
 					segments={segments}
+					rows={rows}
 					tempo={tempo}
 					playhead={playhead}
+					fill={fill}
+					readout={readout}
 				/>
 			)}
 		</div>

@@ -1,3 +1,4 @@
+import { useRef } from "preact/hooks";
 import { glyphFor, type Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import type { StaffOptions } from "../render/staff";
@@ -27,6 +28,8 @@ interface CardProps {
 	 */
 	timed?: "ready" | "playing" | "summary";
 	timedSummary?: string;
+	/** A timed song with its stream running: the reveal area has room for what is heard now. */
+	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
 	song?: SongView;
 	instrument: Instrument;
@@ -45,6 +48,7 @@ export function Card({
 	need = null,
 	timed,
 	timedSummary,
+	readout = false,
 	song,
 	instrument,
 	staffOptions,
@@ -52,11 +56,13 @@ export function Card({
 }: CardProps) {
 	const glyph = glyphFor(instrument, pitch);
 	const view = glyph === undefined ? null : tabView(glyph, font);
+	// Its text is set each frame by the song overlay, not by Preact.
+	const heard = useRef<HTMLParagraphElement>(null);
 	return (
 		<div class={song ? "card card-song" : "card"}>
 			<div class="card-staff">
 				{song ? (
-					<SongStaff view={song} options={staffOptions} />
+					<SongStaff view={song} options={staffOptions} readout={heard} />
 				) : (
 					<Staff pitch={pitch} options={staffOptions} beats={beats} />
 				)}
@@ -66,6 +72,7 @@ export function Card({
 			>
 				{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
 				{timed === "summary" && <p class="card-status">{timedSummary}</p>}
+				{readout && <p class="card-status card-readout" ref={heard} />}
 				{!revealed && listening === "locked" && (
 					<p class="card-status">{LISTEN_PROMPT}</p>
 				)}

@@ -74,6 +74,26 @@ main {
 	vector-effect: non-scaling-stroke;
 }
 
+.lane-guides {
+	fill: none;
+	stroke: #888;
+	stroke-width: 0.5;
+	stroke-dasharray: 2 2;
+	opacity: 0.6;
+}
+
+.fill-green {
+	fill: #17692e;
+}
+
+.fill-amber {
+	fill: #b26a00;
+}
+
+.fill-red {
+	fill: #b3261e;
+}
+
 .lane-ungraded {
 	fill: #ececec;
 }

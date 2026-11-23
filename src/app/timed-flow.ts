@@ -5,6 +5,7 @@ import {
 	type CoverageResult,
 	type CoverageRun,
 	createCoverageRun,
+	type Progress,
 } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import {
@@ -104,6 +105,10 @@ export interface TimedFlow {
 	step(): void;
 	/** Cancel the timer and every click. */
 	stop(): void;
+	/** The scoring so far, for drawing it live; null when nothing is scored (judging off, a stream not running) and after the summary. */
+	progress(): Progress | null;
+	/** The newest reading from the microphone, or null when there is none. */
+	reading(): PitchReading | null;
 }
 
 export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
@@ -129,6 +134,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	let opening = false;
 	// Bumped on every start of the stream and on stop, so a late result knows it is stale.
 	let attempt = 0;
+	let latest: PitchReading | null = null;
 	// The song's scoring while it plays and until its summary; null when nothing is scored.
 	let scoring: {
 		run: CoverageRun;
@@ -180,6 +186,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 
 	/** Places a reading and its level blocks in song time and feeds them to the scoring. */
 	function onReading(reading: PitchReading): void {
+		latest = reading;
 		const current = scoring;
 		if (!current || reading.audioTime === undefined) return;
 		const audioTime = reading.audioTime;
@@ -345,10 +352,13 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			if (stopped || opening) return;
 			if (phase === "ready" || phase === "summary") begin();
 		},
+		progress: () => scoring?.run.progress() ?? null,
+		reading: () => latest,
 		stop() {
 			stopped = true;
 			attempt++;
 			scoring = null;
+			latest = null;
 			cancel();
 			clicker?.stop();
 			if (!listen) return;

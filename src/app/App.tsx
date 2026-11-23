@@ -55,6 +55,7 @@ import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
 import {
 	createTimedFlow,
+	type TimedFlow,
 	type TimedListen,
 	type TimedState,
 } from "./timed-flow";
@@ -88,6 +89,10 @@ const BAND = frequencyBand(instrument);
 /** The playhead's clocks: stable functions, so its frame loop restarts only with the song. */
 const playheadNow = () => timedClock.now();
 const playheadLatency = () => outputLatencySeconds(audio);
+/** The timed flow now running, for the overlay to read its scoring and readings; stable functions, so its frame loop restarts only with the song. */
+let activeTimed: TimedFlow | null = null;
+const fillProgress = () => activeTimed?.progress() ?? null;
+const fillReading = () => activeTimed?.reading() ?? null;
 
 function listenFor(settings: Settings): CardListen | null {
 	if (!settings.judgeEnabled) return null;
@@ -303,8 +308,10 @@ export function App() {
 		};
 		document.addEventListener("click", onClick);
 		window.addEventListener("keydown", onKeyDown);
+		if (timedSong && song !== null) activeTimed = flow as TimedFlow;
 		flow.start();
 		return () => {
+			if (activeTimed === flow) activeTimed = null;
 			document.removeEventListener("click", onClick);
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
@@ -349,6 +356,10 @@ export function App() {
 							: timed.phase
 					}
 					timedSummary={summaryText(timed.summary)}
+					readout={
+						timed.listening === "running" &&
+						(timed.phase === "count-in" || timed.phase === "playing")
+					}
 					song={
 						song === null || timeline === null
 							? undefined
@@ -368,6 +379,14 @@ export function App() {
 										now: playheadNow,
 										outputLatency: playheadLatency,
 									},
+									fill: settings.judgeEnabled
+										? {
+												progress: fillProgress,
+												reading: fillReading,
+												tolerance: settings.toleranceCents,
+												instrument,
+											}
+										: null,
 								}
 					}
 					instrument={instrument}

@@ -1,6 +1,7 @@
 import type { Timeline } from "../core/coverage";
 import type { Bar } from "../core/song";
 import { rowMap, type SongLayout } from "../render/staff";
+import type { LaneRow } from "./trace";
 
 /** Beats closer than this count as the same time, as `songBars` counts them. */
 const BEAT_EPSILON = 1e-3;
@@ -76,4 +77,25 @@ export function laneSegments(
 		}
 	});
 	return segments;
+}
+
+/** What the fill needs of each row on show: its beats, its map and its lane. */
+export function laneRows(
+	lines: readonly Bar[][],
+	layout: SongLayout,
+): LaneRow[] {
+	return layout.rows.map((row) => {
+		const bars = lines[row.line] ?? [];
+		const first = bars[0];
+		const last = bars[bars.length - 1];
+		return {
+			from: first?.start ?? 0,
+			to: last
+				? last.start + last.items.reduce((sum, item) => sum + item.beats, 0)
+				: 0,
+			map: rowMap(row.stops),
+			laneTop: row.laneTop,
+			laneBottom: row.laneBottom,
+		};
+	});
 }

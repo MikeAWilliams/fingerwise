@@ -442,6 +442,23 @@ describe("minimum graded length (AC5)", () => {
 		expect(r.graded).toBe(2);
 	});
 
+	test("its segments say whether they are in a graded note or rest", () => {
+		const s = song([
+			["C4", 0, 1],
+			["D4", 1, 0.1],
+			["E4", 1.1, 1],
+		]);
+		const run = createCoverageRun(buildTimeline(s, TEMPO), options);
+		feed(run, spans([0, 500, hz("C4")], [500, 550, hz("D4")]), { to: 1500 });
+		run.finish();
+		const segments = run.progress().segments;
+		expect(segments.some((g) => g.graded)).toBe(true);
+		expect(segments.filter((g) => !g.graded).length).toBeGreaterThan(0);
+		for (const g of segments) {
+			expect(g.graded).toBe(g.startMs < 500 || g.startMs >= 550);
+		}
+	});
+
 	test("a rest too short is not graded and has its own count", () => {
 		const s = song([
 			["C4", 0, 1],

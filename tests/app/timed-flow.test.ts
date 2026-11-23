@@ -728,6 +728,41 @@ describe("scoring by coverage (F09-S03)", () => {
 		});
 	});
 
+	describe("progress and the newest reading (F09-S06)", () => {
+		test("progress is the scoring's while it runs, and null before, after and without it", async () => {
+			const song = songOf([1]);
+			const { flow, listener } = listenSetup(song);
+			expect(flow.progress()).toBeNull();
+			await run(flow, listener, played(song), 100, FIRST_SLOT_MS + 400);
+			const during = flow.progress();
+			expect(during).not.toBeNull();
+			expect(during?.open.length).toBeGreaterThan(0);
+			hear(listener, played(song), 100, FIRST_SLOT_MS + 500 + 150);
+			expect(last().phase).toBe("summary");
+			expect(flow.progress()).toBeNull();
+			const unscored = listenSetup(song, { auto: LOCKED });
+			unscored.flow.step();
+			await settle();
+			expect(unscored.flow.progress()).toBeNull();
+			unscored.flow.stop();
+			const off = setup(song);
+			off.step();
+			expect(off.progress()).toBeNull();
+		});
+
+		test("the newest reading is kept, and cleared by stop", async () => {
+			const { flow, listener } = listenSetup(songOf([1]));
+			expect(flow.reading()).toBeNull();
+			flow.step();
+			await settle();
+			listener.read({ frequency: 440 });
+			listener.read({ frequency: 330 });
+			expect(flow.reading()?.frequency).toBe(330);
+			flow.stop();
+			expect(flow.reading()).toBeNull();
+		});
+	});
+
 	describe("the end of the run (AC5, AC6)", () => {
 		test("the run ends one lag after the last slot ends, and the summary shows then", async () => {
 			const { flow } = listenSetup(songOf([1]), {}, 0.145);
