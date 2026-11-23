@@ -1,6 +1,6 @@
 # F09: Timed scoring
 
-- **Status:** designed
+- **Status:** done
 
 > This design started from a review of how [F08](../08-timed-play-along/design.md) scores a timed song, and the scoring model was chosen in dialog, both on 2026-11-22. It is recorded in [ADR 0009](../../architecture/decisions/0009-timed-songs-scored-by-coverage.md), backed by the [gap detection](../../research/gap-detection-spike.md) and [slur](../../research/abcjs-slur-spike.md) spikes. The numbers are starting values, to be tuned in the live check.
 
