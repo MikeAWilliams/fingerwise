@@ -26,6 +26,14 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 07  | Song practice                  | done          |
 | 08  | Timed play-along               | done          |
 | 09  | Timed scoring                  | done          |
-| 10  | Other instruments and clefs    | parked        |
+| 10  | Scrolling song view            | designed      |
 
-This index is the feature order. Folders are created when a feature is designed, not before; a parked feature keeps a short design as a placeholder.
+This index is the feature order. Folders are created when a feature is designed, not before.
+
+## Parked
+
+Ideas not planned yet. They have no number, so a feature planned later never forces a renumber; one gets its number, and its folder moves out of [`parked/`](parked/), when it is scheduled.
+
+| Idea                        | Design |
+| --------------------------- | ------ |
+| Other instruments and clefs | [parked/other-instruments-and-clefs](parked/other-instruments-and-clefs/design.md) |

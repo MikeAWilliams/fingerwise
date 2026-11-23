@@ -21,6 +21,6 @@ Feature 1 reveals a fingering diagram after the delay. The vision leaned toward 
 ## Consequences
 - Tablature data in the JSON is opaque: a character cannot be checked without looking at the font. Trust in the font is a stated assumption.
 - Half-covered holes are not representable. An instrument needing them would need another renderer.
-- The instrument definition needs a renderer reference (font family) plus per-pitch glyph characters. Another hole count needs its own font or a new renderer; that is feature 10's problem.
+- The instrument definition needs a renderer reference (font family) plus per-pitch glyph characters. Another hole count needs its own font or a new renderer; that is a problem for the parked [other instruments and clefs](../../features/parked/other-instruments-and-clefs/design.md) idea.
 - Loading the font is a UI concern (`src/render/`); `src/core/` only passes the glyph string through.
 - The OFL notice, copyright line and source URL must be in the repo and the shipped build. The story that adds the font must obtain the license text from upstream, not write it from memory.
