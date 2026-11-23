@@ -4,8 +4,12 @@ import {
 	type AnalysisInput,
 	analyse,
 	DRIFT_MIN_NOTES,
+	mannWhitneyExact,
+	mannWhitneyLower,
+	mannWhitneyNormal,
 	median,
 	PER_LENGTH_MIN,
+	practiceSpots,
 	theilSen,
 } from "../../src/core/analysis";
 import analysisSource from "../../src/core/analysis/index.ts?raw";
@@ -13,11 +17,12 @@ import {
 	buildTimeline,
 	type CoverageOptions,
 	createCoverageRun,
+	type ItemScore,
 	TIMING_TOLERANCE_MS,
 } from "../../src/core/coverage";
 import { DEFAULT_THRESHOLDS } from "../../src/core/judge";
 import { type Pitch, parsePitch, toFrequency } from "../../src/core/pitch";
-import { createSong, DEFAULT_METER } from "../../src/core/song";
+import { createSong, DEFAULT_METER, songBars } from "../../src/core/song";
 
 const STEP = 16.7;
 const BLOCK = 2.67;
@@ -504,6 +509,321 @@ describe("tempo drift (AC7)", () => {
 		console.info(
 			`large drift fit: first ${d?.first.toFixed(0)} ms, last ${d?.last.toFixed(0)} ms, true 0 to 750 ms`,
 		);
+	});
+});
+
+/** A song of `bars` bars of four quarter notes at ♩ = 120 (2000 ms a bar), with `firstBar` beats before the first bar line. */
+function barsSong(bars: number, firstBar?: number) {
+	const notes = Array.from({ length: bars * 4 }, (_, i) => ({
+		pitch: pitch("C4"),
+		start: i,
+		beats: 1,
+	}));
+	return createSong(notes, {
+		tempo: null,
+		meter: DEFAULT_METER,
+		...(firstBar === undefined ? {} : { firstBar }),
+	});
+}
+
+/** Graded items placed in bars: `perBar[b]` are the coverages of the items that start in bar b. */
+function placed(perBar: number[][], barMs = 2000): { items: ItemScore[] } {
+	const items: ItemScore[] = [];
+	perBar.forEach((coverages, b) => {
+		coverages.forEach((coverage, k) => {
+			items.push({
+				kind: "note",
+				index: items.length,
+				startMs: b * barMs + k * 100,
+				endMs: b * barMs + k * 100 + 90,
+				graded: true,
+				coverage,
+				inTune: null,
+				startEdge: false,
+				endEdge: false,
+				soundStartMs: null,
+				soundedMs: null,
+			});
+		});
+	});
+	return { items };
+}
+
+/** A deterministic wobble in 0..1 for a little noise. */
+const wobble = (i: number) => ((i * 37) % 11) / 11;
+
+describe("practice spots (S02)", () => {
+	const spots = (perBar: number[][], firstBar?: number) =>
+		practiceSpots({
+			song: barsSong(perBar.length, firstBar),
+			tempo: TEMPO,
+			result: placed(perBar),
+		});
+	/** Good bars with a bad stretch. */
+	const withBad = (bars: number, bad: number[], noise = 0) =>
+		Array.from({ length: bars }, (_, b) =>
+			Array.from({ length: 5 }, (_, k) =>
+				bad.includes(b)
+					? Math.max(0, 0.2 + noise * wobble(b * 5 + k) * 0.3)
+					: Math.min(1, 0.95 - noise * wobble(b * 5 + k) * 0.3),
+			),
+		);
+
+	test("one clearly bad span is found, with its bars, beats and means", () => {
+		const r = spots(withBad(8, [2, 3]));
+		expect(r.tested).toBe(true);
+		expect(r.spots).toHaveLength(1);
+		const spot = r.spots[0];
+		expect(spot).toMatchObject({
+			firstBar: 3,
+			lastBar: 4,
+			startBeat: 8,
+			endBeat: 16,
+		});
+		near(spot?.coverage, 0.2, 0.001);
+		near(spot?.elsewhere, 0.95, 0.001);
+	});
+
+	test("the same with noise is still found", () => {
+		const r = spots(withBad(8, [2, 3], 1));
+		expect(r.spots[0]).toMatchObject({ firstBar: 3, lastBar: 4 });
+	});
+
+	test("the last span ends at the song's end", () => {
+		const r = spots(withBad(6, [4, 5]));
+		expect(r.spots[0]).toMatchObject({ firstBar: 5, lastBar: 6, endBeat: 24 });
+	});
+
+	test("one bad item alone is not found", () => {
+		const bars = withBad(8, []);
+		(bars[3] as number[])[0] = 0;
+		expect(spots(bars).spots).toEqual([]);
+		expect(spots(bars).tested).toBe(true);
+	});
+
+	test("uniformly low and uniformly high give none", () => {
+		const flat = (v: number) =>
+			Array.from({ length: 8 }, () => Array.from({ length: 5 }, () => v));
+		expect(spots(flat(0.3))).toEqual({ tested: true, spots: [] });
+		expect(spots(flat(1))).toEqual({ tested: true, spots: [] });
+	});
+
+	test("two bad spans far apart are both found, lowest p first", () => {
+		const bars = withBad(12, [1, 2, 8, 9]);
+		// Make the first stretch less bad so the second has the lower p.
+		bars[1] = [0.5, 0.5, 0.5, 0.5, 0.5];
+		bars[2] = [0.5, 0.5, 0.5, 0.5, 0.5];
+		const r = spots(bars);
+		expect(r.spots.map((x) => x.firstBar)).toEqual([9, 2]);
+		expect(r.spots[0]?.p).toBeLessThanOrEqual(r.spots[1]?.p ?? 0);
+	});
+
+	test("two overlapping bad spans give one", () => {
+		const r = spots(withBad(10, [3, 4, 5]));
+		expect(r.spots).toHaveLength(1);
+	});
+
+	test("a two-bar song is not tested", () => {
+		expect(
+			spots([
+				[0, 1],
+				[0, 1],
+			]),
+		).toEqual({ tested: false, spots: [] });
+	});
+
+	test("a pickup bar counts as bar 1", () => {
+		// One beat of pickup: bar 1 is beat 0 to 1, then bars of four.
+		const perBar = withBad(8, [3, 4]);
+		const song = barsSong(8, 1);
+		const bars = songBars(song);
+		expect(bars[0]?.start).toBe(0);
+		const items = placed(
+			bars.map((bar, b) =>
+				Array.from({ length: 5 }, () => (b === 3 || b === 4 ? 0.2 : 0.95)),
+			),
+			0,
+		);
+		// Place each item at its bar's own start.
+		items.items.forEach((item, i) => {
+			const bar = bars[Math.floor(i / 5)];
+			const start = ((bar?.start ?? 0) * 60000) / TEMPO + (i % 5) * 10;
+			Object.assign(item, { startMs: start, endMs: start + 5 });
+		});
+		const r = practiceSpots({ song, tempo: TEMPO, result: items });
+		expect(r.spots[0]).toMatchObject({ firstBar: 4, lastBar: 5 });
+		expect(r.spots[0]?.startBeat).toBe(bars[3]?.start);
+		expect(perBar.length).toBe(8);
+	});
+
+	test("ties at 0 and 1 are handled", () => {
+		const bars = Array.from({ length: 8 }, (_, b) =>
+			Array.from({ length: 4 }, () => (b === 2 || b === 3 ? 0 : 1)),
+		);
+		const r = spots(bars);
+		expect(r.spots[0]).toMatchObject({ firstBar: 3, lastBar: 4 });
+		expect(r.spots[0]?.coverage).toBe(0);
+		expect(r.spots[0]?.elsewhere).toBe(1);
+	});
+
+	test("a graded item belongs to the bar it starts in; ungraded items are ignored", () => {
+		const bars = withBad(6, [2, 3]);
+		const { items } = placed(bars);
+		items.push({
+			...(items[0] as ItemScore),
+			graded: false,
+			coverage: null,
+			startMs: 2 * 2000,
+		});
+		const r = practiceSpots({
+			song: barsSong(6),
+			tempo: TEMPO,
+			result: { items },
+		});
+		expect(r.spots[0]).toMatchObject({ firstBar: 3, lastBar: 4 });
+	});
+
+	test("a span with no graded item, or none outside it, is skipped", () => {
+		const onlyFirst = [[0.5, 0.2], [], []];
+		expect(spots(onlyFirst)).toEqual({ tested: false, spots: [] });
+	});
+
+	test("ties between spots break by lower mean, then the earlier bar", () => {
+		// Two identical bad stretches, the same p and mean: the earlier bar comes first.
+		const bars = withBad(14, [1, 2, 9, 10]);
+		const r = spots(bars);
+		expect(r.spots.map((x) => x.firstBar)).toEqual([2, 10]);
+		// The second is a little higher in mean at the same p pattern: it comes second whichever its bar.
+		const worse = withBad(14, [1, 2, 9, 10]);
+		worse[9] = [0.1, 0.1, 0.1, 0.1, 0.1];
+		worse[10] = [0.1, 0.1, 0.1, 0.1, 0.1];
+		expect(spots(worse).spots.map((x) => x.firstBar)[0]).toBe(10);
+	});
+});
+
+describe("the rank test (S02 AC7)", () => {
+	/** Every choice of `m` of the pooled values, by doubled-rank sum: the exact answer by brute force. */
+	function brute(span: number[], rest: number[]): number {
+		const pooled = [...span, ...rest];
+		const order = pooled.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+		const doubled = new Array<number>(pooled.length).fill(0);
+		for (let i = 0; i < order.length; ) {
+			let j = i;
+			while (
+				j + 1 < order.length &&
+				Math.abs(
+					(order[j + 1] as { v: number }).v - (order[i] as { v: number }).v,
+				) <= 1e-9
+			)
+				j++;
+			for (let k = i; k <= j; k++)
+				doubled[(order[k] as { i: number }).i] = i + 1 + j + 1;
+			i = j + 1;
+		}
+		const observed = doubled.slice(0, span.length).reduce((a, b) => a + b, 0);
+		let le = 0;
+		let all = 0;
+		const walk = (from: number, left: number, sum: number) => {
+			if (left === 0) {
+				all++;
+				if (sum <= observed) le++;
+				return;
+			}
+			for (let i = from; i <= pooled.length - left; i++) {
+				walk(i + 1, left - 1, sum + (doubled[i] as number));
+			}
+		};
+		walk(0, span.length, 0);
+		return le / all;
+	}
+
+	test("matches a brute-force enumeration, with and without ties", () => {
+		const cases: [number[], number[]][] = [
+			[
+				[1, 2, 3],
+				[4, 5, 6, 7],
+			],
+			[
+				[1, 5, 3],
+				[2, 4, 6, 7, 8],
+			],
+			[
+				[0.1, 0.4],
+				[0.2, 0.3, 0.5, 0.9, 0.95, 0.6],
+			],
+			[
+				[0, 0, 1],
+				[1, 1, 1, 1],
+			],
+			[
+				[0, 0.5, 0],
+				[1, 1, 0.5, 1, 0, 1, 0.5],
+			],
+			[
+				[0.2, 0.2],
+				[0.2, 0.9, 1, 1, 0.9],
+			],
+			[
+				[0, 0, 0, 1],
+				[1, 1, 1, 1, 1, 0],
+			],
+		];
+		for (const [span, rest] of cases) {
+			const exact = mannWhitneyExact(span, rest);
+			expect(exact).not.toBeNull();
+			expect(Math.abs((exact as number) - brute(span, rest))).toBeLessThan(
+				1e-12,
+			);
+		}
+	});
+
+	test("matches published table values with no ties (m = 3, n = 4)", () => {
+		expect(mannWhitneyLower([1, 2, 3], [4, 5, 6, 7])).toBeCloseTo(1 / 35, 12);
+		// U = 1: the span {1, 2, 4}.
+		expect(mannWhitneyLower([1, 2, 4], [3, 5, 6, 7])).toBeCloseTo(2 / 35, 12);
+	});
+
+	test("a span that is not lower cannot be significant", () => {
+		expect(mannWhitneyLower([5, 6, 7], [1, 2, 3, 4])).toBeGreaterThan(0.9);
+		expect(mannWhitneyLower([1, 1], [1, 1, 1])).toBe(1);
+		expect(mannWhitneyLower([], [1])).toBe(1);
+	});
+
+	test("the normal path matches the tie-corrected formula worked by hand (1e-6)", () => {
+		// span [0, 0, 1] against [1, 1, 1, 1]: N = 7, W = 1.5 + 1.5 + 5 = 8, mean 12,
+		// tie sum (8 - 2) + (125 - 5) = 126, variance 3 * 4 / 12 * (8 - 126 / 42) = 5,
+		// z = (8 + 0.5 - 12) / sqrt(5) = -1.5652476, p = Φ(z) = 0.0587624.
+		expect(
+			Math.abs(mannWhitneyNormal([0, 0, 1], [1, 1, 1, 1]) - 0.058762434),
+		).toBeLessThan(1e-6);
+		// Without ties: [1,2,3] vs [4..7]: W = 6, mean 12, variance 12/12 * 8 = 8,
+		// z = (6.5 - 12) / sqrt(8) = -1.9445436, Φ = 0.0259150.
+		expect(
+			Math.abs(mannWhitneyNormal([1, 2, 3], [4, 5, 6, 7]) - 0.0259149636),
+		).toBeLessThan(1e-6);
+	});
+
+	test("the normal path is within 0.01 of the exact one at m = 8, n = 40", () => {
+		const rest = Array.from({ length: 40 }, (_, i) => wobble(i) * 0.5 + 0.5);
+		const span = Array.from({ length: 8 }, (_, i) => wobble(i + 3) * 0.6);
+		const exact = mannWhitneyExact(span, rest);
+		expect(exact).not.toBeNull();
+		expect(
+			Math.abs(mannWhitneyNormal(span, rest) - (exact as number)),
+		).toBeLessThan(0.01);
+		const tied = Array.from({ length: 40 }, (_, i) => (i % 5 === 0 ? 0 : 1));
+		const tiedSpan = [0, 0, 0, 0, 1, 0, 0, 1];
+		const tiedExact = mannWhitneyExact(tiedSpan, tied);
+		expect(
+			Math.abs(mannWhitneyNormal(tiedSpan, tied) - (tiedExact as number)),
+		).toBeLessThan(0.01);
+	});
+
+	test("above the budget the normal approximation is used", () => {
+		const big = Array.from({ length: 600 }, (_, i) => wobble(i));
+		const span = Array.from({ length: 10 }, (_, i) => wobble(i) * 0.3);
+		expect(mannWhitneyExact(span, big)).toBeNull();
+		expect(mannWhitneyLower(span, big)).toBe(mannWhitneyNormal(span, big));
 	});
 });
 

@@ -6,13 +6,28 @@ import {
 	TIMING_TOLERANCE_MS,
 	type Timeline,
 } from "../coverage";
-import type { Song } from "../song";
+import { type Song, songBars } from "../song";
 
 /** A written length needs this many graded notes with a right reading to have its own length figure. */
 export const PER_LENGTH_MIN = 3;
 /** Tempo drift needs this many notes with a start offset. */
 export const DRIFT_MIN_NOTES = 3;
 
+/** A practice spot spans this many bars in a row. */
+export const SPAN_BARS = 2;
+/** At most this many spots are reported. */
+export const MAX_SPOTS = 2;
+/** Significance level of the one-sided rank test, before the correction for the number of spans tried. */
+export const SPOT_ALPHA = 0.05;
+/** A song needs this many bars to have candidates. */
+export const MIN_BARS = 3;
+/** The exact p-value costs about `N * m * cap` additions; above this the normal approximation is used. */
+export const EXACT_BUDGET = 2e6;
+
+/** Values closer than this are tied in the rank test. */
+const TIE_EPSILON = 1e-9;
+/** Absorbs floating-point error when placing an item in a bar. */
+const MS_EPSILON = 1e-6;
 /** Beats are rounded to this to tell lengths apart. */
 const BEATS_ROUND = 1e3;
 
@@ -56,11 +71,33 @@ export interface Habits {
 	drift: Drift | null;
 }
 
+/** A span of bars that went clearly worse than the rest. */
+export interface Spot {
+	/** Bar numbers counted from 1 over `songBars`, so a pickup bar is bar 1. */
+	firstBar: number;
+	lastBar: number;
+	/** Beats from the first note's start: the first bar's start, and the next bar's start or the song's end. */
+	startBeat: number;
+	endBeat: number;
+	/** Mean coverage of the graded notes and rests in the span, and outside it. */
+	coverage: number;
+	elsewhere: number;
+	/** The corrected-for threshold is `SPOT_ALPHA` over the number of spans tried. */
+	p: number;
+}
+
+export interface Practice {
+	/** False when the song is too short, or nothing could be compared. */
+	tested: boolean;
+	spots: Spot[];
+}
+
 export interface Analysis {
 	breakdown: Breakdown;
 	/** The share of graded rest time with sound in it; null with no graded rest. */
 	restSound: number | null;
 	habits: Habits;
+	practice: Practice;
 }
 
 /** The middle value; the mean of the middle two at an even count. */
@@ -289,5 +326,206 @@ export function analyse(input: AnalysisInput): Analysis | null {
 		breakdown: breakdownOf(input.timeline, sounds),
 		restSound: restSoundOf(input.result.items),
 		habits: habitsOf(input, sounds),
+		practice: practiceSpots(input),
 	};
+}
+
+/** The standard normal CDF, to about 1e-13: a series for the middle, a continued fraction in the tails. */
+function normalCdf(z: number): number {
+	if (z > 8) return 1;
+	if (z < -8) return 0;
+	const x = Math.abs(z) / Math.SQRT2;
+	let erfc: number;
+	if (x < 2.5) {
+		let term = x;
+		let total = x;
+		for (let n = 1; n < 80; n++) {
+			term *= (-x * x) / n;
+			total += term / (2 * n + 1);
+		}
+		erfc = 1 - (2 / Math.sqrt(Math.PI)) * total;
+	} else {
+		let fraction = x;
+		for (let k = 60; k >= 1; k--) fraction = x + k / 2 / fraction;
+		erfc = Math.exp(-x * x) / Math.sqrt(Math.PI) / fraction;
+	}
+	return z < 0 ? erfc / 2 : 1 - erfc / 2;
+}
+
+interface Ranked {
+	/** Twice the mid-rank of each span value, so every rank is an integer. */
+	doubled: number[];
+	/** The same for every pooled value, in order. */
+	all: number[];
+	/** Sizes of the groups of tied values, for the variance. */
+	ties: number[];
+}
+
+/** Ranks `span` then `rest` pooled, values within `TIE_EPSILON` tied; returns the doubled mid-ranks of the span. */
+function rank(span: readonly number[], rest: readonly number[]): Ranked {
+	const pooled = [
+		...span.map((value) => ({ value, own: true })),
+		...rest.map((value) => ({ value, own: false })),
+	].sort((a, b) => a.value - b.value);
+	const doubled: number[] = [];
+	const all: number[] = [];
+	const ties: number[] = [];
+	for (let i = 0; i < pooled.length; ) {
+		let j = i;
+		while (
+			j + 1 < pooled.length &&
+			(pooled[j + 1] as { value: number }).value -
+				(pooled[i] as { value: number }).value <=
+				TIE_EPSILON
+		) {
+			j++;
+		}
+		// Positions i + 1 to j + 1: the mid-rank is their mean, doubled it is their sum.
+		for (let k = i; k <= j; k++) {
+			all.push(i + 1 + j + 1);
+			if ((pooled[k] as { own: boolean }).own) doubled.push(i + 1 + j + 1);
+		}
+		ties.push(j - i + 1);
+		i = j + 1;
+	}
+	return { doubled, all, ties };
+}
+
+/**
+ * The one-sided p-value of `span` being lower than `rest` by the normal
+ * approximation: tie-corrected variance and a 0.5 continuity correction. 1
+ * when every value is tied.
+ */
+export function mannWhitneyNormal(
+	span: readonly number[],
+	rest: readonly number[],
+): number {
+	const m = span.length;
+	const n = rest.length;
+	if (m === 0 || n === 0) return 1;
+	const total = m + n;
+	const { doubled, ties } = rank(span, rest);
+	const w = doubled.reduce((a, b) => a + b, 0) / 2;
+	const mean = (m * (total + 1)) / 2;
+	const tieSum = ties.reduce((a, t) => a + t * t * t - t, 0);
+	const variance =
+		((m * n) / 12) * (total + 1 - tieSum / (total * (total - 1)));
+	if (!(variance > 0)) return 1;
+	return normalCdf((w + 0.5 - mean) / Math.sqrt(variance));
+}
+
+/**
+ * The exact one-sided p-value of `span` being lower, from the permutation
+ * distribution of its doubled rank sum given the pooled values (ties and all);
+ * null when the work would exceed `EXACT_BUDGET`.
+ */
+export function mannWhitneyExact(
+	span: readonly number[],
+	rest: readonly number[],
+): number | null {
+	const m = span.length;
+	const total = m + rest.length;
+	if (m === 0 || rest.length === 0) return 1;
+	const { doubled, all } = rank(span, rest);
+	const observed = doubled.reduce((a, b) => a + b, 0);
+	if (total * m * (observed + 1) > EXACT_BUDGET) return null;
+	// ways[j][s]: the ways to pick j items with doubled rank sum s, for s up to the observed sum.
+	const ways = Array.from(
+		{ length: m + 1 },
+		() => new Float64Array(observed + 1),
+	);
+	(ways[0] as Float64Array)[0] = 1;
+	all.forEach((d, i) => {
+		for (let j = Math.min(i + 1, m); j >= 1; j--) {
+			const to = ways[j] as Float64Array;
+			const from = ways[j - 1] as Float64Array;
+			for (let s = observed; s >= d; s--)
+				to[s] = (to[s] as number) + (from[s - d] as number);
+		}
+	});
+	let choose = 1;
+	for (let i = 1; i <= m; i++) choose = (choose * (total - m + i)) / i;
+	let count = 0;
+	for (const c of ways[m] as Float64Array) count += c;
+	return Math.min(1, count / choose);
+}
+
+/**
+ * The one-sided p-value of `span` being lower than `rest`, with mid-ranks for
+ * ties: exact when the work is within `EXACT_BUDGET`, else the normal
+ * approximation. An observed rank sum at or above the null mean cannot be
+ * significant and takes the normal value.
+ */
+export function mannWhitneyLower(
+	span: readonly number[],
+	rest: readonly number[],
+): number {
+	const m = span.length;
+	const n = rest.length;
+	if (m === 0 || n === 0) return 1;
+	const observed = rank(span, rest).doubled.reduce((a, b) => a + b, 0);
+	if (observed >= m * (m + n + 1)) return mannWhitneyNormal(span, rest);
+	return mannWhitneyExact(span, rest) ?? mannWhitneyNormal(span, rest);
+}
+
+const mean = (values: readonly number[]) =>
+	values.reduce((a, b) => a + b, 0) / values.length;
+
+/** Spans of `SPAN_BARS` bars whose coverages are significantly lower than the rest of the song's. */
+export function practiceSpots(
+	input: Pick<AnalysisInput, "song" | "tempo"> & {
+		result: Pick<CoverageResult, "items">;
+	},
+): Practice {
+	const bars = songBars(input.song);
+	if (bars.length < MIN_BARS) return { tested: false, spots: [] };
+	const starts = bars.map((bar) => (bar.start * 60000) / input.tempo);
+	const byBar: number[][] = bars.map(() => []);
+	for (const item of input.result.items) {
+		if (!item.graded || item.coverage === null) continue;
+		let bar = 0;
+		for (let b = 0; b < starts.length; b++) {
+			if ((starts[b] as number) <= item.startMs + MS_EPSILON) bar = b;
+		}
+		(byBar[bar] as number[]).push(item.coverage);
+	}
+
+	const last = input.song.notes[input.song.notes.length - 1];
+	const songEnd = last ? last.start + last.beats : 0;
+	const candidates: (Spot & { first: number })[] = [];
+	let tested = 0;
+	for (let first = 0; first + SPAN_BARS <= bars.length; first++) {
+		const inside: number[] = [];
+		const outside: number[] = [];
+		byBar.forEach((values, b) => {
+			(b >= first && b < first + SPAN_BARS ? inside : outside).push(...values);
+		});
+		if (inside.length === 0 || outside.length === 0) continue;
+		tested++;
+		candidates.push({
+			first,
+			firstBar: first + 1,
+			lastBar: first + SPAN_BARS,
+			startBeat: (bars[first] as { start: number }).start,
+			endBeat: bars[first + SPAN_BARS]?.start ?? songEnd,
+			coverage: mean(inside),
+			elsewhere: mean(outside),
+			p: mannWhitneyLower(inside, outside),
+		});
+	}
+	if (tested === 0) return { tested: false, spots: [] };
+
+	const ordered = candidates
+		.filter((c) => c.p < SPOT_ALPHA / tested)
+		.sort((a, b) => a.p - b.p || a.coverage - b.coverage || a.first - b.first);
+	const spots: Spot[] = [];
+	const taken = new Set<number>();
+	for (const { first, ...spot } of ordered) {
+		if (spots.length === MAX_SPOTS) break;
+		const used = Array.from({ length: SPAN_BARS }, (_, i) => first + i);
+		if (used.some((b) => taken.has(b))) continue;
+		for (const b of used) taken.add(b);
+		spots.push(spot);
+	}
+	return { tested: true, spots };
 }
