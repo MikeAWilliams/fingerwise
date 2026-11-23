@@ -1,6 +1,6 @@
 # F11: Score analysis
 
-- **Status:** done
+- **Status:** designed
 
 > Shaped in dialog on 2026-11-23, after the user's recording of "Mary Had a Little Lamb" at ♩ = 80 scored 60% covered and 82% in tune but sounded right to them. A breakdown of that recording, run through the real detector and coverage core, showed where the score went: notes sounded for about 70% of their length, started about 110 ms late, and three notes were a quarter tone off. The user does not want the rules loosened; the goal is to become a better player, so the app should explain the score the same way.
 
