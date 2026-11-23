@@ -510,3 +510,82 @@ describe("a later Q: or M: (F08-S01 AC7)", () => {
 		expect(result.song.meter).toEqual({ beats: 3, unit: 4 });
 	});
 });
+
+describe("slurs (F09-S01)", () => {
+	/** The slurred flags of each note as T or F, e.g. "TTFF". */
+	async function slurs(body: string): Promise<string> {
+		const { song } = await parsed(`${head}K:C\n${body}`);
+		return song.notes.map((n) => (n.slurred ? "T" : "F")).join("");
+	}
+
+	test.each([
+		["(CDE) F", "TTFF"],
+		["((CD)E)", "TTF"],
+		["(C D)(E F)", "TFTF"],
+		["(CD|EF) G", "TTTFF"],
+		["(CD\nEF) G", "TTTFF"],
+		["(3(CDE) F", "TTFF"],
+		["(C2-C2) D", "FF"],
+		["(C2-|C2 D) E", "TFF"],
+		[".(CDE) F", "TTFF"],
+		["C !tenuto!D E", "FFF"],
+		["|:C(D:|1 E) F:|2 G", "FTFFFFF"],
+		["(C z D) E", "FFF"],
+	])("%s gives %s (AC2, AC3)", async (body, flags) => {
+		expect(await slurs(body)).toBe(flags);
+	});
+
+	test("a repeated slurred passage has the same flags on both plays, and the join back is not slurred (AC4)", async () => {
+		expect(await slurs("|:(C D) E:|")).toBe("TFFTFF");
+	});
+
+	test("a slur still open at the end is a problem at the note that opened it (AC5)", async () => {
+		const found = await problems(`${head}K:C\nC (D E F|]`);
+		expect(found).toEqual([
+			{
+				message: "Slur opened here is never closed",
+				line: 4,
+				note: 2,
+				column: expect.any(Number),
+			},
+		]);
+		expect(found[0]?.column).toBeLessThanOrEqual(4);
+	});
+
+	test("the innermost unclosed slur is the one reported (AC5)", async () => {
+		const found = await problems(`${head}K:C\n(C (D E) F|]`);
+		expect(found.map((p) => [p.message, p.note])).toEqual([
+			["Slur opened here is never closed", 1],
+		]);
+	});
+
+	test("a close with nothing open is a problem at the closing note (AC6)", async () => {
+		const found = await problems(`${head}K:C\nC D) E|]`);
+		expect(found).toEqual([
+			{
+				message: "Slur closed here was never opened",
+				line: 4,
+				note: 2,
+				column: 3,
+			},
+		]);
+	});
+
+	test("a tune without slurs has no slurred notes and the same song as before (AC7)", async () => {
+		const { song } = await parsed(
+			"X:1\nT:t\nM:3/4\nQ:1/4=100\nL:1/4\nK:C\nC D E | F G A |]",
+		);
+		expect(song.notes.every((n) => n.slurred === false)).toBe(true);
+		expect(song.notes.map((n) => [n.start, n.beats])).toEqual([
+			[0, 1],
+			[1, 1],
+			[2, 1],
+			[3, 1],
+			[4, 1],
+			[5, 1],
+		]);
+		expect(song.tempo).toBe(100);
+		expect(song.meter).toEqual({ beats: 3, unit: 4 });
+		expect(song.firstBar).toBe(3);
+	});
+});

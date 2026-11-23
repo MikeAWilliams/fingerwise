@@ -9,11 +9,11 @@ A tune as an ordered list of notes (pitch, start and length in beats), with its 
 ## Public interface
 
 - `class SongError extends Error`: thrown for an empty song or a bad number (below).
-- `interface SongNote { pitch; start; beats }`: `start` and `beats` are in quarter-note beats, `start` counted from the first note's start.
+- `interface SongNote { pitch; start; beats; slurred? }`: `start` and `beats` are in quarter-note beats, `start` counted from the first note's start. `slurred` means slurred to the next played note; `createSong` stores it as a boolean (a missing one is false). Nothing reads it yet.
 - `interface Meter { beats; unit }`: the top and bottom numbers.
 - `interface Song { notes; pitches; tempo; meter; firstBar }`: `firstBar` is the beats from the first note to the first bar line, shorter than a bar for a pickup and a whole bar otherwise; `pitches` is derived from `notes` for code that ignores rhythm (the card flow's `songSource`, `songOutOfRange`); `tempo` is quarter notes per minute, or `null` when the tune gives none.
 - `DEFAULT_TEMPO = 90` and `DEFAULT_METER = { beats: 4, unit: 4 }`: what a tune without `Q:` or `M:` is played with. The song itself keeps `tempo: null`; callers pass the default.
-- `createSong(notes, { tempo, meter, firstBar? }): Song`: holds copies; `firstBar` defaults to a whole bar. Throws `SongError` for an empty list, a tempo that is not finite and positive (when not null), a note length, meter number or first bar that is not finite and positive, or starts that decrease.
+- `createSong(notes, { tempo, meter, firstBar? }): Song`: holds copies; `firstBar` defaults to a whole bar and `slurred` to false. Throws `SongError` for an empty list, a tempo that is not finite and positive (when not null), a note length, meter number or first bar that is not finite and positive, or starts that decrease.
 - `barBeats(meter): number`: quarter-note beats in one bar (4/4 is 4, 6/8 is 3).
 - `songBars(song): Bar[]`: the song cut at its bar lines, for the timed song's staff. `Bar { start; items }`, each item a `{ kind: "note", index, pitch, beats, tied }` piece or a `{ kind: "rest", beats }`. The first bar is `firstBar` long, the rest a whole bar; the gap between one note's end and the next note's start becomes a rest; a note over a bar line is split into pieces, each but the last `tied`; the last bar ends with the last note. Times within 0.001 beat count as equal, since abcjs rounds its starts.
 - `songLines(song, barsPerLine): Bar[][]`: `songBars` grouped into lines; the last line may be shorter.
