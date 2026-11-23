@@ -16,6 +16,7 @@ import {
 	parseDefaults,
 	type Settings,
 	SettingsError,
+	scoringAfterApplies,
 	setAutoAdvance,
 	setIncludeSharps,
 	setSoundEnabled,
@@ -61,6 +62,7 @@ function settings(
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	};
@@ -85,6 +87,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 		...over,
@@ -599,6 +602,7 @@ describe("judge fields", () => {
 				useSong: false,
 				keepTempo: false,
 				metronome: false,
+				scoring: "live",
 				songAbc: "",
 			});
 		}
@@ -676,6 +680,7 @@ describe("song fields", () => {
 			useSong: true,
 			keepTempo: false,
 			metronome: false,
+			scoring: "live",
 			songAbc: tune,
 		});
 		expect(
@@ -708,6 +713,7 @@ describe("song fields", () => {
 				useSong: false,
 				keepTempo: false,
 				metronome: false,
+				scoring: "live",
 				songAbc: tune,
 			});
 		}
@@ -726,6 +732,7 @@ describe("song fields", () => {
 				useSong: true,
 				keepTempo: false,
 				metronome: false,
+				scoring: "live",
 				songAbc: "",
 			});
 		}
@@ -739,6 +746,7 @@ describe("song fields", () => {
 			useSong: false,
 			keepTempo: false,
 			metronome: false,
+			scoring: "live",
 			songAbc: "",
 		});
 	});
@@ -758,6 +766,7 @@ describe("song fields", () => {
 				useSong: true,
 				keepTempo: false,
 				metronome: false,
+				scoring: "live",
 				songAbc: tune,
 			});
 		}
@@ -781,6 +790,7 @@ describe("song fields", () => {
 			useSong: false,
 			keepTempo: false,
 			metronome: false,
+			scoring: "live",
 			songAbc: tune,
 		});
 		expect(parseDefaults(json(), instrument)).toMatchObject({ songAbc: "" });
@@ -880,6 +890,7 @@ describe("keep tempo (F08-S02 AC1)", () => {
 			useSong: true,
 			keepTempo: false,
 			metronome: false,
+			scoring: "live",
 		});
 	});
 
@@ -897,6 +908,7 @@ describe("keep tempo (F08-S02 AC1)", () => {
 				delaySeconds: 5,
 				keepTempo: false,
 				metronome: false,
+				scoring: "live",
 			});
 		}
 	});
@@ -982,6 +994,7 @@ describe("metronome (F08-S04 AC1)", () => {
 			delaySeconds: 7,
 			keepTempo: true,
 			metronome: false,
+			scoring: "live",
 		});
 	});
 
@@ -998,6 +1011,7 @@ describe("metronome (F08-S04 AC1)", () => {
 				keepTempo: true,
 				delaySeconds: 5,
 				metronome: false,
+				scoring: "live",
 			});
 		}
 	});
@@ -1023,6 +1037,78 @@ describe("metronome (F08-S04 AC1)", () => {
 					expect(
 						metronomeApplies({ ...DEFAULTS, useSong, keepTempo, metronome }),
 					).toBe(useSong && keepTempo && metronome);
+				}
+			}
+		}
+	});
+});
+
+describe("scoring (F12-S01)", () => {
+	test("is live in the test defaults and round trips", () => {
+		expect(DEFAULTS.scoring).toBe("live");
+		const input: Settings = { ...DEFAULTS, scoring: "after" };
+		expect(toSettingsJson(input)).toMatchObject({ scoring: "after" });
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
+	test("the strict parse needs live or after", () => {
+		expect(parseDefaults(json({ scoring: "after" }), instrument)).toMatchObject(
+			{ scoring: "after" },
+		);
+		for (const scoring of [undefined, "Live", 1, null, true]) {
+			expect(() => parseDefaults(json({ scoring }), instrument)).toThrow(
+				SettingsError,
+			);
+			expect(() => parseDefaults(json({ scoring }), instrument)).toThrow(
+				"scoring",
+			);
+		}
+	});
+
+	test("old data without it loads live and keeps every other field", () => {
+		const { scoring, ...old } = json({ delaySeconds: 7, keepTempo: true });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+			keepTempo: true,
+			scoring: "live",
+		});
+	});
+
+	test("a bad stored value resets alone", () => {
+		for (const scoring of ["Live", "both", 1, null, true]) {
+			expect(
+				validateSettings(
+					json({ scoring, keepTempo: true, delaySeconds: 5 }),
+					instrument,
+					DEFAULTS,
+				),
+			).toEqual({
+				...DEFAULTS,
+				keepTempo: true,
+				delaySeconds: 5,
+				scoring: "live",
+			});
+		}
+	});
+
+	test("scoringAfterApplies needs use song, keep tempo, judging and after", () => {
+		for (const useSong of [false, true]) {
+			for (const keepTempo of [false, true]) {
+				for (const judgeEnabled of [false, true]) {
+					for (const scoring of ["live", "after"] as const) {
+						expect(
+							scoringAfterApplies({
+								...DEFAULTS,
+								useSong,
+								keepTempo,
+								judgeEnabled,
+								scoring,
+							}),
+						).toBe(useSong && keepTempo && judgeEnabled && scoring === "after");
+					}
 				}
 			}
 		}

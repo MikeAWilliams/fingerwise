@@ -1,6 +1,6 @@
 import defaultsJson from "../../data/settings/defaults.json";
 import type { AbcProblem, AbcResult } from "../abc";
-import type { Settings } from "../core/settings";
+import { type Settings, scoringAfterApplies } from "../core/settings";
 import { DEFAULT_TEMPO, type Song } from "../core/song";
 
 /** What the app holds of the player's song, apart from the saved text. */
@@ -117,7 +117,10 @@ export function canUseSong(song: Song | null): boolean {
 /** One line of the Song section's values, shown while it is closed. */
 export function songSectionSummary(settings: Settings): string {
 	if (!settings.useSong) return "off";
-	return settings.keepTempo ? "on, keep tempo" : "on";
+	if (!settings.keepTempo) return "on";
+	return scoringAfterApplies(settings)
+		? "on, keep tempo, scored after the song"
+		: "on, keep tempo";
 }
 
 /** The default song, also shown greyed in the empty box so the format is clear. */

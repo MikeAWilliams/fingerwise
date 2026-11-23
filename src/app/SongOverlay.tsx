@@ -10,9 +10,12 @@ import {
 	createReadoutThrottle,
 	HEARING_NOTHING,
 	hearingText,
+	OVERRUN_LABEL,
+	overrunMoreText,
 } from "./judge-text";
 import type { LaneSegment } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
+import { OVERRUN_LABEL_SIZE, type OverrunLane } from "./overrun";
 import { playheadBeat, playheadPlace } from "./playhead";
 import {
 	emptyPaths,
@@ -20,6 +23,7 @@ import {
 	type RowPaths,
 	rowsToUpdate,
 	segmentPaths,
+	settledPaths,
 	TRACE_COLOURS,
 	traceY,
 } from "./trace";
@@ -114,6 +118,9 @@ export function SongOverlay({
 	tempo,
 	playhead,
 	fill,
+	after = false,
+	scored = null,
+	overrun = null,
 	readout,
 	onRow,
 	spots = [],
@@ -126,6 +133,12 @@ export function SongOverlay({
 	playhead: PlayheadSource;
 	/** Null without scoring (judging off): the lane never fills. */
 	fill: FillSource | null;
+	/** Scoring after the song: no playhead, lanes, fill or marks while the song runs; the page still follows it. */
+	after?: boolean;
+	/** The finished scoring, drawn at once in `after`; null until the summary. */
+	scored?: Progress | null;
+	/** The overrun's lane under the last line, or null for none; the view box grows to hold it. */
+	overrun?: OverrunLane | null;
 	/** Where the readout's text goes, when it is on show. */
 	readout?: RefObject<HTMLElement | null>;
 	/** Called when the playhead reaches a row it has not reported (the first frame reports row 0). */
@@ -139,6 +152,8 @@ export function SongOverlay({
 	const paths = useRef<(SVGPathElement | null)[]>([]);
 	const markPaths = useRef<(SVGPathElement | null)[]>([]);
 	const { running, origin, now, outputLatency } = playhead;
+	// Lanes show live, or after the song once the finished scoring is in.
+	const show = !after || scored !== null;
 	const progress = fill?.progress;
 	const reading = fill?.reading;
 	const tolerance = fill?.tolerance;
@@ -183,27 +198,28 @@ export function SongOverlay({
 				el.setAttribute("x2", x);
 				el.setAttribute("y1", String(row.top));
 				el.setAttribute("y2", String(row.laneBottom));
-				el.removeAttribute("visibility");
+				// Scoring after the song never shows the playhead.
+				if (!after) el.removeAttribute("visibility");
 			}
-			const scored = progress?.();
-			if (scored && tolerance !== undefined) {
-				if (scored.segments !== from) {
+			const soFar = after ? null : progress?.();
+			if (soFar && tolerance !== undefined) {
+				if (soFar.segments !== from) {
 					// A new run, or the first look: start the settled paths afresh.
-					from = scored.segments;
+					from = soFar.segments;
 					consumed = 0;
 					settled = rows.map(emptyPaths);
 					clear();
 					openD = [];
 					openRows = [];
 				}
-				if (scored.segments.length > consumed) {
+				if (soFar.segments.length > consumed) {
 					const fresh = segmentPaths(
-						scored.segments.slice(consumed),
+						soFar.segments.slice(consumed),
 						rows,
 						tempo,
 						tolerance,
 					);
-					consumed = scored.segments.length;
+					consumed = soFar.segments.length;
 					fresh.forEach((add, r) => {
 						TRACE_COLOURS.forEach((colour, c) => {
 							if (add[colour] === "") return;
@@ -213,27 +229,27 @@ export function SongOverlay({
 						});
 					});
 				}
-				if (scored.timingFaults !== faultsFrom) {
-					faultsFrom = scored.timingFaults;
+				if (soFar.timingFaults !== faultsFrom) {
+					faultsFrom = soFar.timingFaults;
 					faultsDone = 0;
 					joinsDone = 0;
 					marks = rows.map(() => "");
 					for (const path of markPaths.current) path?.setAttribute("d", "");
 				}
 				if (
-					scored.timingFaults.length > faultsDone ||
-					scored.notSeparated.length > joinsDone
+					soFar.timingFaults.length > faultsDone ||
+					soFar.notSeparated.length > joinsDone
 				) {
 					const added = marksPaths(
 						faultMarks(
-							scored.timingFaults.slice(faultsDone),
-							scored.notSeparated.slice(joinsDone),
+							soFar.timingFaults.slice(faultsDone),
+							soFar.notSeparated.slice(joinsDone),
 							segments,
 						),
 						rows,
 					);
-					faultsDone = scored.timingFaults.length;
-					joinsDone = scored.notSeparated.length;
+					faultsDone = soFar.timingFaults.length;
+					joinsDone = soFar.notSeparated.length;
 					added.forEach((add, r) => {
 						if (add === "") return;
 						marks[r] += add;
@@ -243,7 +259,7 @@ export function SongOverlay({
 				const touched = rowsToUpdate(
 					rows,
 					place?.row ?? null,
-					scored.open,
+					soFar.open,
 					tempo,
 				);
 				// A row that left the set has its open fill emptied once.
@@ -258,20 +274,18 @@ export function SongOverlay({
 				}
 				openRows = touched;
 				const subset = touched.map((r) => rows[r] as LaneRow);
-				segmentPaths(scored.open, subset, tempo, tolerance).forEach(
-					(now, i) => {
-						const r = touched[i] as number;
-						TRACE_COLOURS.forEach((colour, c) => {
-							const key = r * TRACE_COLOURS.length + c;
-							if (openD[key] === now[colour]) return;
-							openD[key] = now[colour];
-							set(r, c, 1, now[colour]);
-						});
-					},
-				);
+				segmentPaths(soFar.open, subset, tempo, tolerance).forEach((now, i) => {
+					const r = touched[i] as number;
+					TRACE_COLOURS.forEach((colour, c) => {
+						const key = r * TRACE_COLOURS.length + c;
+						if (openD[key] === now[colour]) return;
+						openD[key] = now[colour];
+						set(r, c, 1, now[colour]);
+					});
+				});
 			}
 			const node = readout?.current;
-			if (node && reading && instrument) {
+			if (!after && node && reading && instrument) {
 				const heard = reading();
 				const text = heard ? hearingText(instrument, heard) : HEARING_NOTHING;
 				if (text !== node.textContent && throttle(performance.now())) {
@@ -296,11 +310,30 @@ export function SongOverlay({
 		tolerance,
 		instrument,
 		readout,
+		after,
 	]);
+	// Scoring after the song: every row's fill and marks, written once with the summary.
+	useEffect(() => {
+		if (!after) return;
+		const set = (index: number, d: string) =>
+			paths.current[index]?.setAttribute("d", d);
+		for (const path of paths.current) path?.setAttribute("d", "");
+		for (const path of markPaths.current) path?.setAttribute("d", "");
+		if (!scored || tolerance === undefined) return;
+		const settled = settledPaths(scored, segments, rows, tempo, tolerance);
+		settled.fill.forEach((row, r) => {
+			TRACE_COLOURS.forEach((colour, c) => {
+				set(fillIndex(r, c, 0), row[colour]);
+			});
+		});
+		settled.marks.forEach((d, r) => {
+			markPaths.current[r]?.setAttribute("d", d);
+		});
+	}, [after, scored, rows, segments, tempo, tolerance]);
 	return (
 		<svg
 			class="song-overlay"
-			viewBox={`0 0 ${layout.width} ${layout.height}`}
+			viewBox={`0 0 ${layout.width} ${layout.height + (overrun?.extraHeight ?? 0)}`}
 			aria-hidden="true"
 		>
 			{spots.map((spot) =>
@@ -332,36 +365,78 @@ export function SongOverlay({
 					},
 				),
 			)}
-			<path class="lane-graded" d={lanePath(layout, segments, true)} />
-			<path class="lane-ungraded" d={lanePath(layout, segments, false)} />
-			{tolerance !== undefined && (
-				<path class="lane-guides" d={guidePath(layout, tolerance)} />
+			{show && (
+				<>
+					<path class="lane-graded" d={lanePath(layout, segments, true)} />
+					<path class="lane-ungraded" d={lanePath(layout, segments, false)} />
+					{tolerance !== undefined && (
+						<path class="lane-guides" d={guidePath(layout, tolerance)} />
+					)}
+					{rows.map((_, r) =>
+						TRACE_COLOURS.map((colour, c) =>
+							[0, 1].map((open) => {
+								const index = fillIndex(r, c, open);
+								return (
+									<path
+										key={index}
+										class={`fill-${colour}`}
+										ref={(el) => {
+											paths.current[index] = el;
+										}}
+									/>
+								);
+							}),
+						),
+					)}
+					{rows.map((_, r) => (
+						<path
+							key={`marks-${r}`}
+							class="lane-marks"
+							ref={(el) => {
+								markPaths.current[r] = el;
+							}}
+						/>
+					))}
+				</>
 			)}
-			{rows.map((_, r) =>
-				TRACE_COLOURS.map((colour, c) =>
-					[0, 1].map((open) => {
-						const index = fillIndex(r, c, open);
-						return (
-							<path
-								key={index}
-								class={`fill-${colour}`}
-								ref={(el) => {
-									paths.current[index] = el;
-								}}
-							/>
-						);
-					}),
-				),
+			{overrun && (
+				<>
+					<rect
+						class="lane-graded"
+						x={overrun.x0}
+						y={overrun.top}
+						width={Math.max(0, overrun.x1 - overrun.x0)}
+						height={overrun.bottom - overrun.top}
+					/>
+					<path class="lane-guides" d={overrun.guides} />
+					{TRACE_COLOURS.map((colour) => (
+						<path
+							key={colour}
+							class={`fill-${colour}`}
+							d={overrun.paths[colour]}
+						/>
+					))}
+					<text
+						class="overrun-label"
+						x={overrun.x0}
+						y={overrun.labelY}
+						font-size={OVERRUN_LABEL_SIZE}
+					>
+						{OVERRUN_LABEL}
+					</text>
+					{overrun.more !== null && (
+						<text
+							class="overrun-label"
+							x={overrun.moreX}
+							y={overrun.labelY}
+							font-size={OVERRUN_LABEL_SIZE}
+							text-anchor="end"
+						>
+							{overrunMoreText(overrun.more)}
+						</text>
+					)}
+				</>
 			)}
-			{rows.map((_, r) => (
-				<path
-					key={`marks-${r}`}
-					class="lane-marks"
-					ref={(el) => {
-						markPaths.current[r] = el;
-					}}
-				/>
-			))}
 			<line class="playhead" ref={line} visibility="hidden" />
 		</svg>
 	);

@@ -32,6 +32,7 @@ const DEFAULTS: Settings = {
 	useSong: false,
 	keepTempo: false,
 	metronome: false,
+	scoring: "live",
 	barsPerLine: 2,
 	songAbc: "",
 };
@@ -65,6 +66,7 @@ test("saved settings load back unchanged", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	};
@@ -86,6 +88,7 @@ test("saved settings load back unchanged", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	});
@@ -143,6 +146,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	});
@@ -175,6 +179,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	});
@@ -207,6 +212,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	});
@@ -235,6 +241,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	});
@@ -272,6 +279,7 @@ test("a song and its switch save and load back", () => {
 		useSong: true,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		songAbc: "X:1\nK:C\nC D E|",
 	};
 	saveSettings(storage, settings);
@@ -279,6 +287,7 @@ test("a song and its switch save and load back", () => {
 		useSong: true,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		songAbc: "X:1\nK:C\nC D E|",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
@@ -307,6 +316,7 @@ test("settings saved before songs load with use song off and no text", () => {
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	});
@@ -328,6 +338,7 @@ test("settings saved before smart sampling load with it off and keep their field
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		songAbc: "",
 	};
 	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
@@ -346,6 +357,7 @@ test("keep tempo saves and loads back", () => {
 	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
 		keepTempo: true,
 		metronome: false,
+		scoring: "live",
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -361,6 +373,7 @@ test("settings saved before keep tempo load with it off and keep their fields", 
 		useSong: true,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 	});
 });
 
@@ -375,6 +388,7 @@ test("a non-boolean keep tempo resets alone", () => {
 		delaySeconds: 4,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 	});
 });
 
@@ -405,6 +419,7 @@ test("settings saved before the metronome load with it off and keep their fields
 		delaySeconds: 4,
 		keepTempo: true,
 		metronome: false,
+		scoring: "live",
 	});
 });
 
@@ -418,5 +433,26 @@ test("a non-boolean metronome resets alone", () => {
 		...DEFAULTS,
 		delaySeconds: 4,
 		metronome: false,
+		scoring: "live",
+	});
+});
+
+test("scoring saves and loads back (F12-S01)", () => {
+	const { storage, data } = fakeStorage();
+	const settings: Settings = { ...DEFAULTS, scoring: "after" };
+	saveSettings(storage, settings);
+	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
+		scoring: "after",
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
+});
+
+test("settings saved before scoring load it as live and keep their fields", () => {
+	const { scoring, ...old } = toSettingsJson({ ...DEFAULTS, delaySeconds: 4 });
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+		...DEFAULTS,
+		delaySeconds: 4,
+		scoring: "live",
 	});
 });

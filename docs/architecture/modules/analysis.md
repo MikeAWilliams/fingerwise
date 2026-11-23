@@ -32,7 +32,7 @@ Constants (one block at the top): `PER_LENGTH_MIN = 3`, `DRIFT_MIN_NOTES = 3`, `
 
 ## Large drift (design risk)
 
-Offsets exist only for notes with a right reading. A synthetic player who falls 50 ms further behind on each of 16 quarter notes at ♩ = 80 (750 ms by the last note, 200 ms of sound per note) gives a fit of about 0 ms at the first note and 723 ms at the last: the slowdown is seen and slightly understated, because the last note, a whole slot behind, has no right reading and drops out. Once a player is more than about half a note behind, further notes are heard against the wrong written note, so drift much beyond a quarter note is understated more. F12's overrun lane is meant to show the rest.
+Offsets exist only for notes with a right reading. A synthetic player who falls 50 ms further behind on each of 16 quarter notes at ♩ = 80 (750 ms by the last note, 200 ms of sound per note) gives a fit of about 0 ms at the first note and 723 ms at the last: the slowdown is seen and slightly understated, because the last note, a whole slot behind, has no right reading and drops out. Once a player is more than about half a note behind, further notes are heard against the wrong written note, so drift much beyond a quarter note is understated more. F12's overrun lane and "You played N s past the end" line show the rest; both are built in the app from the readings after the last note ([app](app.md)), and `analyse` is untouched.
 
 ## Dependencies
 

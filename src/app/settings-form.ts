@@ -6,12 +6,15 @@ import {
 	pitchesInRange,
 } from "../core/pitch";
 import {
+	isScoring,
 	isValidBarsPerLine,
 	isValidTolerance,
+	keepTempoApplies,
 	MAX_DELAY_SECONDS,
 	MIN_DELAY_SECONDS,
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
+	type Scoring,
 	type Settings,
 	setTimings,
 } from "../core/settings";
@@ -23,6 +26,23 @@ export const SONG_IN_USE =
 
 /** Asked before progress is cleared. */
 export const RESET_CONFIRM = "Reset progress? This can't be undone.";
+
+/** The Scoring list's choices, in order, with their labels. */
+export const SCORING_LABELS: Record<Scoring, string> = {
+	live: "Live feedback",
+	after: "After the song",
+};
+
+/** The Scoring list needs a held song, keep tempo and judging; off, it keeps its value. */
+export function scoringEnabled(settings: Settings): boolean {
+	return keepTempoApplies(settings) && settings.judgeEnabled;
+}
+
+/** The settings with `value` as the scoring, or unchanged when it is not "live" or "after". */
+export function applyScoringInput(settings: Settings, value: string): Settings {
+	if (!isScoring(value)) return settings;
+	return { ...settings, scoring: value };
+}
 
 /** The smart sampling checkbox is off-limits without judging or with a song. */
 export function smartSamplingDisabled(settings: Settings): boolean {

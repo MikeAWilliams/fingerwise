@@ -1,6 +1,13 @@
 import type { Instrument } from "../instrument";
 import { formatPitch, isNatural, type Pitch, parsePitch } from "../pitch";
 
+/** When a timed song's judging shows: as the notes play, or all at once after the song. */
+export type Scoring = "live" | "after";
+
+export function isScoring(value: unknown): value is Scoring {
+	return value === "live" || value === "after";
+}
+
 export interface Settings {
 	lowest: Pitch;
 	highest: Pitch;
@@ -17,6 +24,7 @@ export interface Settings {
 	useSong: boolean;
 	keepTempo: boolean;
 	metronome: boolean;
+	scoring: Scoring;
 	barsPerLine: number;
 	songAbc: string;
 }
@@ -38,6 +46,7 @@ export interface SettingsJson {
 	useSong: boolean;
 	keepTempo: boolean;
 	metronome: boolean;
+	scoring: Scoring;
 	barsPerLine: number;
 	songAbc: string;
 }
@@ -84,6 +93,7 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		useSong: settings.useSong,
 		keepTempo: settings.keepTempo,
 		metronome: settings.metronome,
+		scoring: settings.scoring,
 		barsPerLine: settings.barsPerLine,
 		songAbc: settings.songAbc,
 	};
@@ -139,6 +149,11 @@ export function keepTempoApplies(s: Settings): boolean {
 /** The metronome clicks on every beat of a timed song, so it needs keep tempo to apply. */
 export function metronomeApplies(s: Settings): boolean {
 	return keepTempoApplies(s) && s.metronome;
+}
+
+/** Scoring after the song hides the judging until the end, so it needs keep tempo and judging on. */
+export function scoringAfterApplies(s: Settings): boolean {
+	return keepTempoApplies(s) && s.judgeEnabled && s.scoring === "after";
 }
 
 /** Sound delay plus duration fits in the advance delay (compared with a tolerance for half seconds). */
@@ -315,6 +330,7 @@ export function validateSettings(
 		typeof obj.keepTempo === "boolean" ? obj.keepTempo : defaults.keepTempo;
 	const metronome =
 		typeof obj.metronome === "boolean" ? obj.metronome : defaults.metronome;
+	const scoring = isScoring(obj.scoring) ? obj.scoring : defaults.scoring;
 	const barsPerLine = isValidBarsPerLine(obj.barsPerLine)
 		? obj.barsPerLine
 		: defaults.barsPerLine;
@@ -354,6 +370,7 @@ export function validateSettings(
 		useSong,
 		keepTempo,
 		metronome,
+		scoring,
 		barsPerLine,
 		songAbc,
 	};
@@ -431,6 +448,9 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (typeof obj.metronome !== "boolean") {
 		throw new SettingsError("metronome must be true or false");
 	}
+	if (!isScoring(obj.scoring)) {
+		throw new SettingsError('scoring must be "live" or "after"');
+	}
 	if (!isValidBarsPerLine(obj.barsPerLine)) {
 		throw new SettingsError(
 			`barsPerLine must be a whole number from ${MIN_BARS_PER_LINE} to ${MAX_BARS_PER_LINE}`,
@@ -479,6 +499,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		useSong: obj.useSong,
 		keepTempo: obj.keepTempo,
 		metronome: obj.metronome,
+		scoring: obj.scoring,
 		barsPerLine: obj.barsPerLine,
 		songAbc: obj.songAbc,
 	};

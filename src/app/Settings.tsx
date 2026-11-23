@@ -15,6 +15,7 @@ import {
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
 	MIN_TOLERANCE_CENTS,
+	type Scoring,
 	type Settings as SettingsValue,
 	setAutoAdvance,
 	setIncludeSharps,
@@ -26,6 +27,7 @@ import { Section } from "./Section";
 import {
 	applyBarsPerLineInput,
 	applyDelayInput,
+	applyScoringInput,
 	applyToleranceInput,
 	cardsSummary,
 	editTiming,
@@ -33,7 +35,9 @@ import {
 	lowestOptions,
 	micSummary,
 	RESET_CONFIRM,
+	SCORING_LABELS,
 	SONG_IN_USE,
+	scoringEnabled,
 	smartSamplingDisabled,
 	smartSamplingNote,
 	soundSummary,
@@ -427,6 +431,22 @@ export function Settings({
 						}
 					/>
 					Metronome
+				</label>
+				<label>
+					Scoring
+					<select
+						value={settings.scoring}
+						disabled={!scoringEnabled(settings)}
+						onChange={(e) =>
+							onChange(applyScoringInput(settings, e.currentTarget.value))
+						}
+					>
+						{(Object.keys(SCORING_LABELS) as Scoring[]).map((value) => (
+							<option key={value} value={value}>
+								{SCORING_LABELS[value]}
+							</option>
+						))}
+					</select>
 				</label>
 				<label>
 					Bars per line

@@ -28,7 +28,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 09  | Timed scoring                  | done          |
 | 10  | Scrolling song view            | done          |
 | 11  | Score analysis                 | done          |
-| 12  | Score after the song           | designed      |
+| 12  | Score after the song           | done          |
 
 This index is the feature order. Folders are created when a feature is designed, not before.
 

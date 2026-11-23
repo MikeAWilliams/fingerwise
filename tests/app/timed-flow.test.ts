@@ -6,6 +6,8 @@ import {
 	INPUT_ALLOWANCE_MS,
 	LEAD_SECONDS,
 	METRONOME_LOOKAHEAD_SECONDS,
+	OVERRUN_CAP_MS,
+	OVERRUN_SILENCE_MS,
 	scoringLagMs,
 	type TimedFlow,
 	type TimedListen,
@@ -98,6 +100,9 @@ describe("ready (AC3)", () => {
 			origin: null,
 			summary: null,
 			analysis: null,
+			scored: null,
+			overrun: false,
+			overrunReadings: [],
 		});
 		vi.advanceTimersByTime(60000);
 		expect(states).toHaveLength(1);
@@ -257,6 +262,9 @@ describe("the end (AC7)", () => {
 			origin: LEAD_SECONDS + 2,
 			summary: null,
 			analysis: null,
+			scored: null,
+			overrun: false,
+			overrunReadings: [],
 		});
 		const count = states.length;
 		vi.advanceTimersByTime(60000);
@@ -421,14 +429,16 @@ describe("scoring by coverage (F09-S03)", () => {
 		song = songOf([1, 1, 1]),
 		over: Partial<FakeListener> = {},
 		outputLatency: number | null = 0.045,
+		after = false,
 	) {
 		const listener = Object.assign(new FakeListener(), over);
-		const listen: TimedListen = { listener, coverage };
+		const listen: TimedListen = { listener, coverage: { ...coverage } };
 		const flow = createTimedFlow({
 			song,
 			clock: { now },
 			clicker,
 			listen,
+			after,
 			outputLatency: () => outputLatency,
 			onChange: (s) => states.push(s),
 		});
@@ -916,6 +926,317 @@ describe("scoring by coverage (F09-S03)", () => {
 			flow.step();
 			vi.advanceTimersByTime(FIRST_SLOT_MS + 1000);
 			expect(last()).toMatchObject({ phase: "summary", summary: null });
+		});
+	});
+
+	describe("listening past the end (F12-S03)", () => {
+		const song = songOf([1, 1, 1]);
+		/** The last slot ends 1500 ms into the song; the lag is 55 + 45 = 100 ms. */
+		const SONG_END = 1500;
+		const LAG = 100;
+
+		/** Feeds readings every 16 ms of what was played, until the summary shows or `maxMs` of song time. Returns the song time of the summary, or null. */
+		async function until(
+			listener: FakeListener,
+			sound: (songMs: number) => number | null,
+			maxMs: number,
+		): Promise<number | null> {
+			while (songMs() < maxMs) {
+				listener.read({ frequency: sound(songMs() - LAG) });
+				vi.advanceTimersByTime(16);
+				if (last().phase === "summary") return songMs();
+			}
+			return null;
+		}
+
+		async function begin(after = true, metronome = false) {
+			const listener = new FakeListener();
+			const flow = createTimedFlow({
+				song,
+				clock: { now },
+				clicker,
+				metronome,
+				listen: { listener, coverage: { ...coverage } },
+				outputLatency: () => 0.045,
+				after,
+				onChange: (st) => states.push(st),
+			});
+			flow.start();
+			flow.step();
+			await settle();
+			return { flow, listener };
+		}
+
+		test("silent at the end, it ends one lag after the last slot (AC3)", async () => {
+			const { listener } = await begin();
+			const ended = await until(listener, () => null, 5000);
+			expect(ended).toBeGreaterThanOrEqual(SONG_END + LAG);
+			expect(ended).toBeLessThan(SONG_END + LAG + 20);
+		});
+
+		test("playing 2 s past the end then silence ends 1 s after the sound stops (AC1)", async () => {
+			const { listener } = await begin();
+			const ended = await until(
+				listener,
+				(ms) => (ms < SONG_END + 2000 ? hz(62) : null),
+				20000,
+			);
+			// The sound stops at 3500 ms; the song time of the end is that plus 1 s plus the lag.
+			expect(ended).toBeGreaterThanOrEqual(SONG_END + 2000 + 1000 + LAG);
+			expect(ended).toBeLessThan(SONG_END + 2000 + 1000 + LAG + 40);
+		});
+
+		test("a silence under a second then more sound does not end it (AC1)", async () => {
+			const { listener } = await begin();
+			const sound = (ms: number) =>
+				ms < SONG_END + 500 || (ms >= SONG_END + 1100 && ms < SONG_END + 2500)
+					? hz(62)
+					: null;
+			const early = await until(listener, sound, SONG_END + 2400);
+			expect(early).toBeNull();
+			expect(last()).toMatchObject({ phase: "playing", overrun: true });
+			const ended = await until(listener, sound, 20000);
+			expect(ended).toBeGreaterThanOrEqual(SONG_END + 2500 + 1000 + LAG);
+		});
+
+		test("sound that never stops ends 10 s past the end and the lag (AC2)", async () => {
+			const { listener } = await begin();
+			const early = await until(
+				listener,
+				() => hz(62),
+				SONG_END + LAG + 10000 - 20,
+			);
+			expect(early).toBeNull();
+			const ended = await until(listener, () => hz(62), 30000);
+			expect(ended).toBeGreaterThanOrEqual(SONG_END + LAG + 10000);
+			expect(ended).toBeLessThan(SONG_END + LAG + 10000 + 40);
+		});
+
+		test("the constants are 1 s and 10 s (AC9)", () => {
+			expect(OVERRUN_SILENCE_MS).toBe(1000);
+			expect(OVERRUN_CAP_MS).toBe(10000);
+		});
+
+		test("no click sounds after the last beat, the overrun included (AC4)", async () => {
+			const { listener } = await begin(true, true);
+			await until(listener, () => hz(62), 30000);
+			expect(last().phase).toBe("summary");
+			// Four count-in beats and the song's three, at 0.5 s.
+			expect(clicks).toHaveLength(7);
+			expect(Math.max(...clicks)).toBeLessThan(FIRST_SLOT_S + SONG_END / 1000);
+		});
+
+		test("overrun is true from the last slot's end until the summary (AC5)", async () => {
+			const { listener } = await begin();
+			expect(await until(listener, () => hz(62), SONG_END - 20)).toBeNull();
+			expect(last().overrun).toBe(false);
+			await until(listener, () => hz(62), SONG_END + 40);
+			expect(last()).toMatchObject({ phase: "playing", overrun: true });
+			expect(states.every((st) => st.phase !== "summary")).toBe(true);
+			await until(listener, () => null, 20000);
+			expect(last()).toMatchObject({ phase: "summary", overrun: false });
+			expect(states.filter((st) => st.overrun).length).toBeGreaterThan(0);
+		});
+
+		test("overrunReadings are exactly the readings after the last note, and the summary and analysis are as without them (F12-S03 AC6, F12-S04 AC6)", async () => {
+			const sound = (ms: number) => (ms < SONG_END + 1500 ? hz(62) : null);
+			const times: number[] = [];
+			const listener = new FakeListener();
+			const flow = createTimedFlow({
+				song,
+				clock: { now },
+				clicker,
+				listen: { listener, coverage: { ...coverage } },
+				outputLatency: () => 0.045,
+				after: true,
+				onChange: (st) => states.push(st),
+			});
+			flow.start();
+			flow.step();
+			await settle();
+			while (last().phase !== "summary" && songMs() < 30000) {
+				times.push(songMs() - LAG);
+				listener.read({ frequency: sound(songMs() - LAG) });
+				vi.advanceTimersByTime(16);
+			}
+			const kept = last().overrunReadings;
+			const expected = times.filter((t) => t > SONG_END);
+			expect(kept.length).toBe(expected.length);
+			expect(kept.length).toBeGreaterThan(50);
+			kept.forEach((r, i) => {
+				expect(r.time).toBeCloseTo(expected[i] as number, 6);
+			});
+			expect(kept.some((r) => r.frequency !== null)).toBe(true);
+			const withOverrun = last();
+			// The same song played the same up to its end, then nothing fed after it.
+			states = [];
+			vi.setSystemTime(0);
+			const live = listenSetup(song, {}, 0.045, false);
+			live.flow.step();
+			await settle();
+			while (last().phase !== "summary" && songMs() < 30000) {
+				const heard = songMs() - LAG;
+				if (heard <= SONG_END) live.listener.read({ frequency: sound(heard) });
+				vi.advanceTimersByTime(16);
+			}
+			expect(withOverrun.summary).toEqual(last().summary);
+			expect(withOverrun.analysis).not.toBeNull();
+			expect(withOverrun.analysis).toEqual(last().analysis);
+			expect(withOverrun.summary?.graded).toBeGreaterThan(0);
+		});
+
+		test("a stop during the overrun emits nothing more and judges nothing (AC7)", async () => {
+			const { flow, listener } = await begin();
+			await until(listener, () => hz(62), SONG_END + 300);
+			expect(last().overrun).toBe(true);
+			flow.stop();
+			const count = states.length;
+			vi.advanceTimersByTime(30000);
+			expect(states).toHaveLength(count);
+			expect(listener.stops).toBe(1);
+			expect(last().summary).toBeNull();
+		});
+
+		test("live feedback still ends one lag after the last slot, with no overrun readings (AC8)", async () => {
+			const { listener } = await begin(false);
+			const ended = await until(listener, () => hz(62), 20000);
+			expect(ended).toBeGreaterThanOrEqual(SONG_END + LAG);
+			expect(ended).toBeLessThan(SONG_END + LAG + 20);
+			expect(last().overrunReadings).toEqual([]);
+			expect(states.every((st) => !st.overrun)).toBe(true);
+		});
+	});
+
+	describe("scoring after the song (F12-S02)", () => {
+		const song = songOf([1, 1, 1]);
+		// Past the last slot by the lag and the second of silence that ends the song.
+		const END = FIRST_SLOT_MS + 1500 + 1300;
+
+		/** A run whose second note is flat and whose third is missed, so there are faults to compare. */
+		const uneven = (ms: number): number | null => {
+			if (ms >= 0 && ms < 470) return hz(60);
+			if (ms >= 520 && ms < 980) return hz(61) * 0.985;
+			return null;
+		};
+
+		async function finish(after: boolean, sound = uneven) {
+			states = [];
+			vi.setSystemTime(0);
+			const { flow, listener } = listenSetup(song, {}, 0.045, after);
+			await run(flow, listener, sound, 100, END);
+			const result = last();
+			flow.stop();
+			return result;
+		}
+
+		test("progress is null before, during and after the song, and the lag and options are as in live (AC4, AC6)", async () => {
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			flow.step();
+			await settle();
+			const seen: unknown[] = [flow.progress()];
+			while (Date.now() < END) {
+				hear(listener, played(song), 100, Date.now() + 160);
+				seen.push(flow.progress());
+			}
+			expect(last().phase).toBe("summary");
+			seen.push(flow.progress());
+			expect(seen.every((p) => p === null)).toBe(true);
+			expect(seen.length).toBeGreaterThan(10);
+			flow.stop();
+		});
+
+		test("the same readings give the same summary, segments, faults and analysis as live (AC6)", async () => {
+			const live = await finish(false);
+			const later = await finish(true);
+			expect(later.summary).toEqual(live.summary);
+			expect(later.summary?.graded).toBeGreaterThan(0);
+			expect(later.scored?.segments).toEqual(live.scored?.segments);
+			expect(later.scored?.timingFaults).toEqual(live.scored?.timingFaults);
+			expect(later.scored?.notSeparated).toEqual(live.scored?.notSeparated);
+			expect(later.scored?.segments.length).toBeGreaterThan(0);
+			expect(later.analysis).toEqual(live.analysis);
+			expect(later.analysis).not.toBeNull();
+		});
+
+		test("scored comes only with the summary, and a restart clears it (AC5, AC7)", async () => {
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			await run(flow, listener, played(song), 100, END);
+			expect(last().phase).toBe("summary");
+			expect(last().scored).not.toBeNull();
+			expect(
+				states.filter((s) => s.phase !== "summary").map((s) => s.scored),
+			).toEqual(states.filter((s) => s.phase !== "summary").map(() => null));
+			flow.step();
+			await settle();
+			expect(last().phase).toBe("count-in");
+			expect(last().scored).toBeNull();
+			flow.stop();
+		});
+
+		test("a stop mid-song emits nothing more, and a fresh start is ready with nothing judged (AC8)", async () => {
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			flow.step();
+			await settle();
+			hear(listener, played(song), 100, FIRST_SLOT_MS + 700);
+			flow.stop();
+			const count = states.length;
+			vi.advanceTimersByTime(10000);
+			expect(states).toHaveLength(count);
+			expect(listener.stops).toBe(1);
+			flow.start();
+			expect(last()).toMatchObject({
+				phase: "ready",
+				summary: null,
+				scored: null,
+				analysis: null,
+			});
+		});
+
+		test("an unavailable stream and a silent run end with nothing graded (AC9)", async () => {
+			const off = listenSetup(song, { auto: DENIED }, 0.045, true);
+			off.flow.step();
+			await settle();
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 1500 + 200);
+			expect(last()).toMatchObject({
+				phase: "summary",
+				summary: null,
+				scored: null,
+				analysis: null,
+			});
+			off.flow.stop();
+			states = [];
+			vi.setSystemTime(0);
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			await run(flow, listener, () => null, 100, END);
+			expect(last().phase).toBe("summary");
+			// Nothing played is graded as nothing covered, as in live feedback.
+			expect(last().summary?.coverage ?? 0).toBe(0);
+			flow.stop();
+		});
+
+		test("a scored run in after touches no storage (AC4)", async () => {
+			const calls: string[] = [];
+			const spy = new Proxy(
+				{},
+				{
+					get: (_target, name) => {
+						calls.push(String(name));
+						return () => null;
+					},
+				},
+			);
+			vi.stubGlobal("localStorage", spy);
+			vi.stubGlobal("sessionStorage", spy);
+			try {
+				const { flow, listener } = listenSetup(song, {}, 0.045, true);
+				await run(flow, listener, played(song), 100, END);
+				expect(last().scored).not.toBeNull();
+				flow.step();
+				flow.stop();
+				expect(calls).toEqual([]);
+			} finally {
+				vi.unstubAllGlobals();
+			}
 		});
 	});
 });

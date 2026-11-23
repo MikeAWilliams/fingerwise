@@ -1,15 +1,19 @@
 import { describe, expect, test } from "vitest";
+import type { LaneSegment } from "../../src/app/lane";
+import { faultMarks, marksPaths } from "../../src/app/marks";
 import {
 	emptyPaths,
 	type LaneRow,
 	REST_BAND,
 	rowsToUpdate,
 	segmentPaths,
+	settledPaths,
+	TRACE_COLOURS,
 	TRACE_THICKNESS,
 	traceColour,
 	traceY,
 } from "../../src/app/trace";
-import type { Segment } from "../../src/core/coverage";
+import type { JoinFault, Segment, TimingFault } from "../../src/core/coverage";
 import { rowMap } from "../../src/render/staff";
 
 describe("traceY (F09-S06 AC1, AC3)", () => {
@@ -246,5 +250,113 @@ describe("rowsToUpdate (F10-S02 AC6)", () => {
 
 	test("no playhead row gives only the rows an open segment reaches", () => {
 		expect(rowsToUpdate(rows, null, [open(9000, 9500)], 60)).toEqual([2]);
+	});
+});
+
+describe("settledPaths (F12-S02 AC5, AC6)", () => {
+	// ♩ = 60. Row 0 holds beats 0 to 2 (x 100 to 200), row 1 beats 2 to 4 (x 100 to 200).
+	const rows: LaneRow[] = [
+		{
+			from: 0,
+			to: 2,
+			map: rowMap([
+				{ x: 100, beat: 0 },
+				{ x: 200, beat: 2 },
+			]),
+			laneTop: 100,
+			laneBottom: 124,
+		},
+		{
+			from: 2,
+			to: 4,
+			map: rowMap([
+				{ x: 100, beat: 2 },
+				{ x: 200, beat: 4 },
+			]),
+			laneTop: 200,
+			laneBottom: 224,
+		},
+	];
+	const note = (index: number, startMs: number, cents: number): Segment => ({
+		startMs,
+		endMs: startMs + 1000,
+		kind: "right-in-tune",
+		on: "note",
+		graded: true,
+		points: [{ timeMs: startMs, cents }],
+	});
+	const segments = [
+		note(0, 0, 0),
+		note(1, 1000, 30),
+		note(2, 2000, -60),
+		note(3, 3000, 10),
+	];
+	const lane = (
+		row: number,
+		index: number,
+		x0: number,
+		x1: number,
+	): LaneSegment => ({
+		row,
+		x0,
+		x1,
+		kind: "note",
+		graded: true,
+		index,
+		starts: true,
+		ends: true,
+	});
+	const laneSegs = [
+		lane(0, 0, 100, 150),
+		lane(0, 1, 150, 200),
+		lane(1, 2, 100, 150),
+		lane(1, 3, 150, 200),
+	];
+	const faults: TimingFault[] = [
+		{ index: 0, edge: "start", kind: "late" },
+		{ index: 2, edge: "end", kind: "early" },
+	];
+	const joins: JoinFault[] = [{ before: 1, after: 2, atMs: 2000 }];
+
+	test("equals what the frame loop builds from the same segments in two batches", () => {
+		const settled = settledPaths(
+			{ segments, timingFaults: faults, notSeparated: joins },
+			laneSegs,
+			rows,
+			60,
+			25,
+		);
+		const a = segmentPaths(segments.slice(0, 2), rows, 60, 25);
+		const b = segmentPaths(segments.slice(2), rows, 60, 25);
+		const fill = rows.map((_, r) => {
+			const joined = emptyPaths();
+			for (const colour of TRACE_COLOURS) {
+				joined[colour] = (a[r]?.[colour] ?? "") + (b[r]?.[colour] ?? "");
+			}
+			return joined;
+		});
+		expect(settled.fill).toEqual(fill);
+		const m1 = marksPaths(
+			faultMarks(faults.slice(0, 1), joins.slice(0, 0), laneSegs),
+			rows,
+		);
+		const m2 = marksPaths(faultMarks(faults.slice(1), joins, laneSegs), rows);
+		expect(settled.marks).toEqual(
+			rows.map((_, r) => (m1[r] ?? "") + (m2[r] ?? "")),
+		);
+		expect(settled.fill.some((p) => p.green !== "")).toBe(true);
+		expect(settled.marks.every((m) => m !== "")).toBe(true);
+	});
+
+	test("nothing scored gives empty paths for every row", () => {
+		const settled = settledPaths(
+			{ segments: [], timingFaults: [], notSeparated: [] },
+			laneSegs,
+			rows,
+			60,
+			25,
+		);
+		expect(settled.fill).toEqual(rows.map(emptyPaths));
+		expect(settled.marks).toEqual(["", ""]);
 	});
 });

@@ -138,6 +138,11 @@ export function lengthName(beats: number): string {
 	);
 }
 
+/** "You played 3.2 s past the end", from the last note's end to the last sounding reading's end. */
+export function overrunText(ms: number): string {
+	return `You played ${(ms / 1000).toFixed(1)} s past the end`;
+}
+
 /** The habits that are present, one plain line each, in the order start, length, gap, drift. */
 export function habitLines(habits: Habits): string[] {
 	const lines: string[] = [];

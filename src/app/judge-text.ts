@@ -23,6 +23,20 @@ export const START_PROMPT = "Tap or press a key to start";
 
 export const END_OF_SONG = "End of song";
 
+/** The quiet line in the song's bar while it plays with scoring after the song. */
+export const SCORING_AFTER = "Scoring after the song";
+
+/** The quiet line once the last note has ended and the player is still being listened to. */
+/** The label of the overrun lane under the last line. */
+export const OVERRUN_LABEL = "after the end";
+
+/** "+3.2 s": how much of the overrun is past the lane's width. */
+export function overrunMoreText(ms: number): string {
+	return `+${(ms / 1000).toFixed(1)} s`;
+}
+
+export const LISTENING_PAST_END = "Listening… stop playing to see your score";
+
 const percent = (share: number) => `${Math.round(share * 100)}%`;
 
 /** "started late 12%, early 3%" from the two faults and the notes with that edge; null when no note has the edge. */

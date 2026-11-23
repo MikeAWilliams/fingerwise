@@ -4,13 +4,16 @@ import {
 	applyAdvanceDelayInput,
 	applyBarsPerLineInput,
 	applyDelayInput,
+	applyScoringInput,
 	applyToleranceInput,
 	cardsSummary,
 	editTiming,
 	highestOptions,
 	lowestOptions,
 	micSummary,
+	SCORING_LABELS,
 	SONG_IN_USE,
+	scoringEnabled,
 	smartSamplingDisabled,
 	smartSamplingNote,
 	soundSummary,
@@ -47,6 +50,7 @@ function settings(
 		useSong: false,
 		keepTempo: false,
 		metronome: false,
+		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
 	};
@@ -293,5 +297,39 @@ describe("smart sampling control (F06-S02 AC4, AC5)", () => {
 		expect(SONG_IN_USE).toBe(
 			"A song is in use, so the note range, sharps and smart sampling do not apply.",
 		);
+	});
+});
+
+describe("scoring list (F12-S01)", () => {
+	const base = settings("A3", "F5");
+	const all = { ...base, useSong: true, keepTempo: true, judgeEnabled: true };
+
+	test("the labels", () => {
+		expect(SCORING_LABELS).toEqual({
+			live: "Live feedback",
+			after: "After the song",
+		});
+	});
+
+	test("enabled only with use song, keep tempo and judging on", () => {
+		expect(scoringEnabled(all)).toBe(true);
+		for (const off of ["useSong", "keepTempo", "judgeEnabled"] as const) {
+			const s = { ...all, scoring: "after" as const, [off]: false };
+			expect(scoringEnabled(s)).toBe(false);
+			expect(s.scoring).toBe("after");
+		}
+	});
+
+	test("a choice is applied, anything else ignored", () => {
+		expect(applyScoringInput(all, "after")).toEqual({
+			...all,
+			scoring: "after",
+		});
+		expect(applyScoringInput({ ...all, scoring: "after" }, "live")).toEqual(
+			all,
+		);
+		for (const v of ["", "Live", "both"]) {
+			expect(applyScoringInput(all, v)).toBe(all);
+		}
 	});
 });

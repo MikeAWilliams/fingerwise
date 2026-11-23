@@ -4,6 +4,7 @@ import {
 	BREAKDOWN_TITLE,
 	breakdownRows,
 	habitLines,
+	overrunText,
 	restText,
 	spotAnchorId,
 	spotLines,
@@ -16,9 +17,18 @@ export const ANALYSIS_ID = "song-analysis";
 export const ANALYSIS_TITLE_ID = "song-analysis-title";
 
 /** Why the score is what it is: where it went, the player's habits and the spots worth practising. Plain text, under the last line of music. */
-export function Analysis({ analysis }: { analysis: AnalysisResult }) {
+export function Analysis({
+	analysis,
+	overrunMs = null,
+}: {
+	analysis: AnalysisResult;
+	/** How far past the last note the playing reached; null when none (F12-S04). */
+	overrunMs?: number | null;
+}) {
 	const rests = restText(analysis.restSound);
 	const habits = habitLines(analysis.habits);
+	// The overrun comes after the drift line, the last of the habits.
+	if (overrunMs !== null) habits.push(overrunText(overrunMs));
 	const spots = spotLines(analysis.practice);
 	return (
 		<section

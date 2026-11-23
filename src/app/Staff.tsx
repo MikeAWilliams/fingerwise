@@ -1,7 +1,7 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Spot } from "../core/analysis";
-import type { Timeline } from "../core/coverage";
+import type { Progress, Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
 import {
@@ -16,6 +16,7 @@ import {
 import { spotAnchorId } from "./analysis-text";
 import { createScroller, followTop, type Scroller } from "./follow";
 import { laneRows, laneSegments } from "./lane";
+import { type OverrunTrace, overrunLane } from "./overrun";
 import {
 	type FillSource,
 	type PlayheadSource,
@@ -56,6 +57,12 @@ export interface SongView {
 	playhead: PlayheadSource;
 	/** What the live fill follows; null without judging. */
 	fill: FillSource | null;
+	/** What was played after the last note, for its own lane under the last line; null for none. */
+	overrun?: OverrunTrace | null;
+	/** Scoring after the song: the lanes, trace and marks stay hidden until `scored` arrives. */
+	after: boolean;
+	/** The finished scoring to draw at once; null unless the lanes are shown after the song. */
+	scored: Progress | null;
 	/** The practice spots to shade, in the summary only; none when absent. */
 	spots?: readonly Spot[];
 }
@@ -97,6 +104,9 @@ export function SongStaff({
 		tempo,
 		playhead,
 		fill,
+		after,
+		scored,
+		overrun = null,
 		spots = NO_SPOTS,
 	} = view;
 	// What the effects read when they run, without making them redraw.
@@ -196,6 +206,19 @@ export function SongStaff({
 		() => (layout ? laneRows(lines, layout) : []),
 		[layout, lines],
 	);
+	const tolerance = fill?.tolerance;
+	// The overrun's own short lane under the last line.
+	const lane = useMemo(() => {
+		const lastRow = rows[rows.length - 1];
+		if (!overrun || !layout || !lastRow || tolerance === undefined) return null;
+		return overrunLane(lastRow, layout.height, overrun, tempo, tolerance);
+	}, [overrun, layout, rows, tempo, tolerance]);
+	const extraHeight = lane?.extraHeight ?? 0;
+	// Room for it: the box grows with the lane, the music above stays where it is.
+	useEffect(() => {
+		if (!layout || !box.current) return;
+		box.current.style.aspectRatio = `${layout.width} / ${layout.height + extraHeight}`;
+	}, [layout, extraHeight]);
 	return (
 		<div class="song-staff" ref={box}>
 			<div class="song-staff-music" ref={music} />
@@ -207,7 +230,10 @@ export function SongStaff({
 					tempo={tempo}
 					playhead={playhead}
 					fill={fill}
+					after={after}
+					scored={scored}
 					readout={readout}
+					overrun={lane}
 					onRow={onRow}
 					spots={spots}
 				/>

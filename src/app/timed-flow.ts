@@ -3,12 +3,14 @@ import { type Analysis, analyse } from "../core/analysis";
 import {
 	buildTimeline,
 	type CoverageOptions,
+	type CoverageReading,
 	type CoverageResult,
 	type CoverageRun,
 	createCoverageRun,
 	type Progress,
 	type Timeline,
 } from "../core/coverage";
+import { passesChecks } from "../core/judge";
 import type { Pitch } from "../core/pitch";
 import {
 	countIn,
@@ -18,6 +20,7 @@ import {
 	songSlotsMs,
 } from "../core/song";
 import type { Listening } from "./card-flow";
+import { createSilenceWatch, type SilenceWatch } from "./overrun";
 
 /** Time between the start tap and the first click, so a resuming audio context is running by then. */
 export const LEAD_SECONDS = 0.1;
@@ -45,6 +48,14 @@ export function scoringLagMs(outputLatency: number | null): number {
 
 /** How far past a slot's end metronome clicks are scheduled ahead, in seconds, so timer jitter cannot make one late. */
 export const METRONOME_LOOKAHEAD_SECONDS = 1;
+
+/**
+ * Scoring after the song listens past the last note until the player has been
+ * silent this long, in song time (F12-S03).
+ */
+export const OVERRUN_SILENCE_MS = 1000;
+/** The longest the listening goes on past the last slot's end plus the scoring lag, when the sound never stops. */
+export const OVERRUN_CAP_MS = 10000;
 
 /** Seconds of slack when checking a boundary against the clock, for rounding in the sums. */
 const CLOCK_EPSILON = 1e-9;
@@ -76,6 +87,15 @@ export interface TimedState {
 	summary: CoverageResult | null;
 	/** Why the score is what it is, with the summary; null in every other state, and when nothing was graded. */
 	analysis: Analysis | null;
+	/**
+	 * The finished scoring (segments and faults) with the summary, for drawing
+	 * every lane at once; null in every other state, and when nothing was scored.
+	 */
+	scored: Progress | null;
+	/** Scoring after the song, from the last slot's end until the summary: the player is still being listened to. */
+	overrun: boolean;
+	/** The readings after the last note, in song time, kept for the overrun lane; set only with the summary in `after`, empty otherwise. */
+	overrunReadings: readonly CoverageReading[];
 }
 
 /** What the flow needs to score a timed song from the microphone. */
@@ -99,6 +119,12 @@ export interface TimedFlowOptions {
 	listen?: TimedListen | null;
 	/** The audio context's output latency in seconds, read once as the song starts; null when not reported. */
 	outputLatency?: () => number | null;
+	/**
+	 * Scoring after the song: `progress()` reports nothing during the song, so
+	 * nothing is drawn as it plays; the finished scoring comes with the summary.
+	 * The microphone is read and scored exactly as in live feedback. False by default.
+	 */
+	after?: boolean;
 	onChange: (state: TimedState) => void;
 }
 
@@ -109,7 +135,7 @@ export interface TimedFlow {
 	step(): void;
 	/** Cancel the timer and every click. */
 	stop(): void;
-	/** The scoring so far, for drawing it live; null when nothing is scored (judging off, a stream not running) and after the summary. */
+	/** The scoring so far, for drawing it live; null when nothing is scored (judging off, a stream not running), after the summary, and always when scoring after the song. */
 	progress(): Progress | null;
 	/** The newest reading from the microphone, or null when there is none. */
 	reading(): PitchReading | null;
@@ -119,6 +145,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const { song, clock, clicker, onChange } = options;
 	const listen = options.listen ?? null;
 	const metronome = options.metronome ?? false;
+	const after = options.after ?? false;
 	const notes = song.notes;
 	const last = notes.length - 1;
 	const tempo = song.tempo ?? DEFAULT_TEMPO;
@@ -146,12 +173,25 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		/** The audio clock's seconds at the first slot's start: song time 0. */
 		firstSlot: number;
 		lagMs: number;
+		/** Every reading in song time, for the silence that ends the song in `after`. */
+		watch: SilenceWatch;
+		/** In `after`, the readings past the last slot's end: not fed to the run, kept for the overrun lane. */
+		kept: CoverageReading[];
 	} | null = null;
+	let overrun = false;
+	// While waiting for silence past the end: called after each reading.
+	let overrunCheck: (() => void) | null = null;
+	/** The song time of the last slot's end, in ms from the first slot's start. */
+	const lastEndMs = slotsMs.reduce((sum, ms) => sum + ms, 0);
 
 	function emit(
 		index: number,
-		summary: CoverageResult | null = null,
-		analysis: Analysis | null = null,
+		result: {
+			summary?: CoverageResult | null;
+			analysis?: Analysis | null;
+			scored?: Progress | null;
+			overrunReadings?: readonly CoverageReading[];
+		} = {},
 	): void {
 		if (stopped) return;
 		const note = (notes[index] ?? notes[0]) as SongNote;
@@ -163,8 +203,11 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			countBeat,
 			listening,
 			origin,
-			summary,
-			analysis,
+			summary: result.summary ?? null,
+			analysis: result.analysis ?? null,
+			scored: result.scored ?? null,
+			overrun,
+			overrunReadings: result.overrunReadings ?? [],
 		});
 	}
 
@@ -203,23 +246,36 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		if (!Number.isFinite(audioTime)) return;
 		const songTime = (audioSeconds: number) =>
 			(audioSeconds - current.firstSlot) * 1000 - current.lagMs;
+		const placed: CoverageReading = {
+			time: songTime(audioTime),
+			frequency: reading.frequency,
+			clarity: reading.clarity,
+			level: reading.level,
+		};
 		try {
+			if (after) {
+				current.watch.push(
+					placed.time,
+					passesChecks(placed, (listen as TimedListen).coverage.checks),
+				);
+				// What comes after the last note is for the overrun lane, not the result.
+				if (placed.time > lastEndMs) current.kept.push(placed);
+			}
+			const inSong = !after || placed.time <= lastEndMs;
 			current.run.pushEnvelope(
-				(reading.envelope ?? []).map((block) => ({
-					time: songTime(block.time),
-					level: block.level,
-				})),
+				(reading.envelope ?? [])
+					.map((block) => ({
+						time: songTime(block.time),
+						level: block.level,
+					}))
+					.filter((block) => !after || block.time <= lastEndMs),
 			);
-			current.run.pushReading({
-				time: songTime(audioTime),
-				frequency: reading.frequency,
-				clarity: reading.clarity,
-				level: reading.level,
-			});
+			if (inSong) current.run.pushReading(placed);
 		} catch {
 			// A scoring that fails leaves the song playing in time and unscored.
 			scoring = null;
 		}
+		overrunCheck?.();
 	}
 
 	/** The output latency, read as the song starts; null when it is not reported or cannot be read. */
@@ -242,6 +298,8 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		const firstSlot = t0 + (bar.beats * bar.beatMs) / 1000;
 		// Readings count from here, for the whole song, count-in included.
 		scoring = null;
+		overrun = false;
+		overrunCheck = null;
 		if (listen && listening === "running") {
 			try {
 				const timeline = buildTimeline(song, tempo);
@@ -250,6 +308,8 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 					timeline,
 					firstSlot,
 					lagMs: scoringLagMs(readOutputLatency()),
+					watch: createSilenceWatch(),
+					kept: [],
 				};
 			} catch {
 				// A scoring that cannot start leaves the song unscored.
@@ -282,9 +342,15 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		};
 		scheduleBeats((boundaries[0] as number) + METRONOME_LOOKAHEAD_SECONDS);
 		// The last note's sound reaches the scoring one lag after its slot ends.
+		let ended = false;
 		const summarise = (): void => {
+			if (ended) return;
+			ended = true;
+			overrunCheck = null;
+			cancel();
 			let summary: CoverageResult | null = null;
 			let analysis: Analysis | null = null;
+			let scored: Progress | null = null;
 			const current = scoring;
 			try {
 				summary = current?.run.finish() ?? null;
@@ -293,20 +359,23 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			}
 			if (current && summary) {
 				try {
+					scored = current.run.progress();
 					analysis = analyse({
 						song,
 						tempo,
 						timeline: current.timeline,
-						segments: current.run.progress().segments,
+						segments: scored.segments,
 						result: summary,
 					});
 				} catch {
 					// An analysis that fails leaves the summary alone.
 				}
 			}
+			const overrunReadings = after && current ? current.kept : [];
 			scoring = null;
+			overrun = false;
 			phase = "summary";
-			emit(last, summary, analysis);
+			emit(last, { summary, analysis, scored, overrunReadings });
 		};
 		const show = (index: number): void => {
 			phase = "playing";
@@ -316,9 +385,35 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			);
 			emit(index);
 			at(boundaries[index] as number, () => {
-				if (index < last) show(index + 1);
-				else if (scoring) at(songEnd + scoring.lagMs / 1000, summarise);
-				else summarise();
+				if (index < last) {
+					show(index + 1);
+					return;
+				}
+				const current = scoring;
+				if (!current) {
+					summarise();
+					return;
+				}
+				const lagEnd = songEnd + current.lagMs / 1000;
+				if (!after) {
+					at(lagEnd, summarise);
+					return;
+				}
+				// Scoring after the song keeps listening until the player stops.
+				overrun = true;
+				emit(index);
+				at(lagEnd, () => {
+					if (!scoring || scoring.watch.silentMs() >= OVERRUN_SILENCE_MS) {
+						summarise();
+						return;
+					}
+					overrunCheck = () => {
+						if (scoring && scoring.watch.silentMs() >= OVERRUN_SILENCE_MS) {
+							summarise();
+						}
+					};
+					at(lagEnd + OVERRUN_CAP_MS / 1000, summarise);
+				});
 			});
 		};
 		// Each count-in beat shows on its click; the beat after the last is the first slot.
@@ -373,18 +468,21 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			phase = "ready";
 			origin = null;
 			countBeat = null;
+			overrun = false;
 			emit(0);
 		},
 		step() {
 			if (stopped || opening) return;
 			if (phase === "ready" || phase === "summary") begin();
 		},
-		progress: () => scoring?.run.progress() ?? null,
+		progress: () => (after ? null : (scoring?.run.progress() ?? null)),
 		reading: () => latest,
 		stop() {
 			stopped = true;
 			attempt++;
 			scoring = null;
+			overrun = false;
+			overrunCheck = null;
 			latest = null;
 			cancel();
 			clicker?.stop();
