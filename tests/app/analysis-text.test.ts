@@ -6,6 +6,8 @@ import {
 	NO_SPOT,
 	offsetPhrase,
 	restText,
+	spotAnchorId,
+	spotLabel,
 	spotLines,
 } from "../../src/app/analysis-text";
 import type { Breakdown, Habits } from "../../src/core/analysis";
@@ -176,5 +178,13 @@ describe("spotLines (AC4)", () => {
 			"No two bars stand out: the losses are spread through the song.",
 		);
 		expect(spotLines({ tested: false, spots: [] })).toEqual([]);
+	});
+});
+
+describe("spot label and anchor (F11-S04 AC3)", () => {
+	test("the label names the bars with an en dash and each spot has its own anchor id", () => {
+		expect(spotLabel(3, 4)).toBe("Practice: bars 3–4");
+		expect(spotAnchorId(0)).toBe("practice-spot-0");
+		expect(spotAnchorId(1)).not.toBe(spotAnchorId(0));
 	});
 });

@@ -3,8 +3,10 @@ import {
 	breakdownText,
 	habitLines,
 	restText,
+	spotAnchorId,
 	spotLines,
 } from "./analysis-text";
+import { jumpTo } from "./scroll-to";
 
 /** The id of the section, which the "Analysis ↓" link jumps to. */
 export const ANALYSIS_ID = "song-analysis";
@@ -38,8 +40,19 @@ export function Analysis({ analysis }: { analysis: AnalysisResult }) {
 				<>
 					<h3>Practice spots</h3>
 					<ul>
-						{spots.map((line) => (
-							<li key={line}>{line}</li>
+						{spots.map((line, i) => (
+							<li key={line}>
+								{analysis.practice.spots.length > 0 ? (
+									<a
+										href={`#${spotAnchorId(i)}`}
+										onClick={(event) => jumpTo(event, spotAnchorId(i))}
+									>
+										{line}
+									</a>
+								) : (
+									line
+								)}
+							</li>
 						))}
 					</ul>
 				</>

@@ -395,6 +395,11 @@ export function App() {
 										now: playheadNow,
 										outputLatency: playheadLatency,
 									},
+									// The shading goes with the summary: a restart empties it.
+									spots:
+										settings.judgeEnabled && timed.phase === "summary"
+											? (timed.analysis?.practice.spots ?? [])
+											: [],
 									fill: settings.judgeEnabled
 										? {
 												progress: fillProgress,

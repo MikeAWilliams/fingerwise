@@ -23,3 +23,9 @@ export function prefersReducedMotion(): boolean {
 		return false;
 	}
 }
+
+/** The click handler of a link to an element on the page: scrolls there with `scrollToElement` instead of jumping. */
+export function jumpTo(event: Event, id: string): void {
+	event.preventDefault();
+	scrollToElement(document.getElementById(id), prefersReducedMotion());
+}

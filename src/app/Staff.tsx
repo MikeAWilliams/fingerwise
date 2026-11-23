@@ -1,9 +1,11 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import type { Spot } from "../core/analysis";
 import type { Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
 import {
+	beatRangeOnRows,
 	colourSong,
 	drawSongLines,
 	drawStaff,
@@ -11,6 +13,7 @@ import {
 	type SongLayout,
 	type StaffOptions,
 } from "../render/staff";
+import { spotAnchorId } from "./analysis-text";
 import { createScroller, followTop, type Scroller } from "./follow";
 import { laneRows, laneSegments } from "./lane";
 import {
@@ -34,6 +37,8 @@ export function Staff({ pitch, options, beats }: StaffProps) {
 	return <div class="staff" ref={ref} />;
 }
 
+const NO_SPOTS: readonly Spot[] = [];
+
 /** A timed song's lines of music, and the note to play in them. */
 export interface SongView {
 	lines: readonly Bar[][];
@@ -51,6 +56,8 @@ export interface SongView {
 	playhead: PlayheadSource;
 	/** What the live fill follows; null without judging. */
 	fill: FillSource | null;
+	/** The practice spots to shade, in the summary only; none when absent. */
+	spots?: readonly Spot[];
 }
 
 /**
@@ -90,6 +97,7 @@ export function SongStaff({
 		tempo,
 		playhead,
 		fill,
+		spots = NO_SPOTS,
 	} = view;
 	// What the effects read when they run, without making them redraw.
 	const now = useRef({ current, countBeat });
@@ -201,8 +209,27 @@ export function SongStaff({
 					fill={fill}
 					readout={readout}
 					onRow={onRow}
+					spots={spots}
 				/>
 			)}
+			{layout &&
+				spots.map((spot, i) => {
+					const first = beatRangeOnRows(
+						layout.rows,
+						spot.startBeat,
+						spot.endBeat,
+					)[0];
+					const row = first && layout.rows[first.row];
+					if (!row) return null;
+					return (
+						<div
+							key={spot.firstBar}
+							id={spotAnchorId(i)}
+							class="practice-spot-anchor"
+							style={{ top: `${(row.top / layout.height) * 100}%` }}
+						/>
+					);
+				})}
 		</div>
 	);
 }

@@ -12,7 +12,7 @@ import { Legend } from "./Legend";
 import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
 import { scrollLockApplies, setScrollLock } from "./scroll-lock";
-import { prefersReducedMotion, scrollToElement } from "./scroll-to";
+import { jumpTo } from "./scroll-to";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
 
 interface CardProps {
@@ -108,13 +108,7 @@ export function Card({
 						<a
 							href={`#${ANALYSIS_ID}`}
 							class="analysis-link"
-							onClick={(event) => {
-								event.preventDefault();
-								scrollToElement(
-									document.getElementById(ANALYSIS_ID),
-									prefersReducedMotion(),
-								);
-							}}
+							onClick={(event) => jumpTo(event, ANALYSIS_ID)}
 						>
 							Analysis ↓
 						</a>

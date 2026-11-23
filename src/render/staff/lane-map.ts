@@ -62,3 +62,39 @@ export function rowMap(stops: readonly Stop[]): RowMap {
 		}),
 	};
 }
+
+/** Beats closer than this count as the same, as the song module's bars do. */
+const BEAT_EPSILON = 1e-3;
+
+/** A part of a beat range on one row: the row's index and its x range. */
+export interface RowPart {
+	row: number;
+	x0: number;
+	x1: number;
+}
+
+/**
+ * The parts of the beat range `[startBeat, endBeat]` on each row it overlaps,
+ * rows given by their stops. A part starts at the first stop at or after
+ * `startBeat` (a bar line, or the line's start when the row begins inside the
+ * range) and ends at the first stop at `endBeat` (the closing bar line), or at
+ * the row's last stop when the range runs on to the next row.
+ */
+export function beatRangeOnRows(
+	rows: readonly { stops: readonly Stop[] }[],
+	startBeat: number,
+	endBeat: number,
+): RowPart[] {
+	const parts: RowPart[] = [];
+	rows.forEach((row, index) => {
+		const first = row.stops[0];
+		const last = row.stops[row.stops.length - 1];
+		if (!first || !last) return;
+		if (startBeat > last.beat - BEAT_EPSILON) return;
+		if (endBeat < first.beat + BEAT_EPSILON) return;
+		const from = row.stops.find((s) => s.beat >= startBeat - BEAT_EPSILON);
+		const to = row.stops.find((s) => s.beat >= endBeat - BEAT_EPSILON);
+		parts.push({ row: index, x0: (from ?? first).x, x1: (to ?? last).x });
+	});
+	return parts;
+}

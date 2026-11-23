@@ -6,6 +6,13 @@ import type { Breakdown, Habits, Practice } from "../core/analysis";
 export const NO_SPOT =
 	"No two bars stand out: the losses are spread through the song.";
 
+/** The id of the anchor at the first row of practice spot `index`, which its analysis line links to. */
+export const spotAnchorId = (index: number) => `practice-spot-${index}`;
+
+/** The label drawn over a shaded spot, such as "Practice: bars 3–4". */
+export const spotLabel = (firstBar: number, lastBar: number) =>
+	`Practice: bars ${firstBar}–${lastBar}`;
+
 /** Times are rounded to this many ms. */
 const TIME_STEP_MS = 10;
 

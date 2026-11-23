@@ -2,7 +2,13 @@ import { Formatter, Renderer, type SVGContext } from "vexflow/bravura";
 import type { Pitch } from "../../core/pitch";
 import { buildNote, buildStave, noteLayout, type StaffOptions } from "./layout";
 
-export { type RowMap, rowMap, type Stop } from "./lane-map";
+export {
+	beatRangeOnRows,
+	type RowMap,
+	type RowPart,
+	rowMap,
+	type Stop,
+} from "./lane-map";
 export {
 	buildNote,
 	buildStave,

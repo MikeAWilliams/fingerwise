@@ -160,6 +160,30 @@ main {
 	pointer-events: none;
 }
 
+/* A light tint, multiplied into what is under it, so black glyphs stay black. */
+.practice-spot {
+	fill: #f2c94c;
+	opacity: 0.55;
+	mix-blend-mode: multiply;
+}
+
+.practice-spot-label {
+	fill: CanvasText;
+	stroke: Canvas;
+	stroke-width: 3px;
+	paint-order: stroke;
+	font-family: sans-serif;
+}
+
+/* The target of a spot's analysis link, at the top of its first row. */
+.practice-spot-anchor {
+	position: absolute;
+	left: 0;
+	width: 1px;
+	height: 1px;
+	pointer-events: none;
+}
+
 .lane-graded {
 	fill: #d0d0d0;
 }
