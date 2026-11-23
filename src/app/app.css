@@ -100,6 +100,28 @@ main {
 	stroke-width: 1;
 }
 
+.lane-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	margin: 0.5rem 0 0;
+	padding: 0;
+	list-style: none;
+	font-size: 0.8rem;
+	color: #555;
+}
+
+.lane-legend li {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.lane-legend-icon {
+	width: 2rem;
+	height: auto;
+}
+
 .lane-ungraded {
 	fill: #ececec;
 }

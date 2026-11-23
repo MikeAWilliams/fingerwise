@@ -5,6 +5,7 @@ import type { StaffOptions } from "../render/staff";
 import { type TabFont, tabView } from "../render/tab";
 import type { Listening, Verdict } from "./card-flow";
 import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
+import { Legend } from "./Legend";
 import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
@@ -67,6 +68,7 @@ export function Card({
 					<Staff pitch={pitch} options={staffOptions} beats={beats} />
 				)}
 			</div>
+			{song && judging && <Legend />}
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
 			>

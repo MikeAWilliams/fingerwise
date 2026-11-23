@@ -3,6 +3,7 @@ import type { LaneSegment } from "../../src/app/lane";
 import {
 	faultMarks,
 	MARK_HEIGHT,
+	MARK_LABELS,
 	type Mark,
 	markPath,
 	marksPaths,
@@ -186,6 +187,21 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 		expect(paths[1]).toBe(
 			markPath({ row: 1, x: 70, shape: "not-separated" }, 200, 224),
 		);
+	});
+});
+
+describe("the legend (F09-S07)", () => {
+	test("names every shape the lane can draw, once, in plain words", () => {
+		expect(Object.keys(MARK_LABELS).sort()).toEqual([
+			"end-early",
+			"end-late",
+			"not-separated",
+			"start-early",
+			"start-late",
+		]);
+		expect(new Set(Object.values(MARK_LABELS)).size).toBe(5);
+		expect(MARK_LABELS["start-late"]).toBe("Started late");
+		expect(MARK_LABELS["not-separated"]).toBe("Not separated");
 	});
 });
 

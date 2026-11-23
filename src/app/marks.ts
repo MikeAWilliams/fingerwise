@@ -13,6 +13,15 @@ export type MarkShape =
 	| "end-late"
 	| "not-separated";
 
+/** What each mark means, in the order the legend lists them. */
+export const MARK_LABELS: Record<MarkShape, string> = {
+	"start-late": "Started late",
+	"start-early": "Started early",
+	"end-early": "Ended early",
+	"end-late": "Ended late",
+	"not-separated": "Not separated",
+};
+
 export interface Mark {
 	/** An index into the layout's rows. */
 	row: number;
