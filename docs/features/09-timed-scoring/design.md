@@ -144,7 +144,7 @@ No settings or stored state. The scoring lag, edge grace, wrong-reading run, tim
 
 ## Risks and open questions
 
-- **Gap detection.** Can a 20–50 ms tongued gap be told from a held note with today's readings? This needs recordings of tongued repeats, tongued changes, slurs, and a held note across a same-pitch join. If it cannot, separation waits for F6, or the gap rule is relaxed. ADR 0009 stays proposed until this is answered.
+- **Gap detection.** Can a 20–50 ms tongued gap be told from a held note? Today's per-reading level probably cannot (a 43 ms window shows a 30 ms gap as a 5 dB dip at best). A fine level envelope from the analyser's overlapping windows might, without F6. See the [gap detection spike](../../research/gap-detection-spike.md). If neither works, separation waits for F6, or the gap rule is relaxed. ADR 0009 stays proposed until this is answered.
 - **The lag's accuracy.** Coverage tolerates an error of tens of milliseconds, but timing figures report it on every note. Repeat the key-tap measurement on Android. Is a fixed lag good enough, or does calibration have to come into scope?
 - **The two clocks.** How readings are placed on the audio clock: `AudioContext.getOutputTimestamp()`, or reading both clocks when each reading is taken. Browser support varies.
 - **Slurs from abcjs.** The audio sequence carries no slurs. They must come from the parse tree and be matched to sequence notes, through repeats and endings, possibly by source position. Spike before the story.
