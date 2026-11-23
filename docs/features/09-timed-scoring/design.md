@@ -137,7 +137,7 @@ The F08 fixes, revised for coverage:
 ## Modules touched
 
 - **song (`src/core/song`):** a note records whether it is slurred to the next. Rests from `songBars` are reused for rest coverage.
-- **abc (`src/abc`):** reads slurs from abcjs and matches them to the audio sequence's notes, through repeats.
+- **abc (`src/abc`):** reads slurs from the parse tree and matches them to the played notes by `startChar`, using the [rule from the slur spike](../../research/abcjs-slur-spike.md#proposed-rule), not the audio sequence's `endType`. An unbalanced slur becomes a positioned problem ("Slur opened here is never closed", "Slur closed here was never opened").
 - **New core module, probably `src/core/coverage`:** classifying readings against a note timeline, coverage per note and rest, timing faults, separation and the song summary. Pure; imports pitch, judge and song. The layer rule holds.
 - **judge (`src/core/judge`):** possibly a per-reading check (gates, band, tolerance) exported for the coverage module to reuse. The tone tracker is unchanged.
 - **audio (`src/audio`):** placing readings on the audio clock (readings are stamped with `performance.now()` while the timed flow runs on the audio context's clock), and read access to `outputLatency`.
@@ -154,7 +154,7 @@ No settings or stored state. The scoring lag, edge grace, wrong-reading run, tim
 - **The right-note band stays ±50 cents.** The spike's tongued scale had 82% of readings within it; ±75 cents would have given 95%. The user chose not to widen it to fit their own playing (2026-11-22): the score should show what was played, and the trace and tuning list are there to help the player improve.
 - **The lag's accuracy.** Coverage tolerates an error of tens of milliseconds, but timing figures report it on every note. Repeat the key-tap measurement on Android. Is a fixed lag good enough, or does calibration have to come into scope?
 - **The two clocks.** How readings are placed on the audio clock: `AudioContext.getOutputTimestamp()`, or reading both clocks when each reading is taken. Browser support varies.
-- **Slurs from abcjs.** The audio sequence carries no slurs. They must come from the parse tree and be matched to sequence notes, through repeats and endings, possibly by source position. Spike before the story.
+- **Slurs from abcjs.** Answered by the [slur spike](../../research/abcjs-slur-spike.md). Still open: how many real tunes from the web have unbalanced slurs and would now be rejected.
 - **Constants.** Edge grace, the wrong-reading run, timing tolerance, the gap dip and the minimum scored span are guesses. Tune them in the live check.
 - **The verdict row in timed cards.** F08 shows an icon, label and judged note under the staff while playing. Keep it as a live "what I hear" readout, or drop it now that the lane carries the result?
 - **Rests at speed.** A rest shorter than the minimum graded length is not graded, so a staccato passage written with short rests scores no rests.
