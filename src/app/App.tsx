@@ -51,7 +51,12 @@ import {
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
 import { headerSong } from "./header-text";
-import { SCORING_AFTER, summaryText, tuningText } from "./judge-text";
+import {
+	LISTENING_PAST_END,
+	SCORING_AFTER,
+	summaryText,
+	tuningText,
+} from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
@@ -378,7 +383,9 @@ export function App() {
 					timedSummary={summaryText(timed.summary)}
 					timedTuning={tuningText(timed.summary?.tuning ?? [])}
 					timedAnalysis={settings.judgeEnabled ? timed.analysis : null}
-					timedNote={after ? SCORING_AFTER : null}
+					timedNote={
+						after ? (timed.overrun ? LISTENING_PAST_END : SCORING_AFTER) : null
+					}
 					legend={settings.judgeEnabled && lanes}
 					readout={
 						!after &&

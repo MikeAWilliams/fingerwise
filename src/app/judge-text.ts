@@ -26,6 +26,9 @@ export const END_OF_SONG = "End of song";
 /** The quiet line in the song's bar while it plays with scoring after the song. */
 export const SCORING_AFTER = "Scoring after the song";
 
+/** The quiet line once the last note has ended and the player is still being listened to. */
+export const LISTENING_PAST_END = "Listening… stop playing to see your score";
+
 const percent = (share: number) => `${Math.round(share * 100)}%`;
 
 /** "started late 12%, early 3%" from the two faults and the notes with that edge; null when no note has the edge. */

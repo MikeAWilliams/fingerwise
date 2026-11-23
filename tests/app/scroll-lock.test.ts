@@ -19,6 +19,8 @@ const state = (over: Partial<TimedState>): TimedState => ({
 	summary: null,
 	analysis: null,
 	scored: null,
+	overrun: false,
+	overrunReadings: [],
 	...over,
 });
 
