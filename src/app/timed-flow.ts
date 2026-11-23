@@ -76,6 +76,11 @@ export interface TimedState {
 	summary: CoverageResult | null;
 	/** Why the score is what it is, with the summary; null in every other state, and when nothing was graded. */
 	analysis: Analysis | null;
+	/**
+	 * The finished scoring (segments and faults) with the summary, for drawing
+	 * every lane at once; null in every other state, and when nothing was scored.
+	 */
+	scored: Progress | null;
 }
 
 /** What the flow needs to score a timed song from the microphone. */
@@ -99,6 +104,12 @@ export interface TimedFlowOptions {
 	listen?: TimedListen | null;
 	/** The audio context's output latency in seconds, read once as the song starts; null when not reported. */
 	outputLatency?: () => number | null;
+	/**
+	 * Scoring after the song: `progress()` reports nothing during the song, so
+	 * nothing is drawn as it plays; the finished scoring comes with the summary.
+	 * The microphone is read and scored exactly as in live feedback. False by default.
+	 */
+	after?: boolean;
 	onChange: (state: TimedState) => void;
 }
 
@@ -109,7 +120,7 @@ export interface TimedFlow {
 	step(): void;
 	/** Cancel the timer and every click. */
 	stop(): void;
-	/** The scoring so far, for drawing it live; null when nothing is scored (judging off, a stream not running) and after the summary. */
+	/** The scoring so far, for drawing it live; null when nothing is scored (judging off, a stream not running), after the summary, and always when scoring after the song. */
 	progress(): Progress | null;
 	/** The newest reading from the microphone, or null when there is none. */
 	reading(): PitchReading | null;
@@ -119,6 +130,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const { song, clock, clicker, onChange } = options;
 	const listen = options.listen ?? null;
 	const metronome = options.metronome ?? false;
+	const after = options.after ?? false;
 	const notes = song.notes;
 	const last = notes.length - 1;
 	const tempo = song.tempo ?? DEFAULT_TEMPO;
@@ -152,6 +164,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		index: number,
 		summary: CoverageResult | null = null,
 		analysis: Analysis | null = null,
+		scored: Progress | null = null,
 	): void {
 		if (stopped) return;
 		const note = (notes[index] ?? notes[0]) as SongNote;
@@ -165,6 +178,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			origin,
 			summary,
 			analysis,
+			scored,
 		});
 	}
 
@@ -285,6 +299,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		const summarise = (): void => {
 			let summary: CoverageResult | null = null;
 			let analysis: Analysis | null = null;
+			let scored: Progress | null = null;
 			const current = scoring;
 			try {
 				summary = current?.run.finish() ?? null;
@@ -293,11 +308,12 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			}
 			if (current && summary) {
 				try {
+					scored = current.run.progress();
 					analysis = analyse({
 						song,
 						tempo,
 						timeline: current.timeline,
-						segments: current.run.progress().segments,
+						segments: scored.segments,
 						result: summary,
 					});
 				} catch {
@@ -306,7 +322,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			}
 			scoring = null;
 			phase = "summary";
-			emit(last, summary, analysis);
+			emit(last, summary, analysis, scored);
 		};
 		const show = (index: number): void => {
 			phase = "playing";
@@ -379,7 +395,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			if (stopped || opening) return;
 			if (phase === "ready" || phase === "summary") begin();
 		},
-		progress: () => scoring?.run.progress() ?? null,
+		progress: () => (after ? null : (scoring?.run.progress() ?? null)),
 		reading: () => latest,
 		stop() {
 			stopped = true;

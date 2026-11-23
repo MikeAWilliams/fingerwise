@@ -38,6 +38,10 @@ interface CardProps {
 	timedTuning?: string | null;
 	/** The analysis of a finished timed song; shown under the music in the summary, with a link to it. */
 	timedAnalysis?: AnalysisResult | null;
+	/** A quiet line in the song's bar while it plays (scoring after the song); null for none. */
+	timedNote?: string | null;
+	/** Show the legend under a timed song's staff: judging is on and the lanes are. */
+	legend?: boolean;
 	/** A timed song with its stream running: the reveal area has room for what is heard now. */
 	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
@@ -62,6 +66,8 @@ export function Card({
 	timedSummary,
 	timedTuning = null,
 	timedAnalysis = null,
+	timedNote = null,
+	legend = false,
 	readout = false,
 	song,
 	header,
@@ -114,8 +120,11 @@ export function Card({
 							Analysis ↓
 						</a>
 					)}
+					{timed === "playing" && timedNote && (
+						<p class="card-status card-quiet">{timedNote}</p>
+					)}
 					{readout && <p class="card-status card-readout" ref={heard} />}
-					{judging && <Legend />}
+					{legend && <Legend />}
 				</div>
 			</div>
 		);

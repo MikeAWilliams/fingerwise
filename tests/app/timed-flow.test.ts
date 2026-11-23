@@ -98,6 +98,7 @@ describe("ready (AC3)", () => {
 			origin: null,
 			summary: null,
 			analysis: null,
+			scored: null,
 		});
 		vi.advanceTimersByTime(60000);
 		expect(states).toHaveLength(1);
@@ -257,6 +258,7 @@ describe("the end (AC7)", () => {
 			origin: LEAD_SECONDS + 2,
 			summary: null,
 			analysis: null,
+			scored: null,
 		});
 		const count = states.length;
 		vi.advanceTimersByTime(60000);
@@ -421,14 +423,16 @@ describe("scoring by coverage (F09-S03)", () => {
 		song = songOf([1, 1, 1]),
 		over: Partial<FakeListener> = {},
 		outputLatency: number | null = 0.045,
+		after = false,
 	) {
 		const listener = Object.assign(new FakeListener(), over);
-		const listen: TimedListen = { listener, coverage };
+		const listen: TimedListen = { listener, coverage: { ...coverage } };
 		const flow = createTimedFlow({
 			song,
 			clock: { now },
 			clicker,
 			listen,
+			after,
 			outputLatency: () => outputLatency,
 			onChange: (s) => states.push(s),
 		});
@@ -916,6 +920,138 @@ describe("scoring by coverage (F09-S03)", () => {
 			flow.step();
 			vi.advanceTimersByTime(FIRST_SLOT_MS + 1000);
 			expect(last()).toMatchObject({ phase: "summary", summary: null });
+		});
+	});
+
+	describe("scoring after the song (F12-S02)", () => {
+		const song = songOf([1, 1, 1]);
+		const END = FIRST_SLOT_MS + 1500 + 150;
+
+		/** A run whose second note is flat and whose third is missed, so there are faults to compare. */
+		const uneven = (ms: number): number | null => {
+			if (ms >= 0 && ms < 470) return hz(60);
+			if (ms >= 520 && ms < 980) return hz(61) * 0.985;
+			return null;
+		};
+
+		async function finish(after: boolean, sound = uneven) {
+			states = [];
+			vi.setSystemTime(0);
+			const { flow, listener } = listenSetup(song, {}, 0.045, after);
+			await run(flow, listener, sound, 100, END);
+			const result = last();
+			flow.stop();
+			return result;
+		}
+
+		test("progress is null before, during and after the song, and the lag and options are as in live (AC4, AC6)", async () => {
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			flow.step();
+			await settle();
+			const seen: unknown[] = [flow.progress()];
+			while (Date.now() < END) {
+				hear(listener, played(song), 100, Date.now() + 160);
+				seen.push(flow.progress());
+			}
+			expect(last().phase).toBe("summary");
+			seen.push(flow.progress());
+			expect(seen.every((p) => p === null)).toBe(true);
+			expect(seen.length).toBeGreaterThan(10);
+			flow.stop();
+		});
+
+		test("the same readings give the same summary, segments, faults and analysis as live (AC6)", async () => {
+			const live = await finish(false);
+			const later = await finish(true);
+			expect(later.summary).toEqual(live.summary);
+			expect(later.summary?.graded).toBeGreaterThan(0);
+			expect(later.scored?.segments).toEqual(live.scored?.segments);
+			expect(later.scored?.timingFaults).toEqual(live.scored?.timingFaults);
+			expect(later.scored?.notSeparated).toEqual(live.scored?.notSeparated);
+			expect(later.scored?.segments.length).toBeGreaterThan(0);
+			expect(later.analysis).toEqual(live.analysis);
+			expect(later.analysis).not.toBeNull();
+		});
+
+		test("scored comes only with the summary, and a restart clears it (AC5, AC7)", async () => {
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			await run(flow, listener, played(song), 100, END);
+			expect(last().phase).toBe("summary");
+			expect(last().scored).not.toBeNull();
+			expect(
+				states.filter((s) => s.phase !== "summary").map((s) => s.scored),
+			).toEqual(states.filter((s) => s.phase !== "summary").map(() => null));
+			flow.step();
+			await settle();
+			expect(last().phase).toBe("count-in");
+			expect(last().scored).toBeNull();
+			flow.stop();
+		});
+
+		test("a stop mid-song emits nothing more, and a fresh start is ready with nothing judged (AC8)", async () => {
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			flow.step();
+			await settle();
+			hear(listener, played(song), 100, FIRST_SLOT_MS + 700);
+			flow.stop();
+			const count = states.length;
+			vi.advanceTimersByTime(10000);
+			expect(states).toHaveLength(count);
+			expect(listener.stops).toBe(1);
+			flow.start();
+			expect(last()).toMatchObject({
+				phase: "ready",
+				summary: null,
+				scored: null,
+				analysis: null,
+			});
+		});
+
+		test("an unavailable stream and a silent run end with nothing graded (AC9)", async () => {
+			const off = listenSetup(song, { auto: DENIED }, 0.045, true);
+			off.flow.step();
+			await settle();
+			vi.advanceTimersByTime(FIRST_SLOT_MS + 1500 + 200);
+			expect(last()).toMatchObject({
+				phase: "summary",
+				summary: null,
+				scored: null,
+				analysis: null,
+			});
+			off.flow.stop();
+			states = [];
+			vi.setSystemTime(0);
+			const { flow, listener } = listenSetup(song, {}, 0.045, true);
+			await run(flow, listener, () => null, 100, END);
+			expect(last().phase).toBe("summary");
+			// Nothing played is graded as nothing covered, as in live feedback.
+			expect(last().summary?.coverage ?? 0).toBe(0);
+			flow.stop();
+		});
+
+		test("a scored run in after touches no storage (AC4)", async () => {
+			const calls: string[] = [];
+			const spy = new Proxy(
+				{},
+				{
+					get: (_target, name) => {
+						calls.push(String(name));
+						return () => null;
+					},
+				},
+			);
+			vi.stubGlobal("localStorage", spy);
+			vi.stubGlobal("sessionStorage", spy);
+			try {
+				const { flow, listener } = listenSetup(song, {}, 0.045, true);
+				await run(flow, listener, played(song), 100, END);
+				expect(last().scored).not.toBeNull();
+				flow.step();
+				flow.stop();
+				expect(calls).toEqual([]);
+			} finally {
+				vi.unstubAllGlobals();
+			}
 		});
 	});
 });

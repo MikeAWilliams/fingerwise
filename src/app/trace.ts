@@ -1,9 +1,12 @@
 import {
+	type Progress,
 	RIGHT_NOTE_BAND_CENTS,
 	type Segment,
 	TRACE_SPAN_CENTS,
 } from "../core/coverage";
 import type { RowMap } from "../render/staff";
+import type { LaneSegment } from "./lane";
+import { faultMarks, marksPaths } from "./marks";
 
 export type TraceColour = "green" | "amber" | "red";
 export const TRACE_COLOURS: readonly TraceColour[] = ["green", "amber", "red"];
@@ -157,4 +160,25 @@ export function segmentPaths(
 		});
 	}
 	return paths;
+}
+
+/**
+ * Every row's fill and fault marks for a finished scoring, built at once: the
+ * same paths the frame loop writes when it is fed these segments and faults
+ * over time. `fill` is per row (`segmentPaths`), `marks` one path string per row.
+ */
+export function settledPaths(
+	scored: Pick<Progress, "segments" | "timingFaults" | "notSeparated">,
+	segments: readonly LaneSegment[],
+	rows: readonly LaneRow[],
+	tempo: number,
+	tolerance: number,
+): { fill: RowPaths[]; marks: string[] } {
+	return {
+		fill: segmentPaths(scored.segments, rows, tempo, tolerance),
+		marks: marksPaths(
+			faultMarks(scored.timingFaults, scored.notSeparated, segments),
+			rows,
+		),
+	};
 }

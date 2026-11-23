@@ -18,6 +18,7 @@ const state = (over: Partial<TimedState>): TimedState => ({
 	origin: null,
 	summary: null,
 	analysis: null,
+	scored: null,
 	...over,
 });
 

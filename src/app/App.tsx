@@ -32,11 +32,13 @@ import {
 	metronomeApplies,
 	parseDefaults,
 	type Settings,
+	scoringAfterApplies,
 	smartSamplingApplies,
 } from "../core/settings";
 import { DEFAULT_TEMPO, songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
+import { lanesShown } from "./after-song";
 import { Card } from "./Card";
 import {
 	type CardListen,
@@ -49,7 +51,7 @@ import {
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
 import { headerSong } from "./header-text";
-import { summaryText, tuningText } from "./judge-text";
+import { SCORING_AFTER, summaryText, tuningText } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
@@ -204,6 +206,8 @@ export function App() {
 	// showing it again deals a fresh card. With judging off visibility is ignored.
 	// A timed song stops when the page is hidden, whether or not it judges.
 	const timedSong = keepTempoApplies(settings);
+	// Scoring after the song: no live lanes, playhead or readout; the result comes at the end.
+	const after = scoringAfterApplies(settings);
 	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
 	const song = songState.song;
 	const barsPerLine = settings.barsPerLine;
@@ -261,6 +265,7 @@ export function App() {
 						clicker,
 						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
 						metronome: metronomeApplies(settings),
+						after: scoringAfterApplies(settings),
 						listen: timedListenFor(settings),
 						outputLatency: playheadLatency,
 						onChange: (state) => {
@@ -325,6 +330,7 @@ export function App() {
 			flow.stop();
 		};
 	}, [settings, open, visibleKey, song]);
+	const lanes = timed ? lanesShown(after, timed.phase, timed.summary) : true;
 	const header = headerSong(settings, song, open);
 	const headerRef = useRef<HTMLElement>(null);
 	return (
@@ -372,7 +378,10 @@ export function App() {
 					timedSummary={summaryText(timed.summary)}
 					timedTuning={tuningText(timed.summary?.tuning ?? [])}
 					timedAnalysis={settings.judgeEnabled ? timed.analysis : null}
+					timedNote={after ? SCORING_AFTER : null}
+					legend={settings.judgeEnabled && lanes}
 					readout={
+						!after &&
 						timed.listening === "running" &&
 						(timed.phase === "count-in" || timed.phase === "playing")
 					}
@@ -400,6 +409,8 @@ export function App() {
 										settings.judgeEnabled && timed.phase === "summary"
 											? (timed.analysis?.practice.spots ?? [])
 											: [],
+									after,
+									scored: after && lanes ? timed.scored : null,
 									fill: settings.judgeEnabled
 										? {
 												progress: fillProgress,

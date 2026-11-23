@@ -1,7 +1,7 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Spot } from "../core/analysis";
-import type { Timeline } from "../core/coverage";
+import type { Progress, Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
 import {
@@ -56,6 +56,10 @@ export interface SongView {
 	playhead: PlayheadSource;
 	/** What the live fill follows; null without judging. */
 	fill: FillSource | null;
+	/** Scoring after the song: the lanes, trace and marks stay hidden until `scored` arrives. */
+	after: boolean;
+	/** The finished scoring to draw at once; null unless the lanes are shown after the song. */
+	scored: Progress | null;
 	/** The practice spots to shade, in the summary only; none when absent. */
 	spots?: readonly Spot[];
 }
@@ -97,6 +101,8 @@ export function SongStaff({
 		tempo,
 		playhead,
 		fill,
+		after,
+		scored,
 		spots = NO_SPOTS,
 	} = view;
 	// What the effects read when they run, without making them redraw.
@@ -207,6 +213,8 @@ export function SongStaff({
 					tempo={tempo}
 					playhead={playhead}
 					fill={fill}
+					after={after}
+					scored={scored}
 					readout={readout}
 					onRow={onRow}
 					spots={spots}

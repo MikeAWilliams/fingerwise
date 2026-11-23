@@ -314,6 +314,12 @@ main {
 	overflow-wrap: anywhere;
 }
 
+/* A quieter line than a status: the song is playing and nothing is shown yet. */
+.card-quiet {
+	font-size: 0.85rem;
+	opacity: 0.55;
+}
+
 .card-glyph {
 	display: flex;
 	align-items: center;
