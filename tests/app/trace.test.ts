@@ -3,6 +3,7 @@ import {
 	emptyPaths,
 	type LaneRow,
 	REST_BAND,
+	rowsToUpdate,
 	segmentPaths,
 	TRACE_THICKNESS,
 	traceColour,
@@ -202,5 +203,48 @@ describe("segmentPaths (F09-S06 AC1 to AC4, AC6)", () => {
 			25,
 		);
 		expect(paths).toEqual([emptyPaths()]);
+	});
+});
+
+describe("rowsToUpdate (F10-S02 AC6)", () => {
+	// ♩ = 60: a beat is 1000 ms. Three rows of four beats.
+	const lane = (from: number): LaneRow => ({
+		from,
+		to: from + 4,
+		map: rowMap([
+			{ x: 100, beat: from },
+			{ x: 300, beat: from + 4 },
+		]),
+		laneTop: 100,
+		laneBottom: 124,
+	});
+	const rows = [lane(0), lane(4), lane(8)];
+	const open = (startMs: number, endMs: number): Segment => ({
+		startMs,
+		endMs,
+		kind: "right-in-tune",
+		on: "note",
+		graded: true,
+		points: [],
+	});
+
+	test("an open segment inside the current row gives the current row", () => {
+		expect(rowsToUpdate(rows, 1, [open(5000, 6000)], 60)).toEqual([1]);
+	});
+
+	test("just after a break, an open segment ending on the row before gives both", () => {
+		expect(rowsToUpdate(rows, 1, [open(3000, 4500)], 60)).toEqual([0, 1]);
+	});
+
+	test("nothing open gives the current row", () => {
+		expect(rowsToUpdate(rows, 2, [], 60)).toEqual([2]);
+	});
+
+	test("rows not reached and rows finished are left out", () => {
+		expect(rowsToUpdate(rows, 0, [open(0, 1000)], 60)).toEqual([0]);
+	});
+
+	test("no playhead row gives only the rows an open segment reaches", () => {
+		expect(rowsToUpdate(rows, null, [open(9000, 9500)], 60)).toEqual([2]);
 	});
 });

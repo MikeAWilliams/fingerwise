@@ -435,6 +435,27 @@ describe("tempo (F08-S01 AC5)", () => {
 	});
 });
 
+describe("title (F10-S01 AC1)", () => {
+	const titleOf = async (header: string) =>
+		(await parsed(`X:1\n${header}K:C\nC D|`)).song.title;
+
+	test("the T: text is trimmed", async () => {
+		expect(await titleOf("T:   Ode to Joy  \n")).toBe("Ode to Joy");
+	});
+
+	test("no T: gives no title", async () => {
+		expect(await titleOf("")).toBeUndefined();
+	});
+
+	test("a blank T: gives no title", async () => {
+		expect(await titleOf("T:   \n")).toBeUndefined();
+	});
+
+	test("the first of two T: lines wins", async () => {
+		expect(await titleOf("T:First\nT:Second\n")).toBe("First");
+	});
+});
+
 describe("meter (F08-S01 AC6)", () => {
 	const meterOf = async (m: string) =>
 		(await parsed(`${head}${m}K:C\nC D|`)).song.meter;

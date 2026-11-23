@@ -36,9 +36,9 @@ export const LANE_HEIGHT = 24;
 export const LANE_GAP = 6;
 /** One row: the staff, the gap and the lane. */
 export const ROW_HEIGHT = LINE_HEIGHT + LANE_GAP + LANE_HEIGHT;
+/** Extra space between one row's lane and the next row's staff. */
+export const ROW_SPACING = 0;
 const MARGIN = 10;
-/** Room on the right for the arrow that points back up to the next line. */
-const ARROW_SPACE = 24;
 
 /** The colour of every note but the one to play. */
 export const GREY = "#a0a0a0";
@@ -50,8 +50,6 @@ export const BLACK = "#000000";
 export interface RowLayout {
 	/** The line's index in `songLines`. */
 	line: number;
-	/** The screen row, 0 above and 1 below: line n is in row n mod 2. */
-	row: number;
 	/** Vertical extent of the staff, in view-box units. */
 	top: number;
 	bottom: number;
@@ -62,6 +60,34 @@ export interface RowLayout {
 	stops: Stop[];
 	/** The drawn elements of each note on this row, with its ties, by its index in the song. */
 	notes: Map<number, SVGElement[]>;
+}
+
+/** Where row `index` sits, from the top of the drawing, in view-box units. */
+export interface RowFrame {
+	/** Vertical extent of the staff. */
+	top: number;
+	bottom: number;
+	/** Where the lane sits under it. */
+	laneTop: number;
+	laneBottom: number;
+}
+
+/** The frame of row `index`: rows follow one another, each ROW_HEIGHT tall. */
+export function rowFrame(index: number): RowFrame {
+	const top = index * (ROW_HEIGHT + ROW_SPACING);
+	return {
+		top,
+		bottom: top + LINE_HEIGHT,
+		laneTop: top + LINE_HEIGHT + LANE_GAP,
+		laneBottom: top + ROW_HEIGHT,
+	};
+}
+
+/** The height of a drawing of `lineCount` rows, with a margin under the last. */
+export function songHeight(lineCount: number): number {
+	return (
+		lineCount * ROW_HEIGHT + Math.max(0, lineCount - 1) * ROW_SPACING + MARGIN
+	);
 }
 
 /** What `drawSongLines` drew, for the lane and for recolouring without a redraw. */
@@ -106,50 +132,37 @@ function buildRest(beats: number, clef: "treble" | "bass"): StaveNote {
 	return rest;
 }
 
-/** The line holding the start of note `index`, or the first line. */
-export function lineOfNote(lines: readonly Bar[][], index: number): number {
-	const found = lines.findIndex((line) =>
-		line.some((bar) =>
-			bar.items.some((item) => item.kind === "note" && item.index === index),
-		),
-	);
-	return Math.max(0, found);
-}
-
 function lastItem(line: readonly Bar[] | undefined): BarItem | undefined {
 	const items = line?.[line.length - 1]?.items;
 	return items?.[items.length - 1];
 }
 
 /**
- * Draw the two lines of music from line `first` inside `element`, replacing its
- * contents, and return where everything is. Everything is drawn grey, each
- * line starting with the clef and key signature; `colourSong` then makes the
- * note to play black, so a change of note redraws nothing.
+ * Draw every line of the song inside `element`, replacing its contents, and
+ * return where everything is. Everything is drawn grey, each line starting
+ * with the clef and key signature; `colourSong` then makes the note to play
+ * black, so a change of note redraws nothing.
  *
  * The first line starts with a bar of rests, one per count-in beat.
  *
- * Lines never move: line n is drawn in row n mod 2, so the eye reads down to
- * the lower row and finds it where it was. Once the lower row is playing, the
- * upper row holds the next line, and an arrow at the lower row's end points up
- * to it. Under each staff is room for a lane, drawn by the caller.
+ * Line n is row n, one under another at `rowFrame(n)`, so a line never moves
+ * and the song is drawn once. Under each staff is room for a lane, drawn by
+ * the caller.
  */
 export function drawSongLines(
 	element: HTMLDivElement,
 	lines: readonly Bar[][],
-	first: number,
 	options: StaffOptions,
 	meter: Meter,
 	barsPerLine: number,
 ): SongLayout {
-	const shown = lines.slice(first, first + 2);
 	// Clef and key signature take the same room on every line; measure it once.
 	const clefLayout = noteLayout(options.lowest, options);
 	const prefix =
 		buildStave(clefLayout, 0, 0, 1000).getNoteStartX() -
 		new Stave(0, 0, 1000).getNoteStartX();
-	const width = prefix + barsPerLine * BAR_WIDTH + 2 * MARGIN + ARROW_SPACE;
-	const height = 2 * ROW_HEIGHT + MARGIN;
+	const width = prefix + barsPerLine * BAR_WIDTH + 2 * MARGIN;
+	const height = songHeight(lines.length);
 
 	element.replaceChildren();
 	const renderer = new Renderer(element, Renderer.Backends.SVG);
@@ -168,7 +181,6 @@ export function drawSongLines(
 		})),
 	};
 
-	const rowOf = (lineIndex: number) => lineIndex % 2;
 	const layout: SongLayout = {
 		width,
 		height,
@@ -182,16 +194,12 @@ export function drawSongLines(
 	const rowNotes: { note: StaveNote; index: number; row: RowLayout }[] = [];
 	const tied: { tie: StaveTie; index: number; row: RowLayout }[] = [];
 
-	shown.forEach((line, i) => {
-		const lineIndex = first + i;
-		const y = rowOf(lineIndex) * ROW_HEIGHT;
+	lines.forEach((line, lineIndex) => {
+		const frame = rowFrame(lineIndex);
+		const y = frame.top;
 		const row: RowLayout = {
 			line: lineIndex,
-			row: rowOf(lineIndex),
-			top: y,
-			bottom: y + LINE_HEIGHT,
-			laneTop: y + LINE_HEIGHT + LANE_GAP,
-			laneBottom: y + ROW_HEIGHT,
+			...frame,
 			stops: [],
 			notes: new Map(),
 		};
@@ -307,10 +315,6 @@ export function drawSongLines(
 		}
 	});
 
-	if (rowOf(first) === 1 && shown.length > 1) {
-		drawUpArrow(ctx, width - MARGIN - ARROW_SPACE / 2);
-	}
-
 	// The elements exist now that everything is drawn.
 	const addElement = (
 		row: RowLayout,
@@ -371,26 +375,4 @@ export function colourSong(
 	layout.countIn.forEach((elements, k) => {
 		for (const el of elements) paint(el, k === countBeat ? BLACK : GREY);
 	});
-}
-
-/** A grey arrow at `x` from the middle of the lower row's staff up to the upper row's. */
-function drawUpArrow(ctx: SVGContext, x: number): void {
-	const top = new Stave(0, 0, 10).getYForLine(2);
-	const bottom = new Stave(0, ROW_HEIGHT, 10).getYForLine(2);
-	const head = 6;
-	ctx.save();
-	ctx.setStrokeStyle(GREY).setFillStyle(GREY).setLineWidth(2);
-	ctx
-		.beginPath()
-		.moveTo(x, bottom)
-		.lineTo(x, top + head)
-		.stroke();
-	ctx
-		.beginPath()
-		.moveTo(x, top)
-		.lineTo(x - head, top + head * 1.5)
-		.lineTo(x + head, top + head * 1.5)
-		.closePath()
-		.fill();
-	ctx.restore();
 }

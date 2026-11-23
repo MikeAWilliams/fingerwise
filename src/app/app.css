@@ -4,7 +4,14 @@ body {
 }
 
 html {
+	/* The lock hides the scroll bar; keeping its room stops the music shifting sideways. */
+	scrollbar-gutter: stable;
+	scroll-padding-top: 4.5rem;
 	scroll-padding-bottom: 4rem;
+}
+
+html.scroll-locked {
+	overflow: hidden;
 }
 
 body {
@@ -12,25 +19,56 @@ body {
 }
 
 main {
+	display: flex;
+	flex-direction: column;
 	box-sizing: border-box;
 	min-height: 100dvh;
-	padding-top: max(1rem, env(safe-area-inset-top));
+	padding-top: 0;
 	padding-right: max(1rem, env(safe-area-inset-right));
 	padding-bottom: max(1rem, env(safe-area-inset-bottom));
 	padding-left: max(1rem, env(safe-area-inset-left));
 }
 
 .app-header {
+	position: sticky;
+	top: 0;
+	z-index: 2;
 	display: flex;
+	flex-wrap: nowrap;
 	align-items: center;
-	justify-content: space-between;
+	gap: 0.75rem;
+	padding-top: max(1rem, env(safe-area-inset-top));
+	padding-bottom: 0.5rem;
+	background: Canvas;
 }
 
 .app-header h1 {
-	margin: 0;
+	flex: none;
+	/* Settings keeps the right edge when there is no title. */
+	margin: 0 auto 0 0;
+}
+
+.app-header button,
+.app-header-tempo {
+	flex: none;
+}
+
+.app-header-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+	.app-header h1 {
+		font-size: 1.25rem;
+	}
 }
 
 .card {
+	width: 100%;
 	max-width: 28rem;
 	margin: 0 auto;
 }
@@ -47,12 +85,32 @@ main {
 }
 
 .card-song {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
 	max-width: 56rem;
 }
 
 .song-staff {
+	/* What the header and the bar take of the screen height. */
+	--song-chrome: 13rem;
 	position: relative;
 	width: 100%;
+	/* At most two rows fit between the header and the bar. */
+	max-width: calc((100dvh - var(--song-chrome)) / 2.2 * var(--row-aspect, 4));
+	margin-inline: auto;
+}
+
+/* Pinned to the bottom of the screen, in flow: the last lane clears it at the page end. */
+.song-bar {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	margin-top: auto;
+	padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+	border-top: 1px solid #c0c0c0;
+	background: Canvas;
+	text-align: center;
 }
 
 .song-overlay {
@@ -398,4 +456,8 @@ footer {
 .settings-song-status ul {
 	margin: 0;
 	padding-left: 1.25rem;
+}
+
+.song-bar .lane-legend {
+	justify-content: center;
 }

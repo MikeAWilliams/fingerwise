@@ -56,7 +56,7 @@ declare module "abcjs/src/api/abc_tunebook.js" {
 	export interface AbcTune {
 		warnings?: string[];
 		lines: AbcLine[];
-		metaText: { tempo?: { duration?: number[]; bpm?: number } };
+		metaText: { title?: string; tempo?: { duration?: number[]; bpm?: number } };
 		getMeter(): AbcMeter;
 		setUpAudio(options: object): { tracks: AbcNoteEvent[][] };
 	}

@@ -1,7 +1,12 @@
 import { Accidental } from "vexflow/bravura";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
-import { lineOfNote, splitBeats } from "../../src/render/staff";
+import {
+	ROW_HEIGHT,
+	rowFrame,
+	songHeight,
+	splitBeats,
+} from "../../src/render/staff";
 import {
 	buildNote,
 	ledgerLines,
@@ -124,21 +129,42 @@ describe("song lines", () => {
 	test("a triplet length stays one note", () => {
 		expect(splitBeats(1 / 3)).toEqual([1 / 3]);
 	});
+});
 
-	test("lineOfNote finds the line where a note starts", () => {
-		const note = (index: number) => ({
-			kind: "note" as const,
-			index,
-			pitch: p("C4"),
-			beats: 4,
-			tied: false,
-		});
-		const lines = [
-			[{ start: 0, items: [note(0)] }],
-			[{ start: 4, items: [note(1)] }],
-		];
-		expect(lineOfNote(lines, 0)).toBe(0);
-		expect(lineOfNote(lines, 1)).toBe(1);
-		expect(lineOfNote(lines, 9)).toBe(0);
+describe("rows of the whole song (F10-S02 AC3, AC11)", () => {
+	const frames = Array.from({ length: 6 }, (_, i) => rowFrame(i));
+
+	test("songHeight and the frames cover six lines", () => {
+		expect(frames).toHaveLength(6);
+		const last = frames[5] as ReturnType<typeof rowFrame>;
+		expect(songHeight(6)).toBeGreaterThanOrEqual(last.laneBottom);
+	});
+
+	test("tops increase in order and the first row is at the top", () => {
+		expect(frames[0]?.top).toBe(0);
+		for (let i = 1; i < frames.length; i++) {
+			expect(frames[i]?.top).toBeGreaterThan(frames[i - 1]?.top as number);
+		}
+	});
+
+	test("the lane sits under its staff", () => {
+		for (const f of frames) {
+			expect(f.laneTop).toBeGreaterThanOrEqual(f.bottom);
+			expect(f.laneBottom).toBeGreaterThan(f.laneTop);
+		}
+	});
+
+	test("no row overlaps the next", () => {
+		for (let i = 1; i < frames.length; i++) {
+			expect(frames[i]?.top).toBeGreaterThanOrEqual(
+				frames[i - 1]?.laneBottom as number,
+			);
+		}
+	});
+
+	test("a row is ROW_HEIGHT tall and the height grows with the song", () => {
+		const f = rowFrame(2);
+		expect(f.laneBottom - f.top).toBe(ROW_HEIGHT);
+		expect(songHeight(7)).toBeGreaterThan(songHeight(6));
 	});
 });

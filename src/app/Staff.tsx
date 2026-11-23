@@ -7,10 +7,11 @@ import {
 	colourSong,
 	drawSongLines,
 	drawStaff,
-	lineOfNote,
+	ROW_HEIGHT,
 	type SongLayout,
 	type StaffOptions,
 } from "../render/staff";
+import { createScroller, followTop, type Scroller } from "./follow";
 import { laneRows, laneSegments } from "./lane";
 import {
 	type FillSource,
@@ -53,17 +54,26 @@ export interface SongView {
 }
 
 /**
- * The line holding the note to play and the line after it, with the lane under
- * each. The staff is drawn only when the lines on show change; a change of note
- * recolours what is drawn.
+ * Every line of the song, one under another, with the lane under each. The
+ * staff is drawn once per song (and again only when the song, bars per line or
+ * the instrument's range change); a change of note recolours what is drawn, and
+ * a resize scales the SVG by CSS without redrawing it.
  */
 export function SongStaff({
 	view,
 	options,
 	readout,
+	phase,
+	header,
+	bar,
 }: {
 	view: SongView;
 	options: StaffOptions;
+	/** The card's timed phase: ready sends the page back to the first line. */
+	phase?: "ready" | "playing" | "summary";
+	/** The sticky header and the song's bar, whose heights the page keeps clear. */
+	header?: RefObject<HTMLElement | null>;
+	bar?: RefObject<HTMLElement | null>;
 	/** Where the live readout's text goes, when it is on show. */
 	readout?: RefObject<HTMLElement | null>;
 }) {
@@ -81,7 +91,6 @@ export function SongStaff({
 		playhead,
 		fill,
 	} = view;
-	const first = lineOfNote(lines, current);
 	// What the effects read when they run, without making them redraw.
 	const now = useRef({ current, countBeat });
 	now.current = { current, countBeat };
@@ -90,20 +99,87 @@ export function SongStaff({
 		const drawn = drawSongLines(
 			music.current,
 			lines,
-			first,
 			options,
 			meter,
 			barsPerLine,
 		);
-		// The view box is fixed for the options and bars per line, so the height holds when the rows change.
-		if (box.current)
+		// The card grows with the song: the box takes the whole drawing's proportions.
+		if (box.current) {
 			box.current.style.aspectRatio = `${drawn.width} / ${drawn.height}`;
+			// One row's proportions, for the CSS cap on the staff's width.
+			box.current.style.setProperty(
+				"--row-aspect",
+				String(drawn.width / ROW_HEIGHT),
+			);
+		}
 		colourSong(drawn, now.current.current, now.current.countBeat);
 		setLayout(drawn);
-	}, [lines, first, options, meter, barsPerLine]);
+	}, [lines, options, meter, barsPerLine]);
 	useEffect(() => {
 		if (layout) colourSong(layout, current, countBeat);
 	}, [layout, current, countBeat]);
+	// Following the song: one scroller over the window, and the last row it was sent to.
+	const scroller = useRef<Scroller | null>(null);
+	const lastRow = useRef<number | null>(null);
+	const layoutRef = useRef(layout);
+	layoutRef.current = layout;
+	const running = useRef(playhead.running);
+	running.current = playhead.running;
+	useEffect(() => {
+		const made = createScroller({
+			scrollY: () => window.scrollY,
+			scrollTo: (top) => window.scrollTo({ top, left: 0, behavior: "instant" }),
+			now: () => performance.now(),
+			frame: (callback) => requestAnimationFrame(callback),
+			cancelFrame: (handle) => cancelAnimationFrame(handle),
+		});
+		scroller.current = made;
+		return () => {
+			made.dispose();
+			scroller.current = null;
+		};
+	}, []);
+	/** Send the page to `row`, measured afresh from the layout. */
+	const follow = (row: number, smooth: boolean) => {
+		const drawn = layoutRef.current;
+		const el = box.current;
+		const place = drawn?.rows[row];
+		if (!drawn || !el || !place || !scroller.current) return;
+		const rowTop =
+			el.getBoundingClientRect().top +
+			window.scrollY +
+			(place.top * el.clientWidth) / drawn.width;
+		const root = document.documentElement;
+		const top = followTop({
+			rowTop,
+			viewport: window.innerHeight,
+			header: header?.current?.offsetHeight ?? 0,
+			bar: bar?.current?.offsetHeight ?? 0,
+			maxScroll: root.scrollHeight - window.innerHeight,
+		});
+		const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+		scroller.current.to(top, smooth && !reduced.matches);
+	};
+	const onRow = (row: number) => {
+		lastRow.current = row;
+		follow(row, true);
+	};
+	const followRef = useRef(follow);
+	followRef.current = follow;
+	useEffect(() => {
+		const onResize = () => {
+			if (running.current && lastRow.current !== null)
+				followRef.current(lastRow.current, false);
+		};
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
+	}, []);
+	// The first line at the top, with the start prompt, whenever the song is ready to start.
+	useEffect(() => {
+		if (phase !== "ready") return;
+		lastRow.current = null;
+		scroller.current?.to(0, false);
+	}, [phase]);
 	const segments = useMemo(
 		() => (layout ? laneSegments(timeline, lines, layout, tempo) : []),
 		[layout, timeline, lines, tempo],
@@ -124,6 +200,7 @@ export function SongStaff({
 					playhead={playhead}
 					fill={fill}
 					readout={readout}
+					onRow={onRow}
 				/>
 			)}
 		</div>

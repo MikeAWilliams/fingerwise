@@ -1,4 +1,5 @@
-import { useRef } from "preact/hooks";
+import type { RefObject } from "preact";
+import { useEffect, useRef } from "preact/hooks";
 import { glyphFor, type Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import type { StaffOptions } from "../render/staff";
@@ -8,6 +9,7 @@ import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
 import { Legend } from "./Legend";
 import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
+import { scrollLockApplies, setScrollLock } from "./scroll-lock";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
 
 interface CardProps {
@@ -35,6 +37,8 @@ interface CardProps {
 	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
 	song?: SongView;
+	/** The app's header, whose height a timed song's page keeps clear when it scrolls. */
+	header?: RefObject<HTMLElement | null>;
 	instrument: Instrument;
 	staffOptions: StaffOptions;
 	font: TabFont;
@@ -54,6 +58,7 @@ export function Card({
 	timedTuning = null,
 	readout = false,
 	song,
+	header,
 	instrument,
 	staffOptions,
 	font,
@@ -62,16 +67,46 @@ export function Card({
 	const view = glyph === undefined ? null : tabView(glyph, font);
 	// Its text is set each frame by the song overlay, not by Preact.
 	const heard = useRef<HTMLParagraphElement>(null);
-	return (
-		<div class={song ? "card card-song" : "card"}>
-			<div class="card-staff">
-				{song ? (
-					<SongStaff view={song} options={staffOptions} readout={heard} />
-				) : (
-					<Staff pitch={pitch} options={staffOptions} beats={beats} />
-				)}
+	// The song's bar, which the page follows around (F10-S04).
+	const bar = useRef<HTMLDivElement>(null);
+	// Scrolling by hand is locked while a timed song plays. The cleanup lifts it
+	// whenever the card goes away (Settings, judging off, leaving the drill) or
+	// the phase changes, so every way out clears the same class.
+	const isSong = song !== undefined;
+	useEffect(() => {
+		setScrollLock(document.documentElement, isSong && scrollLockApplies(timed));
+		return () => setScrollLock(document.documentElement, false);
+	}, [isSong, timed]);
+	if (song) {
+		return (
+			<div class="card card-song">
+				<div class="card-staff">
+					<SongStaff
+						view={song}
+						options={staffOptions}
+						readout={heard}
+						phase={timed}
+						header={header}
+						bar={bar}
+					/>
+				</div>
+				<div class="song-bar" ref={bar}>
+					{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
+					{timed === "summary" && <p class="card-status">{timedSummary}</p>}
+					{timed === "summary" && timedTuning && (
+						<p class="card-status">{timedTuning}</p>
+					)}
+					{readout && <p class="card-status card-readout" ref={heard} />}
+					{judging && <Legend />}
+				</div>
 			</div>
-			{song && judging && <Legend />}
+		);
+	}
+	return (
+		<div class="card">
+			<div class="card-staff">
+				<Staff pitch={pitch} options={staffOptions} beats={beats} />
+			</div>
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
 			>

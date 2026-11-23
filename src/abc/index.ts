@@ -98,6 +98,12 @@ function removeTempoElements(tune: AbcTune): void {
 	}
 }
 
+/** The first header `T:` line, trimmed, or undefined when there is none or it is blank. */
+function titleOf(tune: AbcTune): string | undefined {
+	const title = tune.metaText?.title?.trim();
+	return title === "" ? undefined : title;
+}
+
 /** Quarter notes per minute from the first `Q:`, or null when there is none or no rate. */
 function tempoOf(tune: AbcTune): number | null {
 	const tempo = tune.metaText?.tempo;
@@ -451,6 +457,7 @@ export async function parseAbc(
 			tempo: tempoOf(tune),
 			meter,
 			firstBar: firstBarOf(tune, origin, meter),
+			title: titleOf(tune),
 		});
 	} catch (error) {
 		return { ok: false, problems: [thrownProblem(error)] };

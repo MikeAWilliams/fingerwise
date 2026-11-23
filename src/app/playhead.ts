@@ -17,10 +17,10 @@ export function playheadBeat(
 }
 
 /**
- * Which row the playhead is on and its x, from the rows on show. A row holds
+ * Which row the playhead is on and its x, from every row of the song. A row holds
  * the beats from its first stop up to its last (its end bar line); a beat at
  * that end is on the next row, at its first note, so the playhead jumps to the
-. Before the first row it waits at its start
+ * next row's start. Before the first row it waits at its start
  * and past the last it waits at its end. `row` is an index into `rows`.
  */
 export function playheadPlace(
