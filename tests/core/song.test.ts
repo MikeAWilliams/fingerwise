@@ -290,6 +290,13 @@ describe("bars and lines (timed song staff)", () => {
 		).toThrow(SongError);
 	});
 
+	test("the title is kept when given and absent otherwise", () => {
+		const notes = [{ pitch: pitch("C4"), start: 0, beats: 1 }];
+		const options = { tempo: null, meter: DEFAULT_METER };
+		expect(createSong(notes, { ...options, title: "Ode" }).title).toBe("Ode");
+		expect(createSong(notes, options).title).toBeUndefined();
+	});
+
 	test("quarters fill whole bars; the last ends with its note", () => {
 		expect(shape(quarters("C4", "D4", "E4", "F4", "G4", "A4"))).toEqual([
 			"0:1 1:1 2:1 3:1",

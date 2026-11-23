@@ -43,6 +43,8 @@ export interface Song {
 	 * bar for a pickup, a whole bar when the first note starts one.
 	 */
 	readonly firstBar: number;
+	/** The tune's title, for display only; nothing in the core reads it. */
+	readonly title?: string;
 }
 
 /** A pitch outside the instrument's written range. */
@@ -64,7 +66,7 @@ export function barBeats(meter: Meter): number {
 /**
  * Throws `SongError` for an empty list, a tempo, length, meter number or first
  * bar that is not finite and positive, or starts that decrease. The first bar
- * defaults to a whole bar and a note's `slurred` to false. The list is copied.
+ * defaults to a whole bar, the title is kept only when given and a note's `slurred` to false. The list is copied.
  */
 export function createSong(
 	notes: readonly SongNote[],
@@ -72,7 +74,8 @@ export function createSong(
 		tempo,
 		meter,
 		firstBar,
-	}: { tempo: number | null; meter: Meter; firstBar?: number },
+		title,
+	}: { tempo: number | null; meter: Meter; firstBar?: number; title?: string },
 ): Song {
 	if (notes.length === 0) throw new SongError("a song needs at least one note");
 	if (tempo !== null && !positive(tempo))
@@ -96,6 +99,7 @@ export function createSong(
 		tempo,
 		meter: { ...meter },
 		firstBar: firstBar ?? barBeats(meter),
+		...(title === undefined ? {} : { title }),
 	};
 }
 

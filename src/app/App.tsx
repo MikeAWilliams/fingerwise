@@ -48,6 +48,7 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
+import { headerSong } from "./header-text";
 import { summaryText, tuningText } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
@@ -317,10 +318,19 @@ export function App() {
 			flow.stop();
 		};
 	}, [settings, open, visibleKey, song]);
+	const header = headerSong(settings, song, open);
 	return (
 		<main>
 			<header class="app-header">
 				<h1>fingerwise</h1>
+				{header.title !== null && (
+					<span class="app-header-title" title={header.title}>
+						{header.title}
+					</span>
+				)}
+				{header.tempo !== null && (
+					<span class="app-header-tempo">{header.tempo}</span>
+				)}
 				{!open && (
 					<button type="button" onClick={openSettings}>
 						Settings
