@@ -68,6 +68,12 @@ main {
 	fill: #d0d0d0;
 }
 
+.playhead {
+	stroke: #1a56db;
+	stroke-width: 2;
+	vector-effect: non-scaling-stroke;
+}
+
 .lane-ungraded {
 	fill: #ececec;
 }

@@ -11,7 +11,7 @@ import {
 	type StaffOptions,
 } from "../render/staff";
 import { laneSegments } from "./lane";
-import { SongOverlay } from "./SongOverlay";
+import { type PlayheadSource, SongOverlay } from "./SongOverlay";
 
 interface StaffProps {
 	pitch: Pitch;
@@ -41,6 +41,8 @@ export interface SongView {
 	timeline: Timeline;
 	/** Quarter notes per minute the timeline is at. */
 	tempo: number;
+	/** What the playhead follows. */
+	playhead: PlayheadSource;
 }
 
 /**
@@ -58,8 +60,16 @@ export function SongStaff({
 	const box = useRef<HTMLDivElement>(null);
 	const music = useRef<HTMLDivElement>(null);
 	const [layout, setLayout] = useState<SongLayout | null>(null);
-	const { lines, meter, barsPerLine, current, countBeat, timeline, tempo } =
-		view;
+	const {
+		lines,
+		meter,
+		barsPerLine,
+		current,
+		countBeat,
+		timeline,
+		tempo,
+		playhead,
+	} = view;
 	const first = lineOfNote(lines, current);
 	// What the effects read when they run, without making them redraw.
 	const now = useRef({ current, countBeat });
@@ -90,7 +100,14 @@ export function SongStaff({
 	return (
 		<div class="song-staff" ref={box}>
 			<div class="song-staff-music" ref={music} />
-			{layout && <SongOverlay layout={layout} segments={segments} />}
+			{layout && (
+				<SongOverlay
+					layout={layout}
+					segments={segments}
+					tempo={tempo}
+					playhead={playhead}
+				/>
+			)}
 		</div>
 	);
 }

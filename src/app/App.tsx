@@ -85,6 +85,9 @@ const clicker = createClicker(audio);
 /** The audio clock, or the page clock when there is no audio context (the song then runs silent but in time). */
 const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
+/** The playhead's clocks: stable functions, so its frame loop restarts only with the song. */
+const playheadNow = () => timedClock.now();
+const playheadLatency = () => outputLatencySeconds(audio);
 
 function listenFor(settings: Settings): CardListen | null {
 	if (!settings.judgeEnabled) return null;
@@ -252,7 +255,7 @@ export function App() {
 						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
 						metronome: metronomeApplies(settings),
 						listen: timedListenFor(settings),
-						outputLatency: () => outputLatencySeconds(audio),
+						outputLatency: playheadLatency,
 						onChange: (state) => {
 							setTimed(state);
 							if (state.listening === "unavailable") setJudgeUnavailable(true);
@@ -358,6 +361,13 @@ export function App() {
 									countBeat: counting ? (timed.countBeat ?? 0) : null,
 									timeline,
 									tempo: songTempo,
+									playhead: {
+										running:
+											timed.phase === "count-in" || timed.phase === "playing",
+										origin: timed.origin,
+										now: playheadNow,
+										outputLatency: playheadLatency,
+									},
 								}
 					}
 					instrument={instrument}

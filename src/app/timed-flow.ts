@@ -64,6 +64,8 @@ export interface TimedState {
 	countBeat: number | null;
 	/** Where listening stands; `off` without judging. */
 	listening: Listening;
+	/** The flow clock's seconds at the first note's start, song time 0; null until the count-in starts. */
+	origin: number | null;
 	/**
 	 * The coverage result one scoring lag after the last slot ends; null before
 	 * that, and in the summary when nothing was scored.
@@ -115,6 +117,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	const bar = countIn(song.meter, tempo);
 
 	let phase: TimedPhase = "ready";
+	let origin: number | null = null;
 	let countBeat: number | null = null;
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let stopped = false;
@@ -144,6 +147,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 			phase,
 			countBeat,
 			listening,
+			origin,
 			summary,
 		});
 	}
@@ -232,6 +236,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 				// A scoring that cannot start leaves the song unscored.
 			}
 		}
+		origin = firstSlot;
 		phase = "count-in";
 		countBeat = null;
 		emit(0);
@@ -332,6 +337,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		start() {
 			stopped = false;
 			phase = "ready";
+			origin = null;
 			countBeat = null;
 			emit(0);
 		},

@@ -57,13 +57,13 @@ Observed: I don't have bluetoot headphones. In firefox new AudioContext().output
 
 No playing needed. Paste the Check tune.
 
-- [ ] In DevTools responsive mode at 360x640, 640x360, 768x1024 and 1024x768: a grey lane sits under each staff row, with a segment under every note and the rest, and nothing overlaps.
-- [ ] There's no sideways scroll at any of those sizes.
-- [ ] Start the song with judging off. When the rows change, the card doesn't jump in height.
-- [ ] The tied E (bars 1 to 2) has one continuous segment, and the tied F (over the line break) has a segment on both rows.
-- [ ] The note to play is black and the others grey, as before.
+- [x] In DevTools responsive mode at 360x640, 640x360, 768x1024 and 1024x768: a grey lane sits under each staff row, with a segment under every note and the rest, and nothing overlaps.
+- [x] There's no sideways scroll at any of those sizes.
+- [x] Start the song with judging off. When the rows change, the card doesn't jump in height.
+- [x] The tied E (bars 1 to 2) has one continuous segment, and the tied F (over the line break) has a segment on both rows.
+- [x] The note to play is black and the others grey, as before.
 
-Observed:
+Observed: Looks good
 
 ## After S05: playhead
 

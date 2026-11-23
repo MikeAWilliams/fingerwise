@@ -95,11 +95,27 @@ describe("ready (AC3)", () => {
 			phase: "ready",
 			countBeat: null,
 			listening: "off",
+			origin: null,
 			summary: null,
 		});
 		vi.advanceTimersByTime(60000);
 		expect(states).toHaveLength(1);
 		expect(clicks).toEqual([]);
+	});
+});
+
+describe("the origin (F09-S05 AC3)", () => {
+	test("is null while ready and the first slot's start from the count-in on, and a restart sets a new one", () => {
+		const flow = setup(songOf([1]));
+		expect(last().origin).toBeNull();
+		flow.step();
+		expect(last().origin).toBeCloseTo(LEAD_SECONDS + 2, 9);
+		vi.advanceTimersByTime((LEAD_SECONDS + 2) * 1000 + 500);
+		expect(last()).toMatchObject({ phase: "summary" });
+		expect(last().origin).toBeCloseTo(LEAD_SECONDS + 2, 9);
+		const before = now();
+		flow.step();
+		expect(last().origin).toBeCloseTo(before + LEAD_SECONDS + 2, 9);
 	});
 });
 
@@ -237,6 +253,7 @@ describe("the end (AC7)", () => {
 			phase: "summary",
 			countBeat: null,
 			listening: "off",
+			origin: LEAD_SECONDS + 2,
 			summary: null,
 		});
 		const count = states.length;
