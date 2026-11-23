@@ -52,6 +52,7 @@ import { headerSong } from "./header-text";
 import { summaryText, tuningText } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
+import { cardPhase } from "./scroll-lock";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import { NO_SONG, type SongState, songStateFrom } from "./song-form";
 import {
@@ -361,11 +362,7 @@ export function App() {
 					beats={timed.beats}
 					revealed={false}
 					judging={settings.judgeEnabled}
-					timed={
-						timed.phase === "count-in" || timed.listening === "opening"
-							? "playing"
-							: timed.phase
-					}
+					timed={cardPhase(timed)}
 					timedSummary={summaryText(timed.summary)}
 					timedTuning={tuningText(timed.summary?.tuning ?? [])}
 					readout={

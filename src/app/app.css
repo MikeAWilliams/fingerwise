@@ -4,8 +4,14 @@ body {
 }
 
 html {
+	/* The lock hides the scroll bar; keeping its room stops the music shifting sideways. */
+	scrollbar-gutter: stable;
 	scroll-padding-top: 4.5rem;
 	scroll-padding-bottom: 4rem;
+}
+
+html.scroll-locked {
+	overflow: hidden;
 }
 
 body {
