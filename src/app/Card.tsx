@@ -62,16 +62,31 @@ export function Card({
 	const view = glyph === undefined ? null : tabView(glyph, font);
 	// Its text is set each frame by the song overlay, not by Preact.
 	const heard = useRef<HTMLParagraphElement>(null);
-	return (
-		<div class={song ? "card card-song" : "card"}>
-			<div class="card-staff">
-				{song ? (
+	// The song's bar, which the page follows around (F10-S04).
+	const bar = useRef<HTMLDivElement>(null);
+	if (song) {
+		return (
+			<div class="card card-song">
+				<div class="card-staff">
 					<SongStaff view={song} options={staffOptions} readout={heard} />
-				) : (
-					<Staff pitch={pitch} options={staffOptions} beats={beats} />
-				)}
+				</div>
+				<div class="song-bar" ref={bar}>
+					{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
+					{timed === "summary" && <p class="card-status">{timedSummary}</p>}
+					{timed === "summary" && timedTuning && (
+						<p class="card-status">{timedTuning}</p>
+					)}
+					{readout && <p class="card-status card-readout" ref={heard} />}
+					{judging && <Legend />}
+				</div>
 			</div>
-			{song && judging && <Legend />}
+		);
+	}
+	return (
+		<div class="card">
+			<div class="card-staff">
+				<Staff pitch={pitch} options={staffOptions} beats={beats} />
+			</div>
 			<div
 				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
 			>

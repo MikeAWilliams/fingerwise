@@ -7,6 +7,7 @@ import {
 	colourSong,
 	drawSongLines,
 	drawStaff,
+	ROW_HEIGHT,
 	type SongLayout,
 	type StaffOptions,
 } from "../render/staff";
@@ -94,8 +95,14 @@ export function SongStaff({
 			barsPerLine,
 		);
 		// The card grows with the song: the box takes the whole drawing's proportions.
-		if (box.current)
+		if (box.current) {
 			box.current.style.aspectRatio = `${drawn.width} / ${drawn.height}`;
+			// One row's proportions, for the CSS cap on the staff's width.
+			box.current.style.setProperty(
+				"--row-aspect",
+				String(drawn.width / ROW_HEIGHT),
+			);
+		}
 		colourSong(drawn, now.current.current, now.current.countBeat);
 		setLayout(drawn);
 	}, [lines, options, meter, barsPerLine]);

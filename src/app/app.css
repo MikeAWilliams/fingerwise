@@ -13,6 +13,8 @@ body {
 }
 
 main {
+	display: flex;
+	flex-direction: column;
 	box-sizing: border-box;
 	min-height: 100dvh;
 	padding-top: 0;
@@ -60,6 +62,7 @@ main {
 }
 
 .card {
+	width: 100%;
 	max-width: 28rem;
 	margin: 0 auto;
 }
@@ -76,12 +79,32 @@ main {
 }
 
 .card-song {
+	display: flex;
+	flex: 1 0 auto;
+	flex-direction: column;
 	max-width: 56rem;
 }
 
 .song-staff {
+	/* What the header and the bar take of the screen height. */
+	--song-chrome: 13rem;
 	position: relative;
 	width: 100%;
+	/* At most two rows fit between the header and the bar. */
+	max-width: calc((100dvh - var(--song-chrome)) / 2.2 * var(--row-aspect, 4));
+	margin-inline: auto;
+}
+
+/* Pinned to the bottom of the screen, in flow: the last lane clears it at the page end. */
+.song-bar {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	margin-top: auto;
+	padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+	border-top: 1px solid #c0c0c0;
+	background: Canvas;
+	text-align: center;
 }
 
 .song-overlay {
@@ -427,4 +450,8 @@ footer {
 .settings-song-status ul {
 	margin: 0;
 	padding-left: 1.25rem;
+}
+
+.song-bar .lane-legend {
+	justify-content: center;
 }
