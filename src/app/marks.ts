@@ -33,8 +33,8 @@ export interface Mark {
 export const MARK_HEIGHT = 6;
 const TICK_WIDTH = 1.5;
 const POINTER_WIDTH = 4;
-const CROSS_HALF = 2.5;
-const BAR_WIDTH = 1.5;
+/** Half the width of the not-separated slur. */
+const SLUR_HALF = 3.5;
 
 /**
  * Where each reported fault is drawn, on the rows on show. A timing fault sits
@@ -81,7 +81,7 @@ const n = (value: number) => Math.round(value * 10) / 10;
  * that is both filled and stroked. A timing mark is a tick at the edge with a
  * triangle on the inside of the note pointing left (early) or right (late), in
  * the lane's top quarter above the trace's centre line. A not-separated mark is
- * a short vertical bar with a cross over it in the lane's bottom quarter.
+ * a thin slur (a crescent) under the join in the lane's bottom quarter.
  */
 export function markPath(
 	mark: Mark,
@@ -90,13 +90,11 @@ export function markPath(
 ): string {
 	const { x, shape } = mark;
 	if (shape === "not-separated") {
-		const top = laneBottom - MARK_HEIGHT;
-		const mid = laneBottom - MARK_HEIGHT / 2;
-		return (
-			`M${n(x - BAR_WIDTH / 2)} ${n(top)}H${n(x + BAR_WIDTH / 2)}V${n(laneBottom)}H${n(x - BAR_WIDTH / 2)}Z` +
-			`M${n(x - CROSS_HALF)} ${n(mid - CROSS_HALF)}L${n(x + CROSS_HALF)} ${n(mid + CROSS_HALF)}` +
-			`M${n(x - CROSS_HALF)} ${n(mid + CROSS_HALF)}L${n(x + CROSS_HALF)} ${n(mid - CROSS_HALF)}`
-		);
+		// A thin crescent like a slur or tie under the join: the notes run together.
+		const ends = laneBottom - MARK_HEIGHT + 1;
+		const left = n(x - SLUR_HALF);
+		const right = n(x + SLUR_HALF);
+		return `M${left} ${n(ends)}Q${n(x)} ${n(laneBottom)} ${right} ${n(ends)}Q${n(x)} ${n(laneBottom - 2)} ${left} ${n(ends)}Z`;
 	}
 	const bottom = laneTop + MARK_HEIGHT;
 	const mid = laneTop + MARK_HEIGHT / 2;

@@ -93,12 +93,15 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 		);
 		expect(marks).toEqual([{ row: 0, x: 60, shape: "not-separated" }]);
 		const d = markPath(marks[0] as Mark, 100, 124);
-		// In the lane's bottom quarter, with a cross.
-		expect(d).toContain("L");
-		for (const [, y] of d.matchAll(/ (\d+(?:\.\d+)?)(?=[HLZM])/g)) {
-			expect(Number(y)).toBeGreaterThanOrEqual(124 - MARK_HEIGHT - 3);
-			expect(Number(y)).toBeLessThanOrEqual(124);
-		}
+		// A slur-shaped crescent in the lane's bottom quarter, centred on the join.
+		expect(d).toContain("Q");
+		const nums = [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => Number(m[0]));
+		const xs = nums.filter((_, i) => i % 2 === 0);
+		const ys = nums.filter((_, i) => i % 2 === 1);
+		expect(Math.min(...xs)).toBeLessThan(60);
+		expect(Math.max(...xs)).toBeGreaterThan(60);
+		expect(Math.min(...ys)).toBeGreaterThanOrEqual(124 - MARK_HEIGHT);
+		expect(Math.max(...ys)).toBeLessThanOrEqual(124);
 	});
 
 	test("the timing marks keep above the trace's centre line, the join mark below it", () => {
@@ -117,12 +120,11 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 			Math.max(
 				...[...d.matchAll(/ (\d+(?:\.\d+)?)/g)].map((m) => Number(m[1])),
 			);
-		const minY = (d: string) =>
-			Math.min(
-				...[...d.matchAll(/ (\d+(?:\.\d+)?)/g)].map((m) => Number(m[1])),
-			);
+		const joinYs = [...join.matchAll(/-?\d+(?:\.\d+)?/g)]
+			.map((m) => Number(m[0]))
+			.filter((_, i) => i % 2 === 1);
 		expect(maxY(timing)).toBeLessThan(lane.centre);
-		expect(minY(join)).toBeGreaterThan(lane.centre);
+		expect(Math.min(...joinYs)).toBeGreaterThan(lane.centre);
 	});
 
 	test("a note continued from or carried to another row has its edges only where they are", () => {

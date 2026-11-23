@@ -95,13 +95,13 @@ Observed: Looks good
 
 Example song at ♩ = 70. Each item is one take, playing badly on purpose in one place.
 
-- [ ] **Late:** wait about half a beat before one note. A late mark appears at that note's start.
-- [ ] **Short:** stop one long note (E2) halfway. An early-end mark appears at its end.
-- [ ] **Held over:** keep playing one note well into the next before changing. Marks appear at the first note's end and the next note's start.
-- [ ] **Not separated:** play "E E E2" (bar 2) in one breath without tonguing. Not-separated marks appear between the Es.
-- [ ] At 360x640 in responsive mode the marks are readable and don't hide the middle of the trace.
+- [x] **Late:** wait about half a beat before one note. A late mark appears at that note's start.
+- [x] **Short:** stop one long note (E2) halfway. An early-end mark appears at its end.
+- [x] **Held over:** keep playing one note well into the next before changing. Marks appear at the first note's end and the next note's start.
+- [x] **Not separated:** play "E E E2" (bar 2) in one breath without tonguing. Not-separated marks appear between the Es.
+- [x] At 360x640 in responsive mode the marks are readable and don't hide the middle of the trace.
 
-Observed:
+Observed: Discussed, added legend
 
 ## After S08: the summary
 
