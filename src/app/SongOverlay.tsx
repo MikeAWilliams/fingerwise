@@ -10,6 +10,7 @@ import {
 	hearingText,
 } from "./judge-text";
 import type { LaneSegment } from "./lane";
+import { faultMarks, marksPaths } from "./marks";
 import { playheadBeat, playheadPlace } from "./playhead";
 import {
 	emptyPaths,
@@ -119,6 +120,7 @@ export function SongOverlay({
 }) {
 	const line = useRef<SVGLineElement>(null);
 	const paths = useRef<(SVGPathElement | null)[]>([]);
+	const markPaths = useRef<(SVGPathElement | null)[]>([]);
 	const { running, origin, now, outputLatency } = playhead;
 	const progress = fill?.progress;
 	const reading = fill?.reading;
@@ -131,6 +133,7 @@ export function SongOverlay({
 			paths.current[fillIndex(row, colour, open)]?.setAttribute("d", d);
 		const clear = () => {
 			for (const path of paths.current) path?.setAttribute("d", "");
+			for (const path of markPaths.current) path?.setAttribute("d", "");
 		};
 		clear();
 		let frame = 0;
@@ -139,6 +142,11 @@ export function SongOverlay({
 		let consumed = 0;
 		let settled: RowPaths[] = rows.map(emptyPaths);
 		let openD: string[] = [];
+		// The fault marks drawn so far: which array of faults, how many of each kind, and each row's path data.
+		let faultsFrom: unknown = null;
+		let faultsDone = 0;
+		let joinsDone = 0;
+		let marks: string[] = rows.map(() => "");
 		const throttle = createReadoutThrottle();
 		const move = () => {
 			const beat = playheadBeat(now(), outputLatency(), origin, tempo);
@@ -178,6 +186,32 @@ export function SongOverlay({
 						});
 					});
 				}
+				if (scored.timingFaults !== faultsFrom) {
+					faultsFrom = scored.timingFaults;
+					faultsDone = 0;
+					joinsDone = 0;
+					marks = rows.map(() => "");
+					for (const path of markPaths.current) path?.setAttribute("d", "");
+				}
+				if (
+					scored.timingFaults.length > faultsDone ||
+					scored.notSeparated.length > joinsDone
+				) {
+					const added = marksPaths(
+						faultMarks(
+							scored.timingFaults.slice(faultsDone),
+							scored.notSeparated.slice(joinsDone),
+							segments,
+						),
+						rows,
+					);
+					faultsDone = scored.timingFaults.length;
+					joinsDone = scored.notSeparated.length;
+					added.forEach((add, r) => {
+						marks[r] += add;
+						markPaths.current[r]?.setAttribute("d", marks[r] as string);
+					});
+				}
 				const open = segmentPaths(scored.open, rows, tempo, tolerance);
 				open.forEach((now, r) => {
 					TRACE_COLOURS.forEach((colour, c) => {
@@ -203,6 +237,7 @@ export function SongOverlay({
 	}, [
 		layout,
 		rows,
+		segments,
 		running,
 		origin,
 		tempo,
@@ -241,6 +276,15 @@ export function SongOverlay({
 					}),
 				),
 			)}
+			{rows.map((_, r) => (
+				<path
+					key={`marks-${r}`}
+					class="lane-marks"
+					ref={(el) => {
+						markPaths.current[r] = el;
+					}}
+				/>
+			))}
 			<line class="playhead" ref={line} visibility="hidden" />
 		</svg>
 	);

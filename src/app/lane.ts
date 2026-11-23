@@ -17,6 +17,10 @@ export interface LaneSegment {
 	graded: boolean;
 	/** A note's index in the song; a rest's place among the rests. */
 	index: number;
+	/** This segment holds the start of the note or rest, not a continuation from the row before. */
+	starts: boolean;
+	/** This segment holds its end, not a carry on to the row after. */
+	ends: boolean;
 }
 
 /**
@@ -73,6 +77,8 @@ export function laneSegments(
 				kind: item.kind,
 				graded: item.graded,
 				index: item.index,
+				starts: item.start >= from - BEAT_EPSILON,
+				ends: item.end <= to + BEAT_EPSILON,
 			});
 		}
 	});

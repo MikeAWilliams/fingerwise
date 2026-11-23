@@ -57,9 +57,36 @@ describe("laneSegments (AC3, AC4)", () => {
 			]),
 		);
 		expect(laneSegments(timeline, lines, layout, 60)).toEqual([
-			{ row: 0, x0: 20, x1: 40, kind: "note", graded: true, index: 0 },
-			{ row: 0, x0: 60, x1: 80, kind: "note", graded: true, index: 1 },
-			{ row: 0, x0: 40, x1: 60, kind: "rest", graded: true, index: 0 },
+			{
+				row: 0,
+				x0: 20,
+				x1: 40,
+				kind: "note",
+				graded: true,
+				index: 0,
+				starts: true,
+				ends: true,
+			},
+			{
+				row: 0,
+				x0: 60,
+				x1: 80,
+				kind: "note",
+				graded: true,
+				index: 1,
+				starts: true,
+				ends: true,
+			},
+			{
+				row: 0,
+				x0: 40,
+				x1: 60,
+				kind: "rest",
+				graded: true,
+				index: 0,
+				starts: true,
+				ends: true,
+			},
 		]);
 	});
 
@@ -102,7 +129,16 @@ describe("laneSegments (AC3, AC4)", () => {
 			(s) => s.kind === "note" && s.index === 1,
 		);
 		expect(note).toEqual([
-			{ row: 0, x0: 100, x1: 170, kind: "note", graded: true, index: 1 },
+			{
+				row: 0,
+				x0: 100,
+				x1: 170,
+				kind: "note",
+				graded: true,
+				index: 1,
+				starts: true,
+				ends: true,
+			},
 		]);
 	});
 
@@ -128,8 +164,26 @@ describe("laneSegments (AC3, AC4)", () => {
 			(s) => s.kind === "note",
 		);
 		expect(notes).toEqual([
-			{ row: 0, x0: 100, x1: 120, kind: "note", graded: true, index: 0 },
-			{ row: 1, x0: 30, x1: 90, kind: "note", graded: true, index: 0 },
+			{
+				row: 0,
+				x0: 100,
+				x1: 120,
+				kind: "note",
+				graded: true,
+				index: 0,
+				starts: true,
+				ends: false,
+			},
+			{
+				row: 1,
+				x0: 30,
+				x1: 90,
+				kind: "note",
+				graded: true,
+				index: 0,
+				starts: false,
+				ends: true,
+			},
 		]);
 	});
 

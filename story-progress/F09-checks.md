@@ -81,15 +81,15 @@ Observed: The line sometimes seems to jump at the start of a bar
 
 Example song unless stated. Play each take once.
 
-- [ ] **Good take:** the trace is mostly green near the lane's middle, trailing a little behind the line. "Hearing E4 …" names what you play.
-- [ ] **Sagging note:** on a long note (E2 or D2), let the breath ease off. The trace sinks and turns amber, then red.
-- [ ] **Wrong fingering:** deliberately play G instead of the first E. That stretch is red and pinned to the lane's top edge, and the readout says "Hearing G4 …".
-- [ ] **Held-over rest:** with the Check tune, keep playing the E into the rest in bar 2. The rest shows red where you sounded and green where you were silent.
-- [ ] When the rows change, the row that leaves takes its fill with it, and the other row keeps its fill.
-- [ ] With judging off there's no fill and no readout.
-- [ ] **Smoothness:** the playhead and fill move smoothly in Firefox. If Chrome is installed, also try it with DevTools → Performance → CPU 4x slowdown, a rough stand-in for a mid-range phone.
+- [x] **Good take:** the trace is mostly green near the lane's middle, trailing a little behind the line. "Hearing E4 …" names what you play.
+- [x] **Sagging note:** on a long note (E2 or D2), let the breath ease off. The trace sinks and turns amber, then red.
+- [x] **Wrong fingering:** deliberately play G instead of the first E. That stretch is red and pinned to the lane's top edge, and the readout says "Hearing G4 …".
+- [x] **Held-over rest:** with the Check tune, keep playing the E into the rest in bar 2. The rest shows red where you sounded and green where you were silent.
+- [x] When the rows change, the row that leaves takes its fill with it, and the other row keeps its fill.
+- [x] With judging off there's no fill and no readout.
+- [x] **Smoothness:** the playhead and fill move smoothly in Firefox. If Chrome is installed, also try it with DevTools → Performance → CPU 4x slowdown, a rough stand-in for a mid-range phone.
 
-Observed:
+Observed: Looks good
 
 ## After S07: fault marks
 

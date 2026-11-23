@@ -789,6 +789,24 @@ describe("live progress (AC10)", () => {
 		});
 	});
 
+	test("not-separated joins are reported as their note finishes, as the same array", () => {
+		const s = quarters("C4", "C4", "C4");
+		const sound = spans([0, 1470, hz("C4")]);
+		const run = createCoverageRun(buildTimeline(s, TEMPO), options);
+		feed(run, sound, { from: -100, to: 600 });
+		const early = run.progress();
+		expect(early.notSeparated).toEqual([]);
+		feed(run, sound, { from: 600 + STEP, to: 1100 });
+		const later = run.progress();
+		expect(later.notSeparated).toBe(early.notSeparated);
+		expect(later.notSeparated).toEqual([{ before: 0, after: 1, atMs: 500 }]);
+		feed(run, sound, { from: 1100 + STEP, to: 1800 });
+		expect(run.progress().notSeparated).toEqual([
+			{ before: 0, after: 1, atMs: 500 },
+			{ before: 1, after: 2, atMs: 1000 },
+		]);
+	});
+
 	test("a wrong run confirmed late turns the last readings wrong in the open segments", () => {
 		const s = quarters("C4");
 		const run = createCoverageRun(buildTimeline(s, TEMPO), options);

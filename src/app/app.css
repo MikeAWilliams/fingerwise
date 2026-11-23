@@ -94,6 +94,12 @@ main {
 	fill: #b3261e;
 }
 
+.lane-marks {
+	fill: #222;
+	stroke: #222;
+	stroke-width: 1;
+}
+
 .lane-ungraded {
 	fill: #ececec;
 }
