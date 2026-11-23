@@ -82,6 +82,16 @@ describe("playheadPlace (F09-S05 AC2, AC3, AC4)", () => {
 		expect(playheadPlace(-1, rows)).toEqual({ row: 0, x: 70 });
 	});
 
+	test("glides over a bar line instead of jumping across it at the new bar's first beat", () => {
+		// The bar line is at x 90 and the first note after it at x 100, both at beat 0.
+		const before = playheadPlace(-0.01, rows)?.x as number;
+		const after = playheadPlace(0, rows)?.x as number;
+		expect(after - before).toBeLessThan(1);
+		expect(playheadPlace(-0.5, rows)).toEqual({ row: 0, x: 85 });
+		// Within a bar, and at a row's end, nothing changes.
+		expect(playheadPlace(3.99, rows)?.x).toBeCloseTo(199.9, 1);
+	});
+
 	test("waits at the start of the first row before the count-in", () => {
 		expect(playheadPlace(-6, rows)).toEqual({ row: 0, x: 10 });
 	});

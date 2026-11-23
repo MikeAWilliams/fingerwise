@@ -69,13 +69,13 @@ Observed: Looks good
 
 No playing needed. Judging can be off.
 
-- [ ] Example song at ♩ = 70: the line runs through the count-in rests with the clicks, then reaches each note as its click sounds.
-- [ ] Change `Q:` in the Song box to 120 and check the same at that speed.
-- [ ] It jumps cleanly to the other row at each line end.
-- [ ] It stops when the summary shows, and when you open Settings. A tap on the summary starts it again from the count-in.
-- [ ] It runs the same with judging on and off.
+- [x] Example song at ♩ = 70: the line runs through the count-in rests with the clicks, then reaches each note as its click sounds.
+- [x] Change `Q:` in the Song box to 120 and check the same at that speed.
+- [x] It jumps cleanly to the other row at each line end.
+- [x] It stops when the summary shows, and when you open Settings. A tap on the summary starts it again from the count-in.
+- [x] It runs the same with judging on and off.
 
-Observed:
+Observed: The line sometimes seems to jump at the start of a bar
 
 ## After S06: live fill and readout
 

@@ -20,7 +20,7 @@ export function playheadBeat(
  * Which row the playhead is on and its x, from the rows on show. A row holds
  * the beats from its first stop up to its last (its end bar line); a beat at
  * that end is on the next row, at its first note, so the playhead jumps to the
- * other row at the end of a line. Before the first row it waits at its start
+. Before the first row it waits at its start
  * and past the last it waits at its end. `row` is an index into `rows`.
  */
 export function playheadPlace(
@@ -33,7 +33,11 @@ export function playheadPlace(
 		return end !== undefined && beat < end.beat;
 	});
 	if (row < 0) row = rows.length - 1;
-	const stops = (rows[row] as RowLayout).stops;
+	// Where a bar line and the next bar's first note share a beat, keep only the note, so the
+	// playhead glides over the bar line instead of jumping across it when the beat arrives.
+	const stops = (rows[row] as RowLayout).stops.filter(
+		(stop, i, all) => all[i + 1]?.beat !== stop.beat,
+	);
 	if (stops.length === 0) return null;
 	return { row, x: rowMap(stops).beatToX(beat) };
 }
