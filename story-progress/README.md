@@ -4,7 +4,7 @@
 
 ## Rules
 
-- One file per in-flight feature, named by its ID: `F01.md`, with one section per story. The `fw-breakdown` skill creates it from [`../docs/templates/story-progress.md`](../docs/templates/story-progress.md); `fw-execute` works through it.
+- One file per in-flight feature, named by its ID: `F01.md`, with one section per story. The `fw-breakdown` skill creates it from [`../docs/templates/story-progress.md`](../docs/templates/story-progress.md); `fw-execute` works through it. A feature may add `F01-checks.md` for the user's checks by hand (what to play, look at and note down after each story); it follows the same lifecycle.
 - Each story section is a checklist, and each story is one commit.
 - Items describe how, not what. Do not copy the story's text or acceptance criteria; refer to them as `AC1`, `AC2`, and so on.
 - Tick items as they are completed and commit the file with the work.
