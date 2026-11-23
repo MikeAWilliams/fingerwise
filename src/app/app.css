@@ -152,6 +152,8 @@ main {
 	margin: 0;
 	padding-top: 1rem;
 	opacity: 0.7;
+	/* The timed summary is a long line: it wraps rather than scrolls. */
+	overflow-wrap: anywhere;
 }
 
 .card-glyph {

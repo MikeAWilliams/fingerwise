@@ -8,6 +8,7 @@ import {
 	passesChecks,
 	type Reading,
 } from "../core/judge";
+import { formatPitch, type Pitch } from "../core/pitch";
 import { judgedNote } from "./verdict";
 
 export const JUDGE_HELP =
@@ -22,11 +23,75 @@ export const START_PROMPT = "Tap or press a key to start";
 
 export const END_OF_SONG = "End of song";
 
-/** What a timed song's summary says: the share covered, or the plain end when nothing was graded or scored. */
+const percent = (share: number) => `${Math.round(share * 100)}%`;
+
+/** "started late 12%, early 3%" from the two faults and the notes with that edge; null when no note has the edge. */
+function timingPart(
+	label: string,
+	first: [string, { faults: number; withEdge: number }],
+	second: [string, { faults: number; withEdge: number }],
+): string | null {
+	const edges = first[1].withEdge;
+	if (edges === 0) return null;
+	return `${label} ${first[0]} ${percent(first[1].faults / edges)}, ${second[0]} ${percent(second[1].faults / edges)}`;
+}
+
+/**
+ * What a timed song's summary says, such as "82% covered · 64% in tune ·
+ * started late 12%, early 3% · ended early 5%, late 20% · not separated 10% · 2
+ * notes too short to grade". A part with nothing to count (no notes with that
+ * edge, no plain joins, no note played right, none too short) is left out
+ * rather than shown as 0%. With nothing graded, or no scoring (judging off),
+ * the plain end of the song.
+ */
 export function summaryText(result: CoverageResult | null): string {
-	return result === null || result.coverage === null
-		? END_OF_SONG
-		: `${Math.round(result.coverage * 100)}% covered`;
+	if (result === null || result.coverage === null) return END_OF_SONG;
+	const { timing, separation } = result;
+	const parts = [
+		`${percent(result.coverage)} covered`,
+		result.inTune === null ? null : `${percent(result.inTune)} in tune`,
+		timingPart(
+			"started",
+			["late", timing.startedLate],
+			["early", timing.startedEarly],
+		),
+		timingPart(
+			"ended",
+			["early", timing.endedEarly],
+			["late", timing.endedLate],
+		),
+		separation.plainJoins === 0
+			? null
+			: `not separated ${percent(separation.notSeparated / separation.plainJoins)}`,
+		result.tooShort === 0
+			? null
+			: `${result.tooShort} ${result.tooShort === 1 ? "note" : "notes"} too short to grade`,
+	];
+	return parts.filter((part) => part !== null).join(" · ");
+}
+
+/** How many pitches the tuning line names. */
+const TUNING_SHOWN = 3;
+
+/** "+70¢", or "−35¢" with a true minus sign. */
+function signedCents(cents: number): string {
+	const rounded = Math.round(cents);
+	return rounded < 0 ? `−${-rounded}¢` : `+${rounded}¢`;
+}
+
+/**
+ * The line after the summary, such as "Furthest off: D4 +70¢ · E5 +40¢ · C4
+ * −35¢": up to three written pitches, in the order given (worst first); null
+ * when none is outside the tolerance.
+ */
+export function tuningText(
+	tuning: readonly { pitch: Pitch; cents: number }[],
+): string | null {
+	if (tuning.length === 0) return null;
+	const named = tuning
+		.slice(0, TUNING_SHOWN)
+		.map((t) => `${formatPitch(t.pitch)} ${signedCents(t.cents)}`);
+	return `Furthest off: ${named.join(" · ")}`;
 }
 
 export const HEARING_NOTHING = "Hearing nothing";

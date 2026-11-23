@@ -29,6 +29,8 @@ interface CardProps {
 	 */
 	timed?: "ready" | "playing" | "summary";
 	timedSummary?: string;
+	/** The line after the summary: the pitches furthest off; absent when none is. */
+	timedTuning?: string | null;
 	/** A timed song with its stream running: the reveal area has room for what is heard now. */
 	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
@@ -49,6 +51,7 @@ export function Card({
 	need = null,
 	timed,
 	timedSummary,
+	timedTuning = null,
 	readout = false,
 	song,
 	instrument,
@@ -74,6 +77,9 @@ export function Card({
 			>
 				{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
 				{timed === "summary" && <p class="card-status">{timedSummary}</p>}
+				{timed === "summary" && timedTuning && (
+					<p class="card-status">{timedTuning}</p>
+				)}
 				{readout && <p class="card-status card-readout" ref={heard} />}
 				{!revealed && listening === "locked" && (
 					<p class="card-status">{LISTEN_PROMPT}</p>

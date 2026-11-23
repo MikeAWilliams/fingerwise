@@ -48,7 +48,7 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { summaryText } from "./judge-text";
+import { summaryText, tuningText } from "./judge-text";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
@@ -356,6 +356,7 @@ export function App() {
 							: timed.phase
 					}
 					timedSummary={summaryText(timed.summary)}
+					timedTuning={tuningText(timed.summary?.tuning ?? [])}
 					readout={
 						timed.listening === "running" &&
 						(timed.phase === "count-in" || timed.phase === "playing")

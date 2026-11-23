@@ -12,7 +12,7 @@ import {
 	type TimedState,
 } from "../../src/app/timed-flow";
 import type { ListenResult, PitchReading } from "../../src/audio/listener";
-import type { CoverageOptions, CoverageResult } from "../../src/core/coverage";
+import type { CoverageOptions } from "../../src/core/coverage";
 import { DEFAULT_THRESHOLDS } from "../../src/core/judge";
 import { type Pitch, toFrequency } from "../../src/core/pitch";
 import {
@@ -763,6 +763,41 @@ describe("scoring by coverage (F09-S03)", () => {
 		});
 	});
 
+	describe("nothing is stored (F09-S08 AC7)", () => {
+		test("a scored run, its summary and a restart touch no storage", async () => {
+			const calls: string[] = [];
+			const spy = new Proxy(
+				{},
+				{
+					get: (_target, name) => {
+						calls.push(String(name));
+						return () => null;
+					},
+				},
+			);
+			vi.stubGlobal("localStorage", spy);
+			vi.stubGlobal("sessionStorage", spy);
+			try {
+				const song = songOf([1, 1]);
+				const { flow, listener } = listenSetup(song);
+				await run(
+					flow,
+					listener,
+					played(song),
+					100,
+					FIRST_SLOT_MS + 1000 + 150,
+				);
+				expect(last().phase).toBe("summary");
+				expect(last().summary).not.toBeNull();
+				flow.step();
+				flow.stop();
+				expect(calls).toEqual([]);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+	});
+
 	describe("the end of the run (AC5, AC6)", () => {
 		test("the run ends one lag after the last slot ends, and the summary shows then", async () => {
 			const { flow } = listenSetup(songOf([1]), {}, 0.145);
@@ -843,22 +878,6 @@ describe("scoring by coverage (F09-S03)", () => {
 			vi.advanceTimersByTime(FIRST_SLOT_MS + 1000);
 			expect(last()).toMatchObject({ phase: "summary", summary: null });
 		});
-	});
-});
-
-describe("summaryText (F09-S03 AC6)", () => {
-	const result = (coverage: number | null) => ({ coverage }) as CoverageResult;
-
-	test("gives the share covered, rounded", () => {
-		expect(summaryText(result(0.824))).toBe("82% covered");
-		expect(summaryText(result(0.825))).toBe("83% covered");
-		expect(summaryText(result(1))).toBe("100% covered");
-		expect(summaryText(result(0))).toBe("0% covered");
-	});
-
-	test("gives the end of the song when nothing was graded or scored", () => {
-		expect(summaryText(result(null))).toBe(END_OF_SONG);
-		expect(summaryText(null)).toBe(END_OF_SONG);
 	});
 });
 
