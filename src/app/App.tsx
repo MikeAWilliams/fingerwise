@@ -11,6 +11,7 @@ import {
 } from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer } from "../audio/tone";
+import { buildTimeline } from "../core/coverage";
 import { buildPool } from "../core/drill";
 import { loadInstrument, soundingPitch } from "../core/instrument";
 import {
@@ -33,7 +34,7 @@ import {
 	type Settings,
 	smartSamplingApplies,
 } from "../core/settings";
-import { songLines } from "../core/song";
+import { DEFAULT_TEMPO, songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { Card } from "./Card";
@@ -200,6 +201,11 @@ export function App() {
 		() => (song === null ? [] : songLines(song, barsPerLine)),
 		[song, barsPerLine],
 	);
+	const songTempo = song?.tempo ?? DEFAULT_TEMPO;
+	const timeline = useMemo(
+		() => (song === null ? null : buildTimeline(song, songTempo)),
+		[song, songTempo],
+	);
 	// Waiting for the tap or counting in: no note is lit yet.
 	const counting = timed?.phase === "ready" || timed?.phase === "count-in";
 	useEffect(() => {
@@ -341,7 +347,7 @@ export function App() {
 					}
 					timedSummary={summaryText(timed.summary)}
 					song={
-						song === null
+						song === null || timeline === null
 							? undefined
 							: {
 									lines,
@@ -350,6 +356,8 @@ export function App() {
 									// Before the first slot the first rest is lit, then each beat's.
 									current: counting ? -1 : timed.index,
 									countBeat: counting ? (timed.countBeat ?? 0) : null,
+									timeline,
+									tempo: songTempo,
 								}
 					}
 					instrument={instrument}

@@ -51,10 +51,28 @@ main {
 }
 
 .song-staff {
+	position: relative;
 	width: 100%;
 }
 
-.song-staff svg,
+.song-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.lane-graded {
+	fill: #d0d0d0;
+}
+
+.lane-ungraded {
+	fill: #ececec;
+}
+
+.song-staff-music svg,
 .staff svg {
 	display: block;
 	width: 100%;

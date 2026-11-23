@@ -1,7 +1,17 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import type { Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
-import { drawSongLines, drawStaff, type StaffOptions } from "../render/staff";
+import {
+	colourSong,
+	drawSongLines,
+	drawStaff,
+	lineOfNote,
+	type SongLayout,
+	type StaffOptions,
+} from "../render/staff";
+import { laneSegments } from "./lane";
+import { SongOverlay } from "./SongOverlay";
 
 interface StaffProps {
 	pitch: Pitch;
@@ -27,9 +37,17 @@ export interface SongView {
 	current: number;
 	/** The count-in beat clicking, from 0; null when none is. */
 	countBeat: number | null;
+	/** The song's notes, rests and joins in ms, for the lane under the staff. */
+	timeline: Timeline;
+	/** Quarter notes per minute the timeline is at. */
+	tempo: number;
 }
 
-/** The line holding the note to play and the line after it. */
+/**
+ * The line holding the note to play and the line after it, with the lane under
+ * each. The staff is drawn only when the lines on show change; a change of note
+ * recolours what is drawn.
+ */
 export function SongStaff({
 	view,
 	options,
@@ -37,19 +55,42 @@ export function SongStaff({
 	view: SongView;
 	options: StaffOptions;
 }) {
-	const ref = useRef<HTMLDivElement>(null);
-	const { lines, meter, barsPerLine, current, countBeat } = view;
+	const box = useRef<HTMLDivElement>(null);
+	const music = useRef<HTMLDivElement>(null);
+	const [layout, setLayout] = useState<SongLayout | null>(null);
+	const { lines, meter, barsPerLine, current, countBeat, timeline, tempo } =
+		view;
+	const first = lineOfNote(lines, current);
+	// What the effects read when they run, without making them redraw.
+	const now = useRef({ current, countBeat });
+	now.current = { current, countBeat };
 	useEffect(() => {
-		if (ref.current)
-			drawSongLines(
-				ref.current,
-				lines,
-				current,
-				options,
-				meter,
-				barsPerLine,
-				countBeat,
-			);
-	}, [lines, current, options, meter, barsPerLine, countBeat]);
-	return <div class="song-staff" ref={ref} />;
+		if (!music.current) return;
+		const drawn = drawSongLines(
+			music.current,
+			lines,
+			first,
+			options,
+			meter,
+			barsPerLine,
+		);
+		// The view box is fixed for the options and bars per line, so the height holds when the rows change.
+		if (box.current)
+			box.current.style.aspectRatio = `${drawn.width} / ${drawn.height}`;
+		colourSong(drawn, now.current.current, now.current.countBeat);
+		setLayout(drawn);
+	}, [lines, first, options, meter, barsPerLine]);
+	useEffect(() => {
+		if (layout) colourSong(layout, current, countBeat);
+	}, [layout, current, countBeat]);
+	const segments = useMemo(
+		() => (layout ? laneSegments(timeline, lines, layout, tempo) : []),
+		[layout, timeline, lines, tempo],
+	);
+	return (
+		<div class="song-staff" ref={box}>
+			<div class="song-staff-music" ref={music} />
+			{layout && <SongOverlay layout={layout} segments={segments} />}
+		</div>
+	);
 }

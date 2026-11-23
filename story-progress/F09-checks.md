@@ -43,15 +43,15 @@ All playing is the example song or the Check tune, at ♩ = 70, on notes C to G.
 
 There's no lane or live feedback yet; only the summary changes.
 
-- [ ] In the browser console of each browser you have on Linux (Firefox, and Chrome if installed), run `new AudioContext().outputLatency` and write the number down. Do it with the headset, and again with Bluetooth headphones if you have them.
-- [ ] Play the example song as well as you can with the headset. The summary should read "N% covered" with a plausible N: high for a good take, not near 0.
-- [ ] Play it again with the ocarina silent for the second half. N should drop to about half.
+- [x] In the browser console of each browser you have on Linux (Firefox, and Chrome if installed), run `new AudioContext().outputLatency` and write the number down. Do it with the headset, and again with Bluetooth headphones if you have them.
+- [x] Play the example song as well as you can with the headset. The summary should read "N% covered" with a plausible N: high for a good take, not near 0.
+- [x] Play it again with the ocarina silent for the second half. N should drop to about half.
 - [ ] If you have Bluetooth headphones, play it once with them. N should be about the same as with the headset.
-- [ ] Untimed song cards and random cards behave as before.
+- [x] Untimed song cards and random cards behave as before.
 
 outputLatency (browser, output, value):
 
-Observed:
+Observed: I don't have bluetoot headphones. In firefox new AudioContext().outputLatency shows 0.045166666
 
 ## After S04: lane under the staff
 
