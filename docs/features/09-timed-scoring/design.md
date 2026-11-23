@@ -1,8 +1,8 @@
 # F09: Timed scoring
 
-- **Status:** draft
+- **Status:** designed
 
-> **Provisional.** This design started from a review of how [F08](../08-timed-play-along/design.md) scores a timed song (2026-11-22). The scoring model below was chosen in dialog on 2026-11-22 and is recorded in [ADR 0009](../../architecture/decisions/0009-timed-songs-scored-by-coverage.md). The numbers in it are starting values, to be tuned in the live check.
+> This design started from a review of how [F08](../08-timed-play-along/design.md) scores a timed song, and the scoring model was chosen in dialog, both on 2026-11-22. It is recorded in [ADR 0009](../../architecture/decisions/0009-timed-songs-scored-by-coverage.md), backed by the [gap detection](../../research/gap-detection-spike.md) and [slur](../../research/abcjs-slur-spike.md) spikes. The numbers are starting values, to be tuned in the live check.
 
 ## Goal
 
@@ -55,7 +55,7 @@ All of this follows [ADR 0009](../../architecture/decisions/0009-timed-songs-sco
 Each reading is classified on its own against the note (or rest) due at its song time:
 
 - **Right note:** it passes the judge's clarity, level and band checks, and its nearest note is the expected pitch (within ±50 cents). It is also **in tune** when it is within the tolerance setting, otherwise **out of tune**. Each right-note reading keeps its offset in cents.
-- **Wrong:** it passes those checks but its nearest note is another one, and so are the readings just before it, for about 3 in a row (about 50 ms). This stops one octave jump or attack transient from showing red.
+- **Wrong:** it passes those checks but its nearest note is another one, the same other note for about 3 readings in a row (about 50 ms). This stops one octave jump or attack transient from showing red.
 - **Silent:** anything else, including a wrong reading that is not yet confirmed, low level, low clarity and metronome clicks.
 
 Each reading covers the time until the next one. Runs with the same classification merge into one segment.
@@ -82,7 +82,7 @@ Every pair of neighbouring notes meets at a join:
 | **Slurred** (the ABC slurs them) | must not occur; a gap is unfilled | timing of the pitch change |
 | **Tied** | n/a: a tie makes one note | nothing |
 
-**Separation:** a plain join is separated when a gap is detected within the timing tolerance of the written join. A gap is either silent readings or a dip: the level falling by some number of dB, or clarity dropping, and then recovering. A tongued break on an ocarina lasts about 20–50 ms and may never drop below the silence gate in a 43 ms analyser window, so the dip matters ([risks](#risks-and-open-questions)).
+**Separation:** a plain join is separated when a gap is detected within the timing tolerance of the written join. A gap is either silent readings or a dip in the fine level envelope: the level falling at least the gap dip (about 10 dB) below its median over the surrounding 100 ms, then recovering. A tongued break on an ocarina lasts about 20–50 ms and may never drop below the silence gate in a 43 ms analyser window, so the dip matters ([risks](#risks-and-open-questions)).
 
 #### Timing
 
