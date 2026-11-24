@@ -66,7 +66,7 @@ Coverage counts the right note, not tuning. The first spike recording showed why
 
 - **A note's coverage** is the share of its written length filled with right-note readings, in tune or not. It uses the note's own length, not its slot, so a following rest is not part of it.
 - **A rest's coverage** is the share of the rest filled with silence. A rest is a gap between one note's end and the next note's start, as [`songBars`](../../architecture/modules/song.md) already finds it.
-- **Edge grace.** A short grace (about 40 ms, at least the analyser fill plus a normal articulation gap) at each edge of a note or rest is not counted, so a decaying release or the previous pitch blurring through the analyser window is not penalised. At a slurred join the grace forgives only the previous pitch; silence there still counts, so a broken slur shows.
+- **Edge grace.** A short grace (about 40 ms, at least the analyser fill plus a normal articulation gap) at each edge of a note or rest is not counted, so a decaying release or the previous pitch blurring through the analyser window is not penalised. At a slurred join the grace forgives only the previous pitch; silence there still counts, so a broken slur shows. *At a note's end that is not slurred, changed by [F15: Release allowance](../15-release-allowance/design.md).*
 - **Song coverage** is the mean over every graded note and rest, each counting equally, so a sixteenth counts as much as a whole note.
 - **In tune:** a note's in-tune share is the share of its right-note time within the tolerance. The song's in-tune figure is the mean over the notes that have any right-note time.
 
