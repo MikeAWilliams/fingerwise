@@ -118,14 +118,15 @@ export function createPlaybackFlow(options: PlaybackFlowOptions): PlaybackFlow {
 		const changes = soundingChanges(song, tempo);
 		const change = (k: number): void => {
 			const { index } = changes[k] as { atMs: number; index: number };
-			// Batches go out at note starts.
-			const tone = schedule[index];
-			if (tone) scheduleUpTo(startOf(tone) + METRONOME_LOOKAHEAD_SECONDS);
-			options.onChange({ phase: "playing", index, origin: firstSlot });
 			const next = changes[k + 1];
+			const wake = next ? firstSlot + next.atMs / 1000 : songEnd;
+			// Each batch reaches past the next wake-up, so a long note or rest
+			// never leaves beats unsent until they are already due.
+			scheduleUpTo(wake + METRONOME_LOOKAHEAD_SECONDS);
+			options.onChange({ phase: "playing", index, origin: firstSlot });
 			if (next) {
 				timer.at(
-					firstSlot + next.atMs / 1000,
+					wake,
 					guard(() => change(k + 1)),
 				);
 			} else {

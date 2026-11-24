@@ -208,6 +208,40 @@ describe("batches", () => {
 		expect(clicks).toHaveLength(4 + 200);
 		flow.stop();
 	});
+
+	test("a held note longer than the lookahead gets every beat before it falls", () => {
+		// Two tied bars, then a rest and a note: beats deep inside the long note
+		// and the rest must be sent before their time, not at the next note.
+		const song = songOf([8, 1, 1], { gaps: [0, 2] });
+		const late: { at: number; sentAt: number }[] = [];
+		const flow = createPlaybackFlow({
+			song,
+			clock: { now },
+			clicker: {
+				click: (at) => {
+					clicks.push(at);
+					if (now() > at) late.push({ at, sentAt: now() });
+				},
+				stop: () => {},
+			},
+			tones: {
+				schedule: (pitch, at, seconds) => {
+					scheduled.push({ pitch, at, seconds });
+					if (now() > at) late.push({ at, sentAt: now() });
+				},
+				stop: () => {},
+			},
+			sounding: (p) => p,
+			metronome: true,
+			onChange: () => {},
+			onEnd: () => {},
+		});
+		flow.start();
+		vi.advanceTimersByTime(20000);
+		expect(late).toEqual([]);
+		expect(clicks).toHaveLength(4 + 12);
+		expect(scheduled).toHaveLength(3);
+	});
 });
 
 describe("the end", () => {
