@@ -144,6 +144,50 @@ export function countInBeats(meter: Meter): {
 /** Beats closer than this count as the same time, as abcjs rounds its starts. */
 const BEAT_EPSILON = 1e-3;
 
+/** The most a plain join shortens a tone, in ms, so repeated notes are heard apart. */
+export const JOIN_GAP_MS = 50;
+
+/** One tone of the song played back: when it starts and how long it sounds, in ms. */
+export interface PlaybackTone {
+	/** The written pitch; the caller applies the instrument's transposition. */
+	readonly pitch: Pitch;
+	/** From the first note's start. */
+	readonly startMs: number;
+	readonly lengthMs: number;
+	/** The note's written end: its start plus its written length. */
+	readonly endMs: number;
+}
+
+/**
+ * One tone per note, as an ocarina player tongues it: a note slurred to a
+ * note that starts at its written end sounds its full length, and every other
+ * note ends `JOIN_GAP_MS` early (less for a very short note, at most a quarter
+ * of it), so repeats are heard apart and nothing sounds in a rest.
+ * `fallbackTempo` applies when the song has no tempo. Not rounded.
+ */
+export function playbackSchedule(
+	song: Song,
+	fallbackTempo: number,
+): PlaybackTone[] {
+	const tempo = song.tempo ?? fallbackTempo;
+	return song.notes.map((note, i) => {
+		const next = song.notes[i + 1];
+		const writtenMs = (note.beats * 60000) / tempo;
+		const joined =
+			note.slurred === true &&
+			next !== undefined &&
+			Math.abs(next.start - (note.start + note.beats)) < BEAT_EPSILON;
+		return {
+			pitch: note.pitch,
+			startMs: (note.start * 60000) / tempo,
+			lengthMs: joined
+				? writtenMs
+				: writtenMs - Math.min(JOIN_GAP_MS, writtenMs / 4),
+			endMs: ((note.start + note.beats) * 60000) / tempo,
+		};
+	});
+}
+
 /** Part of a bar: a note, or the piece of one that falls in this bar, or a rest. */
 export type BarItem =
 	| {

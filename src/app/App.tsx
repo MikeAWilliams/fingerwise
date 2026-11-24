@@ -10,7 +10,7 @@ import {
 	outputLatencySeconds,
 } from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
-import { createTonePlayer } from "../audio/tone";
+import { createTonePlayer, createToneScheduler } from "../audio/tone";
 import { buildTimeline } from "../core/coverage";
 import { buildPool } from "../core/drill";
 import { loadInstrument, soundingPitch } from "../core/instrument";
@@ -35,7 +35,7 @@ import {
 	scoringAfterApplies,
 	smartSamplingApplies,
 } from "../core/settings";
-import { DEFAULT_TEMPO, songLines } from "../core/song";
+import { DEFAULT_TEMPO, type SongNote, songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { lanesShown } from "./after-song";
@@ -50,14 +50,17 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { headerSong } from "./header-text";
+import { headerSong, playButton } from "./header-text";
 import {
 	LISTENING_PAST_END,
+	PLAYING_SONG,
 	SCORING_AFTER,
 	summaryText,
 	tuningText,
 } from "./judge-text";
 import { overrunTrace } from "./overrun";
+import { createPlaybackFlow, type PlaybackState } from "./playback-flow";
+import { playbackView } from "./playback-view";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
@@ -89,10 +92,17 @@ const STAFF_OPTIONS: StaffOptions = {
 	highest: instrument.highest,
 };
 
-const audio = createAudio(browserAudioFactory());
+const audioFactory = browserAudioFactory();
+/** Playing the song needs Web Audio; without it the button is not shown. */
+const WEB_AUDIO = audioFactory !== null;
+const audio = createAudio(audioFactory);
 const player = createTonePlayer(audio);
 const listener = createListener(audio, browserListenerEnv());
 const clicker = createClicker(audio);
+/** The song's tones, apart from the card's single tone. */
+const scheduler = createToneScheduler(audio);
+/** Playback's own clicker, so the drill flow's cleanup cannot cut its clicks. */
+const playbackClicker = createClicker(audio);
 /** The audio clock, or the page clock when there is no audio context (the song then runs silent but in time). */
 const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
@@ -164,8 +174,12 @@ export function App() {
 	const [cardBeats, setCardBeats] = useState<number | undefined>(undefined);
 	const [timed, setTimed] = useState<TimedState | null>(null);
 	const [visible, setVisible] = useState(pageVisible);
+	// The Play song button: the song is playing, and where its playback stands.
+	const [playing, setPlaying] = useState(false);
+	const [playback, setPlayback] = useState<PlaybackState | null>(null);
 	const [judgeUnavailable, setJudgeUnavailable] = useState(false);
 	const changeSettings = (next: Settings) => {
+		setPlaying(false);
 		setSettings(next);
 		saveSettings(browserStorage(), next);
 	};
@@ -190,6 +204,7 @@ export function App() {
 		};
 	}, []);
 	const openSettings = () => {
+		setPlaying(false);
 		setCard(null);
 		setOpen(true);
 	};
@@ -206,7 +221,10 @@ export function App() {
 		};
 	}, []);
 	useEffect(() => {
-		const onVisibility = () => setVisible(pageVisible());
+		const onVisibility = () => {
+			setVisible(pageVisible());
+			if (!pageVisible()) setPlaying(false);
+		};
 		document.addEventListener("visibilitychange", onVisibility);
 		return () => document.removeEventListener("visibilitychange", onVisibility);
 	}, []);
@@ -233,6 +251,13 @@ export function App() {
 	useEffect(() => {
 		if (!settings.judgeEnabled) setJudgeUnavailable(false);
 		if (open || !visibleKey) return;
+		// While the song plays no card or timed flow runs: its cleanup stops the
+		// flow and releases the microphone, and a finished run's state goes too.
+		if (playing) {
+			setCard(null);
+			setTimed(null);
+			return;
+		}
 		// With use song on, the song is still parsing until `song` arrives; load
 		// turns use song off for a text that fails. No flow and no card meanwhile.
 		const smart = smartSamplingApplies(settings);
@@ -337,7 +362,26 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, [settings, open, visibleKey, song]);
+	}, [settings, open, visibleKey, song, playing]);
+	// The song played from the header: a count-in, then its tones on the audio clock.
+	useEffect(() => {
+		if (!playing || open || song === null || !settings.useSong) return;
+		const flow = createPlaybackFlow({
+			song,
+			clock: timedClock,
+			clicker: playbackClicker,
+			tones: scheduler,
+			sounding: (p) => soundingPitch(instrument, p),
+			metronome: metronomeApplies(settings),
+			onChange: setPlayback,
+			onEnd: () => setPlaying(false),
+		});
+		flow.start();
+		return () => {
+			flow.stop();
+			setPlayback(null);
+		};
+	}, [playing, open, song, settings]);
 	const lanes = timed ? lanesShown(after, timed.phase, timed.summary) : true;
 	// What was played after the last note, only in the summary with scoring after the song; a restart empties the readings.
 	const lastNoteEndMs = timeline?.notes[timeline.notes.length - 1]?.endMs ?? 0;
@@ -350,7 +394,15 @@ export function App() {
 				: null,
 		[after, lanes, overrunPhase, overrunReadings, lastNoteEndMs],
 	);
-	const header = headerSong(settings, song, open);
+	const header = headerSong(settings, song, open, playing);
+	const play = playButton({
+		settings,
+		song,
+		open,
+		webAudio: WEB_AUDIO,
+		playing,
+		phase: timed ? cardPhase(timed) : undefined,
+	});
 	const headerRef = useRef<HTMLElement>(null);
 	return (
 		<main>
@@ -363,6 +415,18 @@ export function App() {
 				)}
 				{header.tempo !== null && (
 					<span class="app-header-tempo">{header.tempo}</span>
+				)}
+				{play !== null && (
+					<button
+						type="button"
+						class="app-header-play"
+						disabled={play.disabled}
+						aria-label={play.text}
+						onClick={() => setPlaying((p) => !p)}
+					>
+						<span aria-hidden="true">{play.icon}</span>
+						<span class="app-header-play-text"> {play.text}</span>
+					</button>
 				)}
 				{!open && (
 					<button type="button" onClick={openSettings}>
@@ -387,7 +451,33 @@ export function App() {
 					}}
 				/>
 			)}
-			{!open && timedSong && timed && (
+			{!open && playing && playback && song !== null && timeline !== null && (
+				<Card
+					pitch={(song.notes[0] as SongNote).pitch}
+					revealed={false}
+					judging={false}
+					timed="playing"
+					timedNote={PLAYING_SONG}
+					legend={false}
+					readout={false}
+					song={playbackView(
+						{
+							lines,
+							meter: song.meter,
+							barsPerLine,
+							timeline,
+							tempo: songTempo,
+						},
+						playback,
+						{ now: playheadNow, outputLatency: playheadLatency },
+					)}
+					header={headerRef}
+					instrument={instrument}
+					staffOptions={STAFF_OPTIONS}
+					font={{ family: FONT_FAMILY, status: fontStatus }}
+				/>
+			)}
+			{!open && !playing && timedSong && timed && (
 				<Card
 					pitch={timed.pitch}
 					beats={timed.beats}
@@ -450,7 +540,7 @@ export function App() {
 					font={{ family: FONT_FAMILY, status: fontStatus }}
 				/>
 			)}
-			{!open && !timedSong && card && (
+			{!open && !playing && !timedSong && card && (
 				<Card
 					pitch={card.pitch}
 					beats={cardBeats}

@@ -35,6 +35,9 @@ export function overrunMoreText(ms: number): string {
 	return `+${(ms / 1000).toFixed(1)} s`;
 }
 
+/** The quiet line in the song's bar while the song is played to the player. */
+export const PLAYING_SONG = "Playing the song";
+
 export const LISTENING_PAST_END = "Listening… stop playing to see your score";
 
 const percent = (share: number) => `${Math.round(share * 100)}%`;
