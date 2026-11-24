@@ -52,6 +52,7 @@ Terms used across the docs. Add to this as the domain firms up.
 | **Tempo drift**                | The trend of note start offsets over a timed song: getting later is slowing down, earlier is rushing. Planned in [F11](features/11-score-analysis/design.md). |
 | **Scoring**                    | A setting for timed songs with judging on: **Live feedback** (the lanes fill as you play) or **After the song** (music only while playing, everything judged at the end). Default Live feedback. Planned in [F12](features/12-score-after-the-song/design.md). |
 | **Overrun**                    | With scoring after the song, playing that carries on past the song's last beat. Listening continues until 1 s of silence (10 s at most), and the overrun is shown in its own lane but not scored. Planned in [F12](features/12-score-after-the-song/design.md). |
+| **Playback**                   | With use song on, the app playing the tune itself after the **Play song** button is pressed: a count-in, then each note as a sine tone at the tune's tempo, tongued at plain joins, while the music follows. Nothing is listened to or scored. Planned in [F13](features/13-play-the-song/design.md). |
 | **Count-in**                   | One bar of clicks in the tune's meter before the first note of a timed song. |
 | **Metronome**                  | A setting under keep tempo: a click on every beat while the song plays, not just the count-in. Default off. |
 | **ABC notation**               | A plain-text format for tunes, used by tune books and online editors. Only its pitches are used. |
