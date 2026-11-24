@@ -46,6 +46,7 @@ import {
 import {
 	applySongText,
 	canUseSong,
+	chosenTune,
 	isEmptySong,
 	NO_TEMPO_NOTE,
 	problemLine,
@@ -87,6 +88,7 @@ export function Settings({
 	const [songSummary, setSongSummary] = useState<string | null>(
 		songState.summary,
 	);
+	const chosen = chosenTune(songState.tunes, settings.songTune);
 	const latest = useRef(settings);
 	latest.current = settings;
 	const edits = useRef(0);
@@ -395,7 +397,7 @@ export function Settings({
 					) : (
 						songSummary !== null && <p class="settings-note">{songSummary}</p>
 					)}
-					{songState.song?.tempo === null && (
+					{chosen?.tempo === null && (
 						<p class="settings-note">{NO_TEMPO_NOTE}</p>
 					)}
 				</div>
@@ -403,7 +405,7 @@ export function Settings({
 					<input
 						type="checkbox"
 						checked={settings.useSong}
-						disabled={!canUseSong(songState.song)}
+						disabled={!canUseSong(chosen)}
 						onChange={(e) =>
 							onChange({ ...settings, useSong: e.currentTarget.checked })
 						}

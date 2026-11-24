@@ -35,6 +35,7 @@ const DEFAULTS: Settings = {
 	scoring: "live",
 	barsPerLine: 2,
 	songAbc: "",
+	songTune: 1,
 };
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -69,6 +70,7 @@ test("saved settings load back unchanged", () => {
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	};
 	saveSettings(storage, settings);
 	expect([...data.keys()]).toEqual([SETTINGS_KEY]);
@@ -91,6 +93,7 @@ test("saved settings load back unchanged", () => {
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -149,6 +152,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	});
 });
 
@@ -182,6 +186,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	});
 });
 
@@ -215,6 +220,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	});
 });
 
@@ -244,6 +250,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	});
 });
 

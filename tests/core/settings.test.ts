@@ -7,6 +7,7 @@ import {
 	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
 	canTurnSoundOn,
+	isValidSongTune,
 	isValidTolerance,
 	keepTempoApplies,
 	MAX_SONG_CHARS,
@@ -65,6 +66,7 @@ function settings(
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	};
 }
 
@@ -90,6 +92,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 		...over,
 	};
 }
@@ -1112,5 +1115,57 @@ describe("scoring (F12-S01)", () => {
 				}
 			}
 		}
+	});
+});
+
+describe("songTune (F14-S01)", () => {
+	test("the defaults file chooses tune 1", () => {
+		expect(DEFAULTS.songTune).toBe(1);
+		expect(toSettingsJson(DEFAULTS).songTune).toBe(1);
+	});
+
+	test("a valid position is a whole number of at least 1", () => {
+		for (const ok of [1, 2, 30]) expect(isValidSongTune(ok)).toBe(true);
+		for (const bad of [0, -1, 1.5, "2", null, undefined, Number.NaN]) {
+			expect(isValidSongTune(bad)).toBe(false);
+		}
+	});
+
+	test("the strict parse rejects a missing or bad position", () => {
+		expect(parseDefaults(json({ songTune: 3 }), instrument).songTune).toBe(3);
+		for (const songTune of [undefined, 0, 1.5, "2", -1]) {
+			expect(() => parseDefaults(json({ songTune }), instrument)).toThrow(
+				"songTune must be a whole number of at least 1",
+			);
+		}
+	});
+
+	test("old data without the field keeps every other field", () => {
+		const { songTune, ...old } = json({ delaySeconds: 7 });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+			songTune: 1,
+		});
+	});
+
+	test("each bad value resets alone", () => {
+		const withTune = { ...DEFAULTS, songTune: 4 };
+		for (const songTune of [0, 1.5, "2", -1, null, Number.NaN]) {
+			expect(
+				validateSettings(json({ songTune, delaySeconds: 5 }), instrument, {
+					...withTune,
+					songTune: 1,
+				}),
+			).toEqual({ ...DEFAULTS, delaySeconds: 5, songTune: 1 });
+		}
+	});
+
+	test("a stored position is kept, and round-trips", () => {
+		const chosen = { ...DEFAULTS, songTune: 3 };
+		expect(toSettingsJson(chosen).songTune).toBe(3);
+		expect(
+			validateSettings(toSettingsJson(chosen), instrument, DEFAULTS),
+		).toEqual(chosen);
 	});
 });

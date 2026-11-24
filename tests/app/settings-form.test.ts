@@ -53,6 +53,7 @@ function settings(
 		scoring: "live",
 		barsPerLine: 2,
 		songAbc: "",
+		songTune: 1,
 	};
 }
 

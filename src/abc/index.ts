@@ -32,11 +32,20 @@ export interface AbcProblem {
 	note?: number;
 	/** 1-based, within the line. */
 	column?: number;
+	/** 1-based position of the tune in the text; set only when the text holds two or more tunes. */
+	tune?: number;
+}
+
+/** One tune that passed, with its counts. */
+export interface ParsedTune {
+	song: Song;
+	notes: number;
+	converted: number;
 }
 
 export type AbcResult =
-	| { ok: true; song: Song; notes: number; converted: number }
-	| { ok: false; problems: AbcProblem[] };
+	/** `tunes` is never empty and follows the text. */
+	{ ok: true; tunes: ParsedTune[] } | { ok: false; problems: AbcProblem[] };
 
 let loaded: Promise<AbcTunebook> | undefined;
 
@@ -172,8 +181,15 @@ function stripMarkup(html: string): string {
 		.trim();
 }
 
-/** abcjs warns as `Music Line:5:3: message`, with the line counted in the whole text. */
-function warningProblem(warning: string): AbcProblem {
+/**
+ * abcjs warns as `Music Line:5:3: message`, with the line counted from the
+ * start of the tune's own text; `lineOffset` turns it into a line of the whole text.
+ */
+function warningProblem(
+	warning: string,
+	lineOffset: number,
+	startLine: number,
+): AbcProblem {
 	// abcjs underlines the offending character in a copy of the line; name it instead.
 	const unknown =
 		/^([^:]*:\d+:\d+:)\s*Unknown character ignored:[\s\S]*?<span[^>]*>([^<]*)<\/span>/.exec(
@@ -183,10 +199,10 @@ function warningProblem(warning: string): AbcProblem {
 		? `${unknown[1]} Unknown character "${unknown[2]}" ignored`
 		: stripMarkup(warning);
 	const match = /^[^:]*:(\d+):(\d+):\s*([\s\S]*)$/.exec(plain);
-	if (!match) return { message: plain, line: 1 };
+	if (!match) return { message: plain, line: startLine };
 	return {
 		message: match[3] as string,
-		line: Number(match[1]),
+		line: Math.max(1, Number(match[1]) + lineOffset),
 		column: Number(match[2]),
 	};
 }
@@ -327,57 +343,30 @@ function structuralProblems(
 	return found.sort((a, b) => a.startChar - b.startChar);
 }
 
-/** Turn ABC text into a song of written pitches, or a list of problems. */
-export async function parseAbc(
-	rawText: string,
+type TuneReading =
+	| { ok: true; parsed: ParsedTune }
+	| { ok: false; problems: AbcProblem[] };
+
+/**
+ * One tune, read as a single tune is. `lineOffset` turns abcjs's warning lines
+ * (counted from the tune's own text) into lines of the whole text; `startLine`
+ * is the line of the tune's `X:`, where a problem with no note to point at goes.
+ * The problems carry no tune and are not cut to the list length.
+ */
+function readTune(
+	text: string,
+	tune: AbcTune,
 	instrument: Instrument,
-): Promise<AbcResult> {
-	if (rawText.length > MAX_ABC_CHARS) {
-		return {
-			ok: false,
-			problems: [
-				{
-					message: `The text is longer than ${MAX_ABC_CHARS} characters`,
-					line: 1,
-				},
-			],
-		};
-	}
-	// Offsets abcjs reports are into this text, so locate against it too.
-	const text = rawText.replace(/\r\n?/g, "\n");
-
-	let tunes: AbcTune[];
-	try {
-		tunes = (await loadAbcjs()).parseOnly(text);
-	} catch (error) {
-		return { ok: false, problems: [thrownProblem(error)] };
-	}
-
-	if (tunes.length > 1) {
-		const second = [...text.matchAll(/^X:/gm)][1];
-		return {
-			ok: false,
-			problems: [
-				{
-					message: "Only one tune is supported; paste a single tune",
-					line:
-						second?.index === undefined ? 1 : locate(text, second.index).line,
-				},
-			],
-		};
-	}
-	const tune = tunes[0];
-	if (!tune) {
-		return { ok: false, problems: [{ message: "No notes found", line: 1 }] };
-	}
-
+	lineOffset: number,
+	startLine: number,
+): TuneReading {
 	const notes = noteElements(tune);
 	const numberAt = new Map<number, number>();
 	notes.forEach((el, i) => {
 		if (el.startChar !== undefined) numberAt.set(el.startChar, i + 1);
 	});
 	const positionOf = (startChar: number | undefined): AbcProblem => {
-		if (startChar === undefined) return { message: "", line: 1 };
+		if (startChar === undefined) return { message: "", line: startLine };
 		const { line, column } = locate(text, startChar);
 		const note = numberAt.get(startChar);
 		return note === undefined
@@ -386,10 +375,12 @@ export async function parseAbc(
 	};
 
 	const found = [
-		...(tune.warnings ?? []).map((w) => warningProblem(w)),
+		...(tune.warnings ?? []).map((w) =>
+			warningProblem(w, lineOffset, startLine),
+		),
 		...structuralProblems(tune, positionOf).map((f) => f.problem),
 	];
-	if (found.length > 0) return { ok: false, problems: summed(found) };
+	if (found.length > 0) return { ok: false, problems: found };
 
 	let events: {
 		pitch: Pitch;
@@ -411,7 +402,7 @@ export async function parseAbc(
 				problems: [
 					{
 						message: "Only one voice is supported; keep a single melody line",
-						line: 1,
+						line: startLine,
 					},
 				],
 			};
@@ -423,11 +414,14 @@ export async function parseAbc(
 			duration: (e.duration ?? 0) * 4,
 		}));
 	} catch (error) {
-		return { ok: false, problems: [thrownProblem(error)] };
+		return { ok: false, problems: [thrownProblem(error, startLine)] };
 	}
 
 	if (events.length === 0) {
-		return { ok: false, problems: [{ message: "No notes found", line: 1 }] };
+		return {
+			ok: false,
+			problems: [{ message: "No notes found", line: startLine }],
+		};
 	}
 	if (events.length > MAX_ABC_NOTES) {
 		const over = events[MAX_ABC_NOTES] as { startChar: number | undefined };
@@ -460,19 +454,17 @@ export async function parseAbc(
 			title: titleOf(tune),
 		});
 	} catch (error) {
-		return { ok: false, problems: [thrownProblem(error)] };
+		return { ok: false, problems: [thrownProblem(error, startLine)] };
 	}
 	const offenders = songOutOfRange(song, instrument);
 	if (offenders.length > 0) {
 		const range = `${formatPitch(instrument.lowest)} to ${formatPitch(instrument.highest)}`;
 		return {
 			ok: false,
-			problems: summed(
-				offenders.map(({ index, pitch, side }) => ({
-					...positionOf(events[index]?.startChar),
-					message: `${formatPitch(pitch)} is ${side} the written range (${range})`,
-				})),
-			),
+			problems: offenders.map(({ index, pitch, side }) => ({
+				...positionOf(events[index]?.startChar),
+				message: `${formatPitch(pitch)} is ${side} the written range (${range})`,
+			})),
 		};
 	}
 
@@ -490,22 +482,86 @@ export async function parseAbc(
 		}
 	}
 
-	return { ok: true, song, notes: events.length, converted };
+	return { ok: true, parsed: { song, notes: events.length, converted } };
 }
 
-function thrownProblem(error: unknown): AbcProblem {
+/** Turn ABC text into the song of each of its tunes, or a list of problems. */
+export async function parseAbc(
+	rawText: string,
+	instrument: Instrument,
+): Promise<AbcResult> {
+	if (rawText.length > MAX_ABC_CHARS) {
+		return {
+			ok: false,
+			problems: [
+				{
+					message: `The text is longer than ${MAX_ABC_CHARS} characters`,
+					line: 1,
+				},
+			],
+		};
+	}
+	// Offsets abcjs reports are into this text, so locate against it too.
+	const text = rawText.replace(/\r\n?/g, "\n");
+
+	let tunes: AbcTune[];
+	let book: { header: string; tunes: { startPos: number }[] };
+	try {
+		const abcjs = await loadAbcjs();
+		tunes = abcjs.parseOnly(text);
+		book = new abcjs.TuneBook(text);
+	} catch (error) {
+		return { ok: false, problems: [thrownProblem(error, 1)] };
+	}
+	if (tunes.length === 0) {
+		return { ok: false, problems: [{ message: "No notes found", line: 1 }] };
+	}
+
+	// abcjs counts a warning's line from the tune's own text, which starts with
+	// the `%%` lines found before the first `X:`.
+	const several = tunes.length > 1;
+	const directiveLines = book.header.split("\n").filter((l) => l !== "").length;
+	const aligned = book.tunes.length === tunes.length;
+	const problems: AbcProblem[] = [];
+	const parsed: ParsedTune[] = [];
+	tunes.forEach((tune, i) => {
+		const startLine = aligned
+			? locate(text, (book.tunes[i] as { startPos: number }).startPos).line
+			: 1;
+		const lineOffset = aligned ? startLine - 1 - directiveLines : 0;
+		const reading = readTune(
+			text,
+			tune,
+			instrument,
+			lineOffset,
+			several ? startLine : 1,
+		);
+		if (reading.ok) parsed.push(reading.parsed);
+		else {
+			for (const problem of reading.problems) {
+				problems.push(several ? { ...problem, tune: i + 1 } : problem);
+			}
+		}
+	});
+	if (problems.length > 0) return { ok: false, problems: summed(problems) };
+	return { ok: true, tunes: parsed };
+}
+
+function thrownProblem(error: unknown, line: number): AbcProblem {
 	const reason = error instanceof Error ? error.message : String(error);
-	return { message: `The text could not be read: ${reason}`, line: 1 };
+	return { message: `The text could not be read: ${reason}`, line };
 }
 
 function summed(problems: AbcProblem[]): AbcProblem[] {
 	if (problems.length <= MAX_LISTED) return problems;
 	const rest = problems.length - MAX_LISTED;
+	const next = problems[MAX_LISTED] as AbcProblem;
 	return [
 		...problems.slice(0, MAX_LISTED),
 		{
 			message: `and ${rest} more problem${rest === 1 ? "" : "s"}`,
-			line: (problems[MAX_LISTED] as AbcProblem).line,
+			line: next.line,
+			...(next.tune === undefined ? {} : { tune: next.tune }),
 		},
 	];
 }

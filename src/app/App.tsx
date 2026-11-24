@@ -65,7 +65,12 @@ import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
-import { NO_SONG, type SongState, songStateFrom } from "./song-form";
+import {
+	chosenTune,
+	NO_SONG,
+	type SongState,
+	songStateFrom,
+} from "./song-form";
 import {
 	createTimedFlow,
 	type TimedFlow,
@@ -197,6 +202,11 @@ export function App() {
 			setSongState(songStateFrom(result));
 			if (!result.ok && settingsRef.current.useSong) {
 				changeSettings({ ...settingsRef.current, useSong: false });
+			} else if (
+				result.ok &&
+				settingsRef.current.songTune > result.tunes.length
+			) {
+				changeSettings({ ...settingsRef.current, songTune: 1 });
 			}
 		});
 		return () => {
@@ -235,7 +245,7 @@ export function App() {
 	// Scoring after the song: no live lanes, playhead or readout; the result comes at the end.
 	const after = scoringAfterApplies(settings);
 	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
-	const song = songState.song;
+	const song = chosenTune(songState.tunes, settings.songTune);
 	const barsPerLine = settings.barsPerLine;
 	const lines = useMemo(
 		() => (song === null ? [] : songLines(song, barsPerLine)),

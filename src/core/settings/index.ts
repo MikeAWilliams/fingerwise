@@ -27,6 +27,8 @@ export interface Settings {
 	scoring: Scoring;
 	barsPerLine: number;
 	songAbc: string;
+	/** The chosen tune's 1-based position in the song text. */
+	songTune: number;
 }
 
 /** Serialized form shared by the defaults file and storage; pitches are note names. */
@@ -49,6 +51,8 @@ export interface SettingsJson {
 	scoring: Scoring;
 	barsPerLine: number;
 	songAbc: string;
+	/** The chosen tune's 1-based position in the song text. */
+	songTune: number;
 }
 
 export const MIN_DELAY_SECONDS = 0.5;
@@ -96,6 +100,7 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		scoring: settings.scoring,
 		barsPerLine: settings.barsPerLine,
 		songAbc: settings.songAbc,
+		songTune: settings.songTune,
 	};
 }
 
@@ -263,6 +268,11 @@ export function isValidBarsPerLine(value: unknown): value is number {
 	);
 }
 
+/** The chosen tune's position: a whole number from 1. Whether the text has that many tunes is for the app to check. */
+export function isValidSongTune(value: unknown): value is number {
+	return Number.isInteger(value) && (value as number) >= 1;
+}
+
 function isValidSongText(value: unknown): value is string {
 	return typeof value === "string" && value.length <= MAX_SONG_CHARS;
 }
@@ -339,6 +349,9 @@ export function validateSettings(
 		isValidSongText(obj.songAbc) && obj.songAbc !== ""
 			? obj.songAbc
 			: defaults.songAbc;
+	const songTune = isValidSongTune(obj.songTune)
+		? obj.songTune
+		: defaults.songTune;
 
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
@@ -373,6 +386,7 @@ export function validateSettings(
 		scoring,
 		barsPerLine,
 		songAbc,
+		songTune,
 	};
 	if (!breaksSoundRule(result)) return result;
 	return {
@@ -464,6 +478,9 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 			`songAbc must be at most ${MAX_SONG_CHARS} characters`,
 		);
 	}
+	if (!isValidSongTune(obj.songTune)) {
+		throw new SettingsError("songTune must be a whole number of at least 1");
+	}
 
 	for (const [field, p] of [
 		["lowest", lowest],
@@ -502,6 +519,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		scoring: obj.scoring,
 		barsPerLine: obj.barsPerLine,
 		songAbc: obj.songAbc,
+		songTune: obj.songTune,
 	};
 	if (breaksSoundRule(settings)) {
 		throw new SettingsError(
