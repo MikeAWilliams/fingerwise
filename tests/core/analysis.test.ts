@@ -151,7 +151,8 @@ describe("the breakdown (AC1, AC2)", () => {
 
 	test("stopping early is silent after", () => {
 		const a = analysisFor(one, spans([0, 300, hz("C4")]));
-		near(a.breakdown.silentAfter, 160 / 420);
+		// The scored span is 40 to 375: a quarter's release at ♩ = 120 is 125 ms.
+		near(a.breakdown.silentAfter, 75 / 335);
 		expect(a.breakdown.silentBefore).toBeLessThan(0.05);
 	});
 
@@ -162,7 +163,7 @@ describe("the breakdown (AC1, AC2)", () => {
 	});
 
 	test("a note never played is not played, whatever silence falls where", () => {
-		const a = analysisFor(quarters("C4", "D4"), spans([500, 970, hz("D4")]));
+		const a = analysisFor(quarters("C4", "D4"), spans([500, 870, hz("D4")]));
 		// Half the graded note time is the unplayed C.
 		near(a.breakdown.notPlayed, 0.5);
 		expect(a.breakdown.silentBefore).toBe(0);
@@ -217,6 +218,105 @@ describe("the breakdown (AC1, AC2)", () => {
 		expect(sum(a)).toBeCloseTo(1, 9);
 		// C's span ends at 500 (880 ms in all with D's 420): C has 500 - 40, D 420.
 		near(a.breakdown.inTune, 1, 0.06);
+	});
+});
+
+describe("the release in the breakdown (F15-S02)", () => {
+	const one = quarters("C4");
+	// At ♩ = 120 a quarter's scored span is 40 to 375 and its release zone 375 to 460.
+
+	test("a stop at the release start leaves nothing silent after, all right (AC2)", () => {
+		const a = analysisFor(one, spans([0, 375, hz("C4")]));
+		near(a.breakdown.inTune, 1, 0.03);
+		expect(a.breakdown.silentAfter).toBeLessThan(0.03);
+		expect(sum(a)).toBeCloseTo(1, 9);
+	});
+
+	test("right sound returning in the release counts in its row, silence there is left out (AC1, AC3)", () => {
+		// Sound to 200, a gap, then 400 to 460 in the release: 335 + 60 ms of breakdown time.
+		const back = analysisFor(
+			one,
+			spans([0, 200, hz("C4")], [400, 470, hz("C4")]),
+		);
+		near(back.breakdown.inTune, (160 + 60) / 395);
+		near(back.breakdown.silentMiddle, 175 / 395);
+		const out = analysisFor(
+			one,
+			spans([0, 200, hz("C4")], [400, 470, hz("C4", 40)]),
+		);
+		near(out.breakdown.outOfTune, 60 / 395);
+		const wrong = analysisFor(
+			one,
+			spans([0, 200, hz("C4")], [400, 470, hz("G4")]),
+		);
+		near(wrong.breakdown.wrong, 60 / 395);
+		for (const a of [back, out, wrong]) expect(sum(a)).toBeCloseTo(1, 9);
+	});
+
+	test("a full-length note and a slurred note are as before (AC4)", () => {
+		const full = analysisFor(one, spans([0, 500, hz("C4")]));
+		near(full.breakdown.inTune, 1, 0.01);
+		expect(sum(full)).toBeCloseTo(1, 9);
+		const slurred = analysisFor(
+			song([
+				["C4", 0, 1, true],
+				["D4", 1, 1],
+			]),
+			spans([0, 300, hz("C4")], [500, 970, hz("D4")]),
+		);
+		// C's span ends at its written end (40 to 500), D's is 540 to 875 plus its zone.
+		near(slurred.breakdown.silentAfter, 200 / 795, 0.06);
+	});
+
+	test("in tune plus out of tune over the breakdown time is the note's coverage (AC5)", () => {
+		const cases: [string, Sound][] = [
+			["a stop at the release", spans([0, 375, hz("C4")])],
+			["a late start", spans([150, 500, hz("C4")])],
+			[
+				"sound back in the release",
+				spans([0, 200, hz("C4")], [400, 470, hz("C4", 30)]),
+			],
+			["wrong in the release", spans([0, 300, hz("C4")], [400, 470, hz("G4")])],
+			["a stop at 60%", spans([0, 300, hz("C4")])],
+			["out of tune throughout", spans([0, 500, hz("C4", 40)])],
+		];
+		for (const [name, sound] of cases) {
+			const input = inputFor(one, sound);
+			const a = analyse(input);
+			const coverage = input.result.items[0]?.coverage as number;
+			expect(
+				(a as Analysis).breakdown.inTune + (a as Analysis).breakdown.outOfTune,
+				name,
+			).toBeCloseTo(coverage, 9);
+		}
+		// On a mixed run the shares still add to 1.
+		const mixed = analysisFor(
+			quarters("C4", "D4", "E4", "F4"),
+			spans(
+				[0, 375, hz("C4")],
+				[500, 700, hz("D4")],
+				[900, 960, hz("D4")],
+				[1000, 1470, hz("E4", 40)],
+				[1500, 1900, hz("G4")],
+			),
+		);
+		expect(sum(mixed)).toBeCloseTo(1, 9);
+	});
+
+	test("habits still measure the written length (AC6)", () => {
+		const names = ["C4", "D4", "E4"];
+		const a = analysisFor(
+			quarters(...names),
+			spans(
+				...names.map((n, i): [number, number, number] => [
+					i * 500,
+					i * 500 + 375,
+					hz(n),
+				]),
+			),
+		);
+		near(a.habits.length, 0.75, 0.04);
+		near(a.habits.gap, 125, 20);
 	});
 });
 
