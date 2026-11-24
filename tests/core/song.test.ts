@@ -8,7 +8,9 @@ import {
 	createSong,
 	DEFAULT_METER,
 	DEFAULT_TEMPO,
+	JOIN_GAP_MS,
 	type Meter,
+	playbackSchedule,
 	SongError,
 	type SongNote,
 	songBars,
@@ -345,5 +347,107 @@ describe("bars and lines (timed song staff)", () => {
 		const s = quarters(...Array.from({ length: 12 }, () => "C4"));
 		expect(songLines(s, 2).map((line) => line.length)).toEqual([2, 1]);
 		expect(songLines(s, 1).map((line) => line.length)).toEqual([1, 1, 1]);
+	});
+});
+
+describe("playbackSchedule (F13-S01)", () => {
+	function slurSong(
+		notes: [string, number, number, boolean?][],
+		tempo: number | null = 120,
+	) {
+		return createSong(
+			notes.map(([name, start, beats, slurred]) => ({
+				pitch: pitch(name),
+				start,
+				beats,
+				slurred: slurred ?? false,
+			})),
+			{ tempo, meter: DEFAULT_METER },
+		);
+	}
+
+	test("equal quarters at 120: starts, pitches and gapped lengths, the last too (AC1, AC2, AC4)", () => {
+		const tones = playbackSchedule(quarters("C5", "D5", "E5"), 120);
+		expect(tones.map((t) => t.startMs)).toEqual([0, 500, 1000]);
+		expect(tones.map((t) => t.lengthMs)).toEqual([450, 450, 450]);
+		expect(tones.map((t) => t.endMs)).toEqual([500, 1000, 1500]);
+		expect(tones.map((t) => t.pitch)).toEqual([
+			pitch("C5"),
+			pitch("D5"),
+			pitch("E5"),
+		]);
+		expect(JOIN_GAP_MS).toBe(50);
+	});
+
+	test("mixed lengths (AC1, AC2)", () => {
+		const tones = playbackSchedule(
+			song([
+				["C5", 0, 2],
+				["D5", 2, 0.5],
+				["E5", 2.5, 1],
+			]),
+			120,
+		);
+		expect(tones.map((t) => t.startMs)).toEqual([0, 1000, 1250]);
+		expect(tones.map((t) => t.lengthMs)).toEqual([950, 200, 450]);
+	});
+
+	test("a slur sounds its full length and the plain note after it keeps its gap (AC3)", () => {
+		const tones = playbackSchedule(
+			slurSong([
+				["C5", 0, 1, true],
+				["D5", 1, 1],
+			]),
+			120,
+		);
+		expect(tones.map((t) => t.lengthMs)).toEqual([500, 450]);
+	});
+
+	test("a rest after a slurred note keeps the gap (AC5)", () => {
+		const tones = playbackSchedule(
+			slurSong([
+				["C5", 0, 1, true],
+				["D5", 2, 1],
+			]),
+			120,
+		);
+		expect(tones.map((t) => t.lengthMs)).toEqual([450, 450]);
+		expect(tones[0]?.endMs).toBe(500);
+	});
+
+	test("a plain note before a rest keeps the gap (AC5)", () => {
+		const tones = playbackSchedule(
+			song([
+				["C5", 0, 1],
+				["D5", 2, 1],
+			]),
+			120,
+		);
+		expect(tones.map((t) => t.lengthMs)).toEqual([450, 450]);
+	});
+
+	test("the last note keeps the gap even when flagged slurred (AC4)", () => {
+		const tones = playbackSchedule(
+			slurSong([
+				["C5", 0, 1],
+				["D5", 1, 1, true],
+			]),
+			120,
+		);
+		expect(tones[1]?.lengthMs).toBe(450);
+	});
+
+	test("a sixteenth at 160 gives a quarter of its length as the gap (AC2)", () => {
+		const tones = playbackSchedule(song([["C5", 0, 0.25]], 160), 90);
+		expect(tones[0]?.endMs).toBe(93.75);
+		expect(tones[0]?.lengthMs).toBeCloseTo(93.75 - 23.4375, 10);
+	});
+
+	test("no Q: uses the fallback tempo, a Q: wins over it (AC6)", () => {
+		const none = playbackSchedule(quarters("C5", "D5"), 90);
+		expect(none.map((t) => t.startMs)).toEqual([0, 60000 / 90]);
+		expect(none[0]?.lengthMs).toBeCloseTo(60000 / 90 - 50, 10);
+		const own = playbackSchedule(slurSong([["C5", 0, 1]], 60), 90);
+		expect(own[0]?.endMs).toBe(1000);
 	});
 });

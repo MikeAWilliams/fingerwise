@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { createAudio } from "../../src/audio/context";
 import {
 	createTonePlayer,
+	createToneScheduler,
 	FADE_SECONDS,
 	PEAK_GAIN,
 } from "../../src/audio/tone";
@@ -151,5 +152,131 @@ describe("failures", () => {
 		const { ctx, player } = setup("suspended");
 		ctx.resumeFails = "throw";
 		expect(() => player.unlock()).not.toThrow();
+	});
+});
+
+describe("createToneScheduler (F13-S01)", () => {
+	function scheduler(state = "running") {
+		const ctx = new FakeContext();
+		ctx.state = state;
+		const audio = createAudio(() => ctx);
+		return {
+			ctx,
+			audio,
+			sched: createToneScheduler(audio),
+			player: createTonePlayer(audio),
+		};
+	}
+
+	test("each tone is a sine at its frequency, started and stopped at its times with its own envelope (AC8)", () => {
+		const { ctx, sched } = scheduler();
+		sched.schedule(A4, 1, 0.45);
+		sched.schedule(C5, 1.5, 0.45);
+		sched.schedule(A4, 2, 0.5);
+		expect(ctx.oscillators).toHaveLength(3);
+		expect(ctx.oscillators.map((o) => o.type)).toEqual([
+			"sine",
+			"sine",
+			"sine",
+		]);
+		expect(ctx.oscillators.map((o) => o.frequency.value)).toEqual([
+			toFrequency(A4),
+			toFrequency(C5),
+			toFrequency(A4),
+		]);
+		expect(ctx.oscillators.map((o) => o.starts)).toEqual([[1], [1.5], [2]]);
+		expect(ctx.oscillators.map((o) => o.stops)).toEqual([
+			[1.45],
+			[1.95],
+			[2.5],
+		]);
+		expect(ctx.gains[1]?.gain.calls).toEqual([
+			{ kind: "set", value: 0, time: 1.5 },
+			{ kind: "ramp", value: PEAK_GAIN, time: 1.5 + FADE_SECONDS },
+			{ kind: "set", value: PEAK_GAIN, time: 1.5 + 0.45 - FADE_SECONDS },
+			{ kind: "ramp", value: 0, time: 1.5 + 0.45 },
+		]);
+	});
+
+	test("two tones that touch at a slur are both scheduled and neither stops the other (AC8)", () => {
+		const { ctx, sched } = scheduler();
+		sched.schedule(A4, 1, 0.5);
+		sched.schedule(C5, 1.5, 0.5);
+		expect(ctx.oscillators).toHaveLength(2);
+		expect(ctx.oscillators[0]?.stops).toEqual([1.5]);
+		expect(ctx.oscillators[1]?.stops).toEqual([2]);
+		expect(ctx.gains[0]?.gain.calls).toHaveLength(4);
+	});
+
+	test("stop() fades a sounding tone, stops a pending one at now, and a second stop does nothing (AC9)", () => {
+		const { ctx, sched } = scheduler();
+		sched.schedule(A4, 1, 1);
+		sched.schedule(C5, 3, 1);
+		ctx.currentTime = 1.5;
+		const before = ctx.gains[0]?.gain.calls.length ?? 0;
+		sched.stop();
+		expect(ctx.gains[0]?.gain.calls.slice(before)).toEqual([
+			{ kind: "cancel", time: 1.5 },
+			{ kind: "set", value: ctx.gains[0]?.gain.value, time: 1.5 },
+			{ kind: "ramp", value: 0, time: 1.5 + FADE_SECONDS },
+		]);
+		expect(ctx.oscillators[0]?.stops.at(-1)).toBe(1.5 + FADE_SECONDS);
+		expect(ctx.oscillators[1]?.stops.at(-1)).toBe(1.5);
+		expect(ctx.gains[1]?.gain.calls).toHaveLength(4);
+		sched.stop();
+		expect(ctx.oscillators[0]?.stops).toHaveLength(2);
+		expect(ctx.oscillators[1]?.stops).toHaveLength(2);
+	});
+
+	test("a tone that ended by itself is not stopped (AC9)", () => {
+		const { ctx, sched } = scheduler();
+		sched.schedule(A4, 0, 1);
+		ctx.oscillators[0]?.onended?.();
+		sched.stop();
+		expect(ctx.oscillators[0]?.stops).toHaveLength(1);
+	});
+
+	test("locked and never unlocked gives no nodes; unlock on a suspended context schedules (AC10)", () => {
+		const locked = scheduler("suspended");
+		locked.sched.schedule(A4, 1, 1);
+		expect(locked.ctx.oscillators).toHaveLength(0);
+		expect(locked.ctx.gains).toHaveLength(0);
+		locked.audio.unlock();
+		locked.sched.schedule(A4, 1, 1);
+		expect(locked.ctx.oscillators).toHaveLength(1);
+	});
+
+	test("failures never escape (AC10)", () => {
+		const none = createToneScheduler(createAudio(null));
+		expect(() => {
+			none.schedule(A4, 1, 1);
+			none.stop();
+		}).not.toThrow();
+		const { ctx, sched } = scheduler();
+		ctx.createFails = true;
+		expect(() => sched.schedule(A4, 1, 1)).not.toThrow();
+		ctx.createFails = false;
+		sched.schedule(A4, 1, 1);
+		const osc = ctx.oscillators[0];
+		if (!osc) throw new Error("no oscillator");
+		osc.stop = () => {
+			throw new Error("stop threw");
+		};
+		expect(() => sched.stop()).not.toThrow();
+	});
+
+	test("a player tone survives a scheduler stop, and the reverse", () => {
+		const { ctx, sched, player } = scheduler();
+		player.play(A4, 1);
+		sched.schedule(C5, 0, 1);
+		sched.stop();
+		expect(ctx.oscillators[0]?.stops).toEqual([1]);
+		expect(ctx.oscillators[1]?.stops).toHaveLength(2);
+		player.stop();
+		const stops = ctx.oscillators[1]?.stops.length;
+		sched.schedule(A4, 0, 1);
+		player.stop();
+		expect(ctx.oscillators[1]?.stops).toHaveLength(stops as number);
+		expect(ctx.oscillators[2]?.stops).toEqual([1]);
 	});
 });

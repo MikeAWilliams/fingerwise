@@ -17,6 +17,7 @@ Plays a sine tone for a pitch through Web Audio, and listens to the microphone, 
   - `createTonePlayer(audio): TonePlayer` with `play(pitch, seconds)`, `stop()` and `unlock()` (delegates to `audio.unlock()`). Constants `FADE_SECONDS` (0.02) and `PEAK_GAIN` (0.3).
   - `play` stops any tone first, so at most one sounds, then starts a sine oscillator at `toFrequency(pitch)` through a gain node: gain 0, ramp to `PEAK_GAIN` over the fade, hold, ramp to 0 so it ends at `seconds`; the oscillator starts now and stops at `seconds`. The fade is `min(FADE_SECONDS, seconds / 2)`, so a short duration still gives a valid envelope.
   - `stop` fades the current tone out over `FADE_SECONDS` and stops it; it does nothing when no tone is current. The oscillator's `onended` forgets the tone.
+  - `createToneScheduler(audio): ToneScheduler` (F13-S01) with `schedule(pitch, atSeconds, seconds)` and `stop()`: sine tones at start times on the audio clock, with the same envelope as `play`. It keeps no current tone, so tones overlap where a slur meets the next note. Scheduled tones sit in a pending set until their `onended`. `stop()` empties it: a tone not yet started is stopped at `now` so it never sounds, a sounding one fades out over `FADE_SECONDS`. It shares the context but not the player's state, so `play`/`stop` and `schedule`/`stop` never touch each other's tones. Both use private `startTone` and `fadeOut`.
   - Every Web Audio call is in a `try/catch`; nothing throws or rejects, and a failure plays nothing.
 - `click.ts` (F08-S02):
   - `createClicker(audio): Clicker` with `now()`, `click(atSeconds)` and `stop()`. Constants `CLICK_SECONDS` (0.015) and `CLICK_GAIN` (0.5).
@@ -41,7 +42,7 @@ Plays a sine tone for a pitch through Web Audio, and listens to the microphone, 
 
 ## The lock rule
 
-`play` (and `click`) does nothing when there is no context, or when the context is not `"running"` and `unlock()` has not been called, and nothing is queued for later. After `unlock()`, a context that is still resuming gets the tone scheduled on its frozen clock, so a tone requested on the unlocking gesture sounds once the context runs.
+`play`, `schedule` (and `click`) does nothing when there is no context, or when the context is not `"running"` and `unlock()` has not been called, and nothing is queued for later. After `unlock()`, a context that is still resuming gets the tone scheduled on its frozen clock, so a tone requested on the unlocking gesture sounds once the context runs.
 
 The listener follows the same rule: while the context is locked, `start` resolves `locked` without requesting the microphone. After `unlock()`, a context still resuming proceeds.
 
@@ -64,5 +65,5 @@ Browsers keep an audio context suspended until a user gesture. The app calls `un
 - `tests/audio/listener.test.ts`: fake media devices, frames and context: constraints, nodes and routing, readings, a throwing or stopping consumer, every error mapping, no context or `getUserMedia`, failing nodes, retry after failure, the lock rule, stop and release, stop twice, restart, stop during an in-flight start, double start (running and in flight), and one context shared with the tone player; the audio-clock stamp, the envelope's block count, spacing and times over overlapping frames, blocks taken from the window's tail, a dropped frame leaving a hole, and the first frame having none.
 - `tests/audio/click.test.ts`: a buffer source (not an oscillator) started at the given time, a short decaying noise burst built once and the same every time, the lock rule, `now()` with and without a context, `stop()` stopping scheduled clicks and not ended ones, and failures that never throw.
 - `tests/audio/context.test.ts`: lazy single creation, `unlock()` on suspended, running and null cases, a throwing factory, a throwing and a rejecting `resume`, and `outputLatencySeconds` for a number, zero, a missing, negative, non-finite or non-number value and no context.
-- `tests/audio/tone.test.ts`: frequency and `"sine"`, envelope times, a very short duration, stop and repeated stop, replacement by a second play, the lock rule, and failures that never throw.
+- `tests/audio/tone.test.ts`: frequency and `"sine"`, envelope times, a very short duration, stop and repeated stop, replacement by a second play, the lock rule, and failures that never throw; the scheduler's three tones, overlap at a slur, stop (sounding, pending, repeated), the lock rule, failures, and player and scheduler tones surviving each other's stop.
 - `tests/audio/audio-imports.test.ts`: `src/audio` imports only relative paths and only `../core/pitch` from core; `src/core` imports nothing with `audio` in its path.
