@@ -12,6 +12,7 @@ import {
 	MIN_GRADED_MS,
 	MIN_SCORED_SPAN_MS,
 	RIGHT_NOTE_BAND_CENTS,
+	scoredSpan,
 	TIMING_TOLERANCE_MS,
 	TRACE_SPAN_CENTS,
 	WRONG_RUN,
@@ -286,13 +287,14 @@ describe("classify (AC2)", () => {
 });
 
 describe("note coverage (AC3)", () => {
-	test("a note played fully scores 1, half about a half, none 0", () => {
+	test("a note played fully scores 1, half its scored span about a half, none 0", () => {
 		const s = quarters("C4", "D4");
 		const full = score(s, tongued(["C4", "D4"]));
 		near(full.items[0]?.coverage, 1);
 		near(full.items[1]?.coverage, 1);
 		const half = score(s, spans([0, 250, hz("C4")], [500, 970, hz("D4")]));
-		near(half.items[0]?.coverage, 0.5);
+		// At ♩ = 120 a quarter's scored span runs 40 to 375 (its release is 125 ms); the half stops at 250.
+		near(half.items[0]?.coverage, 210 / 335);
 		near(half.items[1]?.coverage, 1);
 		const none = score(s, spans([500, 970, hz("D4")]));
 		expect(none.items[0]?.coverage).toBe(0);
@@ -535,10 +537,11 @@ describe("timing faults (AC7)", () => {
 		expect(faults(past)).toContain("1 start late");
 	});
 
-	test("an early end is flagged just past the tolerance, not at it", () => {
-		const at = score(s, spans([0, 500 - 40, hz("C4")], [500, 970, hz("D4")]));
+	test("an early end is flagged just past the tolerance from the release start, not at it", () => {
+		// A quarter's release at ♩ = 120 is 125 ms, so it starts at 375.
+		const at = score(s, spans([0, 375 - 40, hz("C4")], [500, 970, hz("D4")]));
 		expect(faults(at)).not.toContain("0 end early");
-		const past = score(s, spans([0, 500 - 80, hz("C4")], [500, 970, hz("D4")]));
+		const past = score(s, spans([0, 375 - 80, hz("C4")], [500, 970, hz("D4")]));
 		expect(faults(past)).toContain("0 end early");
 	});
 
@@ -948,6 +951,191 @@ describe("where the sound starts and how long a rest sounded", () => {
 		);
 		expect(rest(short)?.graded).toBe(false);
 		expect(rest(short)?.soundedMs).toBeNull();
+	});
+});
+
+describe("the release (F15)", () => {
+	// Each case: a song of two notes at a tempo, its length and release in ms.
+	const cases = [
+		{ name: "♩ = 75 quarters", tempo: 75, beats: 1, len: 800, rel: 200 },
+		// The cap binds: a quarter of a whole note is 333 ms, half a quarter is 167.
+		{
+			name: "♩ = 180 wholes",
+			tempo: 180,
+			beats: 4,
+			len: 4000 / 3,
+			rel: 500 / 3,
+		},
+	];
+	const two = (beats: number, slurred = false) =>
+		song([
+			["C4", 0, beats, slurred],
+			["D4", beats, beats],
+		]);
+
+	test("timeline notes carry their release: a plain join, a rest, the last note, 0 when slurred", () => {
+		const t = buildTimeline(
+			song([
+				["C4", 0, 1],
+				["D4", 1, 1, true],
+				["E4", 2, 1],
+				["F4", 3, 1],
+				["G4", 5, 1],
+			]),
+			TEMPO,
+		);
+		expect(t.notes.map((n) => n.releaseMs)).toEqual([125, 0, 125, 125, 125]);
+	});
+
+	test("scoredSpan runs from the graced start to the release start, and to the grace before the written end", () => {
+		const note = {
+			index: 0,
+			written: pitch("C4"),
+			startMs: 100,
+			endMs: 600,
+			releaseMs: 125,
+			graded: true,
+		};
+		expect(scoredSpan(note, false)).toEqual({
+			startMs: 140,
+			endMs: 475,
+			releaseEndMs: 560,
+		});
+		expect(scoredSpan(note, true)).toEqual({
+			startMs: 100,
+			endMs: 475,
+			releaseEndMs: 560,
+		});
+		// A slurred end has no release: the span ends at the written end and there is no zone.
+		expect(scoredSpan({ ...note, releaseMs: 0 }, false)).toEqual({
+			startMs: 140,
+			endMs: 600,
+			releaseEndMs: 600,
+		});
+		// A release at the floor leaves an empty zone.
+		expect(scoredSpan({ ...note, releaseMs: 40 }, false)).toEqual({
+			startMs: 140,
+			endMs: 560,
+			releaseEndMs: 560,
+		});
+	});
+
+	for (const c of cases) {
+		describe(c.name, () => {
+			const run = (sound: Sound, s = two(c.beats)) =>
+				score(s, sound, { tempo: c.tempo });
+			const b = c.len - c.rel;
+			const z = c.len - EDGE_GRACE_MS;
+			const second = (from = c.len) =>
+				[from, 2 * c.len - 30, hz("D4")] as [number, number, number];
+
+			test("a note held for its full length scores as before: coverage, in-tune share, no faults (AC4)", () => {
+				const r = run(spans([0, c.len, hz("C4")], second()));
+				near(r.items[0]?.coverage, 1);
+				expect(r.items[0]?.inTune).toBeCloseTo(1, 5);
+				expect(r.timingFaults).toEqual([]);
+				// Half in tune, half flat but still right: the share is of the old span.
+				const sag = run(
+					spans(
+						[0, c.len / 2, hz("C4")],
+						[c.len / 2, c.len, hz("C4", -40)],
+						second(),
+					),
+				);
+				near(sag.items[0]?.coverage, 1);
+				expect(sag.items[0]?.inTune).toBeCloseTo(
+					(c.len / 2 - 40) / (c.len - 80),
+					1,
+				);
+			});
+
+			test("a stop at the release start scores 1 with no ended-early fault (AC5)", () => {
+				const r = run(spans([0, b, hz("C4")], second()));
+				expect(r.items[0]?.coverage).toBeGreaterThan(0.97);
+				expect(
+					r.timingFaults.map((f) => `${f.index} ${f.edge} ${f.kind}`),
+				).not.toContain("0 end early");
+			});
+
+			test("sound returning in the release counts, a wrong run there counts against, silence and pending do not (AC6)", () => {
+				const back = run(
+					spans([0, 300, hz("C4")], [b + 20, c.len, hz("C4")], second()),
+				);
+				const inZone = z - (b + 20);
+				near(back.items[0]?.coverage, (260 + inZone) / (b - 40 + inZone));
+				const wrong = run(
+					spans([0, b, hz("C4")], [b + 20, c.len, hz("E4")], second()),
+				);
+				near(wrong.items[0]?.coverage, (b - 40) / (b - 40 + inZone));
+				expect(wrong.items[0]?.coverage).toBeLessThan(0.95);
+				// A blip of another note (under a wrong run) and silence change nothing.
+				const blip = run(
+					spans([0, b, hz("C4")], [b + 20, b + 40, hz("E4")], second()),
+				);
+				expect(blip.items[0]?.coverage).toBeGreaterThan(0.97);
+			});
+
+			test("ended early is measured from the release start (AC7)", () => {
+				const at = run(spans([0, b - 50, hz("C4")], second()));
+				expect(
+					at.timingFaults.map((f) => `${f.index} ${f.edge} ${f.kind}`),
+				).not.toContain("0 end early");
+				const past = run(spans([0, b - 80, hz("C4")], second()));
+				expect(
+					past.timingFaults.map((f) => `${f.index} ${f.edge} ${f.kind}`),
+				).toContain("0 end early");
+			});
+
+			test("a gap that opens in the release separates the join, a gap before the window does not, a held note is not separated (AC8)", () => {
+				const same = song([
+					["C4", 0, c.beats],
+					["C4", c.beats, c.beats],
+				]);
+				const inRelease = run(
+					spans([0, 2 * c.len, hz("C4")], [b + 10, b + 50, null]),
+					same,
+				);
+				expect(inRelease.separation).toEqual({
+					notSeparated: 0,
+					plainJoins: 1,
+				});
+				const before = run(
+					spans([0, 2 * c.len, hz("C4")], [b - 130, b - 90, null]),
+					same,
+				);
+				expect(before.separation.notSeparated).toBe(1);
+				const held = run(spans([0, 2 * c.len, hz("C4")]), same);
+				expect(held.separation.notSeparated).toBe(1);
+			});
+		});
+	}
+
+	test("a slurred note, a note before a rest and the start edge are judged as before (AC9)", () => {
+		// A slurred end has no release: stopping 100 ms short loses it from the span 40 to 500.
+		const slurred = score(
+			song([
+				["C4", 0, 1, true],
+				["D4", 1, 1],
+			]),
+			spans([0, 400, hz("C4")], [500, 970, hz("D4")]),
+		);
+		near(slurred.items[0]?.coverage, 360 / 460);
+		// A note before a rest has a release, and the rest keeps its graced span.
+		const rested = score(
+			song([
+				["C4", 0, 1],
+				["D4", 2, 1],
+			]),
+			spans([0, 375, hz("C4")], [1000, 1500, hz("D4")]),
+		);
+		near(rested.items[0]?.coverage, 1);
+		expect(rested.items[1]?.kind).toBe("rest");
+		near(rested.items[1]?.coverage, 1);
+		// A late start is still measured from the written start.
+		const late = score(quarters("C4"), spans([75, 500, hz("C4")]));
+		expect(
+			late.timingFaults.map((f) => `${f.index} ${f.edge} ${f.kind}`),
+		).toContain("0 start late");
 	});
 });
 

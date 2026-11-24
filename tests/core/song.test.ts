@@ -8,9 +8,13 @@ import {
 	createSong,
 	DEFAULT_METER,
 	DEFAULT_TEMPO,
+	EDGE_GRACE_MS,
 	JOIN_GAP_MS,
 	type Meter,
+	noteReleasesMs,
 	playbackSchedule,
+	RELEASE_CAP_QUARTERS,
+	RELEASE_SHARE,
 	SongError,
 	type SongNote,
 	songBars,
@@ -347,6 +351,85 @@ describe("bars and lines (timed song staff)", () => {
 		const s = quarters(...Array.from({ length: 12 }, () => "C4"));
 		expect(songLines(s, 2).map((line) => line.length)).toEqual([2, 1]);
 		expect(songLines(s, 1).map((line) => line.length)).toEqual([1, 1, 1]);
+	});
+});
+
+describe("noteReleasesMs (F15-S01 AC1, AC2)", () => {
+	const lengths = [0.25, 0.5, 1, 2, 4];
+	/** One note of each length, spaced so none is joined to the next, as plain joins. */
+	const ofLength = (beats: number) => song([["C4", 0, beats]]);
+	const table: [number, number[]][] = [
+		[60, [62.5, 125, 250, 500, 500]],
+		[75, [50, 100, 200, 400, 400]],
+		[100, [40, 75, 150, 300, 300]],
+		[140, [40, 750 / 14, 750 / 7, 1500 / 7, 1500 / 7]],
+		[180, [40, 125 / 3, 250 / 3, 500 / 3, 500 / 3]],
+	];
+
+	test("the constants are the agreed starting values", () => {
+		expect(RELEASE_SHARE).toBe(0.25);
+		expect(RELEASE_CAP_QUARTERS).toBe(0.5);
+		expect(EDGE_GRACE_MS).toBe(40);
+	});
+
+	for (const [tempo, expected] of table) {
+		test(`a quarter of its length, at most half a quarter note, at least 40 ms, at ♩ = ${tempo}`, () => {
+			lengths.forEach((beats, i) => {
+				const [release] = noteReleasesMs(ofLength(beats), tempo);
+				expect(release, `${beats} beats`).toBeCloseTo(expected[i] as number, 6);
+			});
+		});
+	}
+
+	test("the figures the stories name: ♩ = 75 quarter 200 and half and whole 400, ♩ = 100 sixteenth 40, ♩ = 140 eighth about 54", () => {
+		expect(noteReleasesMs(ofLength(1), 75)[0]).toBe(200);
+		expect(noteReleasesMs(ofLength(2), 75)[0]).toBe(400);
+		expect(noteReleasesMs(ofLength(4), 75)[0]).toBe(400);
+		expect(noteReleasesMs(ofLength(0.25), 100)[0]).toBe(40);
+		expect(noteReleasesMs(ofLength(0.5), 140)[0]).toBeCloseTo(53.57, 2);
+	});
+
+	const slurredPair = (second: [string, number, number]) =>
+		createSong(
+			[
+				{ pitch: pitch("C4"), start: 0, beats: 1, slurred: true },
+				{ pitch: pitch(second[0]), start: second[1], beats: second[2] },
+			],
+			{ tempo: null, meter: DEFAULT_METER },
+		);
+
+	test("a note slurred into a note at its written end has none; the last note does", () => {
+		expect(noteReleasesMs(slurredPair(["D4", 1, 1]), 75)).toEqual([0, 200]);
+	});
+
+	test("a slurred note before a rest has a release", () => {
+		expect(noteReleasesMs(slurredPair(["D4", 2, 1]), 75)).toEqual([200, 200]);
+	});
+
+	test("a plain join, a note before a rest and the last note have one", () => {
+		expect(noteReleasesMs(quarters("C4", "D4"), 75)).toEqual([200, 200]);
+		expect(
+			noteReleasesMs(
+				song([
+					["C4", 0, 1],
+					["D4", 2, 1],
+				]),
+				75,
+			),
+		).toEqual([200, 200]);
+	});
+
+	test("a tied note is one long note: its release follows its whole length", () => {
+		// Written as one 3-beat note, as a tie across a bar line is in the song.
+		expect(noteReleasesMs(ofLength(3), 75)[0]).toBe(400);
+		expect(noteReleasesMs(ofLength(3), 180)[0]).toBeCloseTo(500 / 3, 6);
+	});
+
+	test("is not rounded and takes the tempo given, not the song's", () => {
+		expect(noteReleasesMs(song([["C4", 0, 0.5]], 60), 140)[0]).toBeCloseTo(
+			750 / 14,
+			6,
+		);
 	});
 });
 

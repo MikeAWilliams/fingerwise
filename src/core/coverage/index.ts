@@ -7,11 +7,11 @@ import {
 	type StabilityOptions,
 } from "../judge";
 import type { Pitch } from "../pitch";
-import type { Song } from "../song";
+import { EDGE_GRACE_MS, noteReleasesMs, type Song } from "../song";
+
+export { EDGE_GRACE_MS };
 
 // Starting values, to be tuned in the live check (ADR 0009).
-/** Left out at each edge of a note or rest, so a release or the previous pitch blurring in is not counted. */
-export const EDGE_GRACE_MS = 40;
 /** Readings in a row on the same other note before they count as wrong. */
 export const WRONG_RUN = 3;
 /** How far an edge may be from the written time before it is a timing fault, and how far from a join a gap may be. */
@@ -61,6 +61,8 @@ export interface TimelineNote {
 	startMs: number;
 	/** The end of the note's written length, not of its slot. */
 	endMs: number;
+	/** How long at the end of the note may be silent (ADR 0011); 0 for a note slurred into the next. */
+	releaseMs: number;
 	graded: boolean;
 }
 
@@ -91,6 +93,7 @@ export function buildTimeline(song: Song, tempo: number): Timeline {
 	const notes: TimelineNote[] = [];
 	const rests: TimelineRest[] = [];
 	const joins: TimelineJoin[] = [];
+	const releases = noteReleasesMs(song, tempo);
 	song.notes.forEach((note, i) => {
 		const length = ms(note.beats);
 		notes.push({
@@ -98,6 +101,7 @@ export function buildTimeline(song: Song, tempo: number): Timeline {
 			written: note.pitch,
 			startMs: ms(note.start),
 			endMs: ms(note.start + note.beats),
+			releaseMs: releases[i] as number,
 			graded: length >= MIN_GRADED_MS - MS_EPSILON,
 		});
 		const next = song.notes[i + 1];
@@ -121,6 +125,25 @@ export function buildTimeline(song: Song, tempo: number): Timeline {
 		}
 	});
 	return { notes, rests, joins };
+}
+
+/**
+ * The span a graded note is scored over, in ms. `startMs` is the start less the
+ * edge grace (none at a slurred start). `endMs` is where the release starts, or
+ * the written end at a slurred end. The release zone runs from `endMs` to
+ * `releaseEndMs`, the edge grace before the written end; it is empty when the
+ * release is no more than the grace, and at a slurred end.
+ */
+export function scoredSpan(
+	note: TimelineNote,
+	slurredStart: boolean,
+): { startMs: number; endMs: number; releaseEndMs: number } {
+	const endMs = note.endMs - note.releaseMs;
+	return {
+		startMs: note.startMs + (slurredStart ? 0 : EDGE_GRACE_MS),
+		endMs,
+		releaseEndMs: note.releaseMs > 0 ? note.endMs - EDGE_GRACE_MS : endMs,
+	};
 }
 
 export type Classified =
@@ -261,6 +284,8 @@ interface Item {
 	index: number;
 	startMs: number;
 	endMs: number;
+	/** A note's release; 0 on rests. */
+	releaseMs: number;
 	graded: boolean;
 	/** The expected sounding pitch of a note. */
 	expected: Pitch | null;
@@ -324,6 +349,7 @@ export function createCoverageRun(
 				index: n.index,
 				startMs: n.startMs,
 				endMs: n.endMs,
+				releaseMs: n.releaseMs,
 				graded: n.graded,
 				expected: options.sounding(n.written),
 				written: n.written,
@@ -337,6 +363,7 @@ export function createCoverageRun(
 				index: i,
 				startMs: r.startMs,
 				endMs: r.endMs,
+				releaseMs: 0,
 				graded: r.graded,
 				expected: null,
 				written: null,
@@ -458,9 +485,10 @@ export function createCoverageRun(
 		}
 	}
 
-	/** Whether a gap shows within the timing tolerance of the join: a reading that fails the checks, or a dip in the level that recovers. */
+	/** Whether a gap shows from the earlier note's release start, less the timing tolerance, to the tolerance after the join: a reading that fails the checks, or a dip in the level that recovers. */
 	function isSeparated(join: TimelineJoin): boolean {
-		const lo = join.atMs - TIMING_TOLERANCE_MS;
+		const earlier = items[noteItem.get(join.before) as number] as Item;
+		const lo = join.atMs - earlier.releaseMs - TIMING_TOLERANCE_MS;
 		const hi = join.atMs + TIMING_TOLERANCE_MS;
 		for (let i = lowerBound(entries, lo); i < entries.length; i++) {
 			const e = entries[i] as Entry;
@@ -521,6 +549,18 @@ export function createCoverageRun(
 		return out;
 	}
 
+	/** The timeline note an item was made from, for `scoredSpan`. */
+	function noteTimeline(item: Item): TimelineNote {
+		return {
+			index: item.index,
+			written: item.written as Pitch,
+			startMs: item.startMs,
+			endMs: item.endMs,
+			releaseMs: item.releaseMs,
+			graded: item.graded,
+		};
+	}
+
 	function sameSoundingPitch(a: Item | undefined, b: Item): boolean {
 		return a?.expected !== null && a?.expected === b.expected;
 	}
@@ -572,8 +612,18 @@ export function createCoverageRun(
 		const after = item.kind === "note" ? joinAfter.get(item.index) : undefined;
 		const slurredStart = before?.join.kind === "slurred";
 		const slurredEnd = after?.join.kind === "slurred";
-		const a = item.startMs + (slurredStart ? 0 : EDGE_GRACE_MS);
-		const b = item.endMs - (slurredEnd ? 0 : EDGE_GRACE_MS);
+		// A rest is graced at both edges; a note is scored to where its release starts.
+		const {
+			startMs: a,
+			endMs: b,
+			releaseEndMs: z,
+		} = item.kind === "note"
+			? scoredSpan(noteTimeline(item), slurredStart)
+			: {
+					startMs: item.startMs + EDGE_GRACE_MS,
+					endMs: item.endMs - EDGE_GRACE_MS,
+					releaseEndMs: item.endMs - EDGE_GRACE_MS,
+				};
 		const span = b - a;
 		const previous = before
 			? (items[noteItem.get(before.join.before) as number] as Item)
@@ -588,10 +638,23 @@ export function createCoverageRun(
 		let right = 0;
 		let inTune = 0;
 		let sounded = 0;
+		// Time in the release that counts: right sound, or a confirmed wrong run.
+		let extra = 0;
 		for (let i = lowerBound(entries, a) - 1; i < entries.length; i++) {
 			const e = entries[i];
 			if (!e) continue;
-			if (e.time >= b) break;
+			if (e.time >= z) break;
+			if (z > b && e.item === k) {
+				const inZone = overlap(e.time, e.end, b, z);
+				if (e.kind === "right-in-tune" || e.kind === "right-out") {
+					covered += inZone;
+					right += inZone;
+					extra += inZone;
+					if (e.kind === "right-in-tune") inTune += inZone;
+				} else if (e.kind === "wrong") {
+					extra += inZone;
+				}
+			}
 			const ov = overlap(e.time, e.end, a, b);
 			if (ov <= 0) continue;
 			if (e.item === k) {
@@ -614,7 +677,7 @@ export function createCoverageRun(
 				covered += overlap(e.time, e.end, b - EDGE_GRACE_MS, b);
 			}
 		}
-		base.coverage = Math.min(1, covered / span);
+		base.coverage = Math.min(1, covered / (span + extra));
 		if (item.kind === "rest") {
 			base.soundedMs = sounded;
 			return base;
@@ -661,7 +724,7 @@ export function createCoverageRun(
 		if (!blindEnd) {
 			base.endEdge = true;
 			const endEdge = (entries[last] as Entry).end;
-			if (item.endMs - endEdge > TIMING_TOLERANCE_MS) {
+			if (item.endMs - item.releaseMs - endEdge > TIMING_TOLERANCE_MS) {
 				fault("end", "early");
 			} else {
 				const own = sameSoundingPitch(

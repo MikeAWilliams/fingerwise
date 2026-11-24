@@ -219,3 +219,55 @@ describe("held and slurred playing (AC12)", () => {
 		expect(result.tuning.length).toBeGreaterThan(0);
 	});
 });
+
+/*
+ * F15-S01 AC10. "Today" is what these clips scored before the release
+ * allowance, recorded with the same harness.
+ */
+describe("release allowance on the clips (F15-S01 AC10)", () => {
+	const faults = (clip: Clip, slurred = false) =>
+		run(clip, slurred).result.timingFaults.map(
+			(f) => `${f.index} ${f.edge} ${f.kind}`,
+		);
+
+	test("the held note is still not separated", () => {
+		const { result } = run(HELD);
+		expect(result.separation).toEqual({ notSeparated: 1, plainJoins: 1 });
+		expect(result.coverage).toBeCloseTo(0.9985507, 2);
+	});
+
+	test("the slurred scale scores as today, played as plain and as slurred", () => {
+		const plain = run(SLURRED).result;
+		expect(plain.coverage).toBeCloseTo(0.237483, 2);
+		expect(plain.separation).toEqual({ notSeparated: 3, plainJoins: 3 });
+		expect(faults(SLURRED)).toEqual([
+			"0 start late",
+			"1 start late",
+			"1 end early",
+			"2 start late",
+		]);
+		const slurred = run(SLURRED, true).result;
+		expect(slurred.coverage).toBeCloseTo(0.2654048, 2);
+		expect(slurred.separation).toEqual({ notSeparated: 0, plainJoins: 0 });
+		expect(faults(SLURRED, true)).toEqual(faults(SLURRED));
+	});
+
+	test("the tongued scale scores as today", () => {
+		const { result } = run(TONGUED);
+		expect(Math.abs((result.coverage as number) - 0.6266779)).toBeLessThan(
+			0.005,
+		);
+		expect(result.separation).toEqual({ notSeparated: 0, plainJoins: 3 });
+		expect(faults(TONGUED)).toEqual([
+			"1 start late",
+			"1 end early",
+			"2 start late",
+		]);
+	});
+
+	test("the tongued repeat scores at least as high and fewer notes end early", () => {
+		const { result } = run(REPEAT);
+		expect(result.coverage as number).toBeGreaterThanOrEqual(0.516276);
+		expect(result.timing.endedEarly.faults).toBeLessThan(2);
+	});
+});

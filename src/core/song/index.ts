@@ -147,6 +147,41 @@ const BEAT_EPSILON = 1e-3;
 /** The most a plain join shortens a tone, in ms, so repeated notes are heard apart. */
 export const JOIN_GAP_MS = 50;
 
+// The scoring constants, tuned in the live check (ADR 0011).
+/** Left out at each edge of a note or rest, so a release or the previous pitch blurring in is not counted. Also the least a release lasts. */
+export const EDGE_GRACE_MS = 40;
+/** A note's release is this share of its written length... */
+export const RELEASE_SHARE = 0.25;
+/** ...at most this many quarter notes long. */
+export const RELEASE_CAP_QUARTERS = 0.5;
+
+/** Whether note `i` is slurred into a note that starts at its written end: the two sound as one. */
+function joinedToNext(song: Song, i: number): boolean {
+	const note = song.notes[i] as SongNote;
+	const next = song.notes[i + 1];
+	return (
+		note.slurred === true &&
+		next !== undefined &&
+		Math.abs(next.start - (note.start + note.beats)) < BEAT_EPSILON
+	);
+}
+
+/**
+ * Each note's release in ms at `tempo` (quarter notes per minute): the time at
+ * the end of its written length it may spend silent, to tongue the next note
+ * or breathe. 0 for a note slurred into the next; otherwise `RELEASE_SHARE` of
+ * its length, at most `RELEASE_CAP_QUARTERS` quarter notes, and at least
+ * `EDGE_GRACE_MS`. Not rounded.
+ */
+export function noteReleasesMs(song: Song, tempo: number): number[] {
+	const cap = (RELEASE_CAP_QUARTERS * 60000) / tempo;
+	return song.notes.map((note, i) => {
+		if (joinedToNext(song, i)) return 0;
+		const writtenMs = (note.beats * 60000) / tempo;
+		return Math.max(EDGE_GRACE_MS, Math.min(RELEASE_SHARE * writtenMs, cap));
+	});
+}
+
 /** One tone of the song played back: when it starts and how long it sounds, in ms. */
 export interface PlaybackTone {
 	/** The written pitch; the caller applies the instrument's transposition. */
