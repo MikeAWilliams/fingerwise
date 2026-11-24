@@ -1,5 +1,6 @@
 import { keepTempoApplies, type Settings } from "../core/settings";
 import { DEFAULT_TEMPO, type Song } from "../core/song";
+import { chosenTune } from "./song-form";
 
 /** "♩ = N" for a tempo in quarter notes per minute, rounded to a whole number. */
 export function tempoText(quartersPerMinute: number): string {
@@ -57,5 +58,36 @@ export function playButton({
 		icon: playing ? "■" : "▶",
 		text: playing ? STOP_TEXT : PLAY_SONG_TEXT,
 		disabled: !playing && phase === "playing",
+	};
+}
+
+/** Each tune's title, or "Tune N" (its position) when it has none, in text order. */
+export function tuneLabels(tunes: Song[]): string[] {
+	return tunes.map((tune, i) => tune.title ?? `Tune ${i + 1}`);
+}
+
+/**
+ * The header's tune list: null while Settings is open, with use song off or
+ * with fewer than two tunes; greyed out while a timed run is counting in,
+ * playing or listening past the end. `selected` is the chosen tune's 0-based
+ * index.
+ */
+export function tuneChoice({
+	settings,
+	tunes,
+	open,
+	phase,
+}: {
+	settings: Settings;
+	tunes: Song[];
+	open: boolean;
+	phase: "ready" | "playing" | "summary" | undefined;
+}): { labels: string[]; selected: number; disabled: boolean } | null {
+	if (open || !settings.useSong || tunes.length < 2) return null;
+	const chosen = chosenTune(tunes, settings.songTune);
+	return {
+		labels: tuneLabels(tunes),
+		selected: Math.max(0, chosen === null ? 0 : tunes.indexOf(chosen)),
+		disabled: phase === "playing",
 	};
 }

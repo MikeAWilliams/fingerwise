@@ -143,6 +143,16 @@ export function applySongText(
 	};
 }
 
+/** The settings with the tune at this 1-based position chosen; null when it already is. */
+export function chooseTune(
+	settings: Settings,
+	position: number,
+): Settings | null {
+	return position === settings.songTune
+		? null
+		: { ...settings, songTune: position };
+}
+
 /** Whether the use song toggle may be turned on: only while a valid song is held. */
 export function canUseSong(song: Song | null): boolean {
 	return song !== null;

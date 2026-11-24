@@ -4,6 +4,7 @@ import { type AbcResult, parseAbc } from "../../src/abc";
 import {
 	applySongText,
 	canUseSong,
+	chooseTune,
 	chosenTune,
 	NO_SONG,
 	NO_TEMPO_NOTE,
@@ -134,6 +135,11 @@ describe("several tunes (F14-S01)", () => {
 		expect(chosenTune([song, a], 2)).toBe(a);
 		expect(chosenTune([song, a], 3)).toBe(song);
 		expect(chosenTune([], 1)).toBeNull();
+	});
+
+	test("chooseTune returns null for the same position (F14-S02 AC7)", () => {
+		expect(chooseTune(SETTINGS, 1)).toBeNull();
+		expect(chooseTune(SETTINGS, 2)).toEqual({ ...SETTINGS, songTune: 2 });
 	});
 
 	test("an edit keeps the position while the text has that many tunes (AC8)", () => {
