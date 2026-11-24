@@ -16,10 +16,11 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 | [0003](0003-written-pitch-and-transposition.md) | Written pitch on the staff; required per-instrument transposition | accepted |
 | [0004](0004-pwa-with-vite-plugin-pwa.md) | PWA with vite-plugin-pwa; silent updates; tested targets | accepted |
 | [0005](0005-yin-pitch-detector.md) | Hand-written YIN pitch detector for the judge; no dependency | accepted |
-| [0006](0006-abcjs-for-songs.md) | abcjs reads songs through its audio sequence; deep import, exact pin | accepted |
+| [0006](0006-abcjs-for-songs.md) | abcjs reads songs through its audio sequence; deep import, exact pin | accepted (one-tune rule superseded by 0010) |
 | [0007](0007-smart-sampling-by-need.md) | Smart sampling by need score, from judge grades only | accepted |
 | [0008](0008-songs-keep-rhythm.md) | Songs keep note lengths, tempo and meter from the ABC | accepted |
 | [0009](0009-timed-songs-scored-by-coverage.md) | Timed songs scored by coverage, timing and separation; slurs in the song | accepted |
+| [0010](0010-several-tunes-in-one-text.md) | A song text may hold several tunes; all must pass; chosen by position | accepted |
 
 ## Likely next ADRs
 
