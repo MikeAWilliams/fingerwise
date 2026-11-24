@@ -119,6 +119,7 @@ export function SongOverlay({
 	playhead,
 	fill,
 	after = false,
+	lanes = true,
 	scored = null,
 	overrun = null,
 	readout,
@@ -135,6 +136,8 @@ export function SongOverlay({
 	fill: FillSource | null;
 	/** Scoring after the song: no playhead, lanes, fill or marks while the song runs; the page still follows it. */
 	after?: boolean;
+	/** False draws no lane, guide, fill or mark; the playhead and the following stay. */
+	lanes?: boolean;
 	/** The finished scoring, drawn at once in `after`; null until the summary. */
 	scored?: Progress | null;
 	/** The overrun's lane under the last line, or null for none; the view box grows to hold it. */
@@ -153,7 +156,7 @@ export function SongOverlay({
 	const markPaths = useRef<(SVGPathElement | null)[]>([]);
 	const { running, origin, now, outputLatency } = playhead;
 	// Lanes show live, or after the song once the finished scoring is in.
-	const show = !after || scored !== null;
+	const show = lanes && (!after || scored !== null);
 	const progress = fill?.progress;
 	const reading = fill?.reading;
 	const tolerance = fill?.tolerance;

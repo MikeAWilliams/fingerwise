@@ -59,6 +59,8 @@ export interface SongView {
 	fill: FillSource | null;
 	/** What was played after the last note, for its own lane under the last line; null for none. */
 	overrun?: OverrunTrace | null;
+	/** False draws no lanes, guides, fill or marks, only the playhead (playing the song); true when absent. */
+	lanes?: boolean;
 	/** Scoring after the song: the lanes, trace and marks stay hidden until `scored` arrives. */
 	after: boolean;
 	/** The finished scoring to draw at once; null unless the lanes are shown after the song. */
@@ -105,6 +107,7 @@ export function SongStaff({
 		playhead,
 		fill,
 		after,
+		lanes = true,
 		scored,
 		overrun = null,
 		spots = NO_SPOTS,
@@ -231,6 +234,7 @@ export function SongStaff({
 					playhead={playhead}
 					fill={fill}
 					after={after}
+					lanes={lanes}
 					scored={scored}
 					readout={readout}
 					overrun={lane}

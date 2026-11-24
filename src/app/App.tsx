@@ -35,7 +35,7 @@ import {
 	scoringAfterApplies,
 	smartSamplingApplies,
 } from "../core/settings";
-import { DEFAULT_TEMPO, songLines } from "../core/song";
+import { DEFAULT_TEMPO, type SongNote, songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { lanesShown } from "./after-song";
@@ -53,12 +53,14 @@ import { fontUrl, loadFont } from "./font";
 import { headerSong, playButton } from "./header-text";
 import {
 	LISTENING_PAST_END,
+	PLAYING_SONG,
 	SCORING_AFTER,
 	summaryText,
 	tuningText,
 } from "./judge-text";
 import { overrunTrace } from "./overrun";
 import { createPlaybackFlow, type PlaybackState } from "./playback-flow";
+import { playbackView } from "./playback-view";
 import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
@@ -174,7 +176,7 @@ export function App() {
 	const [visible, setVisible] = useState(pageVisible);
 	// The Play song button: the song is playing, and where its playback stands.
 	const [playing, setPlaying] = useState(false);
-	const [, setPlayback] = useState<PlaybackState | null>(null);
+	const [playback, setPlayback] = useState<PlaybackState | null>(null);
 	const [judgeUnavailable, setJudgeUnavailable] = useState(false);
 	const changeSettings = (next: Settings) => {
 		setPlaying(false);
@@ -447,6 +449,32 @@ export function App() {
 						songEdited.current = true;
 						setSongState(state);
 					}}
+				/>
+			)}
+			{!open && playing && playback && song !== null && timeline !== null && (
+				<Card
+					pitch={(song.notes[0] as SongNote).pitch}
+					revealed={false}
+					judging={false}
+					timed="playing"
+					timedNote={PLAYING_SONG}
+					legend={false}
+					readout={false}
+					song={playbackView(
+						{
+							lines,
+							meter: song.meter,
+							barsPerLine,
+							timeline,
+							tempo: songTempo,
+						},
+						playback,
+						{ now: playheadNow, outputLatency: playheadLatency },
+					)}
+					header={headerRef}
+					instrument={instrument}
+					staffOptions={STAFF_OPTIONS}
+					font={{ family: FONT_FAMILY, status: fontStatus }}
 				/>
 			)}
 			{!open && !playing && timedSong && timed && (

@@ -64,6 +64,13 @@ describe("scrollLockApplies", () => {
 	});
 });
 
+describe("scrollLockApplies while the song is played (F13-S03 AC5, AC7)", () => {
+	test("the playback card is in playing, which locks, and the ready card that follows does not", () => {
+		expect(scrollLockApplies("playing")).toBe(true);
+		expect(scrollLockApplies("ready")).toBe(false);
+	});
+});
+
 describe("setScrollLock (F10-S05 AC8)", () => {
 	function fakeRoot() {
 		const classes = new Set<string>();

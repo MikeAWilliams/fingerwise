@@ -3,7 +3,9 @@ import {
 	createPlaybackFlow,
 	type PlaybackFlow,
 	type PlaybackState,
+	soundingChanges,
 } from "../../src/app/playback-flow";
+import { playheadBeat } from "../../src/app/playhead";
 import {
 	createTimedFlow,
 	LEAD_SECONDS,
@@ -135,11 +137,13 @@ describe("the count-in (F13-S02 AC2)", () => {
 		const flow = setup(songOf([1, 1]));
 		flow.start();
 		const firstSlot = LEAD_SECONDS + 2;
-		expect(states).toEqual([{ phase: "count-in", origin: firstSlot }]);
+		expect(states).toEqual([
+			{ phase: "count-in", index: 0, origin: firstSlot },
+		]);
 		vi.advanceTimersByTime((LEAD_SECONDS + 2) * 1000);
 		expect(states).toEqual([
-			{ phase: "count-in", origin: firstSlot },
-			{ phase: "playing", origin: firstSlot },
+			{ phase: "count-in", index: 0, origin: firstSlot },
+			{ phase: "playing", index: 0, origin: firstSlot },
 		]);
 	});
 });
@@ -255,5 +259,87 @@ describe("a clock that lags the timers", () => {
 		clockNow = LEAD_SECONDS + 3;
 		vi.advanceTimersByTime(10000);
 		expect(ends).toBe(1);
+	});
+});
+
+describe("soundingChanges (F13-S03)", () => {
+	test("plain quarters: each note at its start", () => {
+		expect(soundingChanges(songOf([1, 1, 1]), 120)).toEqual([
+			{ atMs: 0, index: 0 },
+			{ atMs: 500, index: 1 },
+			{ atMs: 1000, index: 2 },
+		]);
+	});
+
+	test("a rest: -1 from the written end until the next start", () => {
+		expect(soundingChanges(songOf([1, 1], { gaps: [1] }), 120)).toEqual([
+			{ atMs: 0, index: 0 },
+			{ atMs: 500, index: -1 },
+			{ atMs: 1000, index: 1 },
+		]);
+	});
+
+	test("a slur followed by a rest still goes grey at the written end", () => {
+		const song = createSong(
+			[
+				{ pitch: 60 as Pitch, start: 0, beats: 1, slurred: true },
+				{ pitch: 62 as Pitch, start: 1, beats: 1, slurred: true },
+				{ pitch: 64 as Pitch, start: 3, beats: 1 },
+			],
+			{ tempo: 120, meter: DEFAULT_METER },
+		);
+		expect(soundingChanges(song, 120)).toEqual([
+			{ atMs: 0, index: 0 },
+			{ atMs: 500, index: 1 },
+			{ atMs: 1000, index: -1 },
+			{ atMs: 1500, index: 2 },
+		]);
+	});
+});
+
+describe("the sounding index and the origin (F13-S03)", () => {
+	test("0 in the count-in, each note at its start, -1 through a rest", () => {
+		const flow = setup(songOf([1, 1, 1], { gaps: [0, 1] }));
+		flow.start();
+		const first = (LEAD_SECONDS + 2) * 1000;
+		expect(states.map((s) => s.index)).toEqual([0]);
+		vi.advanceTimersByTime(first);
+		expect(states.at(-1)).toMatchObject({ phase: "playing", index: 0 });
+		vi.advanceTimersByTime(500);
+		expect(states.at(-1)?.index).toBe(1);
+		vi.advanceTimersByTime(500);
+		expect(states.at(-1)?.index).toBe(-1);
+		vi.advanceTimersByTime(499);
+		expect(states.at(-1)?.index).toBe(-1);
+		vi.advanceTimersByTime(1);
+		expect(states.at(-1)?.index).toBe(2);
+		flow.stop();
+	});
+
+	test("the origin equals the timed flow's, so the playhead is placed as in a run", () => {
+		const song = songOf([1, 1]);
+		let origin: number | null = null;
+		const timed = createTimedFlow({
+			song,
+			clock: { now },
+			clicker: null,
+			onChange: (s) => {
+				origin = s.origin;
+			},
+		});
+		timed.start();
+		timed.step();
+		const flow = setup(song);
+		flow.start();
+		expect(states[0]?.origin).toBe(origin);
+		expect(
+			playheadBeat(now(), null, states[0]?.origin as number, 120),
+		).toBeLessThan(0);
+		vi.advanceTimersByTime((LEAD_SECONDS + 2) * 1000);
+		expect(
+			playheadBeat(now(), null, states[0]?.origin as number, 120),
+		).toBeCloseTo(0, 6);
+		flow.stop();
+		timed.stop();
 	});
 });

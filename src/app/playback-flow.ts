@@ -12,8 +12,35 @@ import { LEAD_SECONDS, METRONOME_LOOKAHEAD_SECONDS } from "./timed-flow";
 /** Where the song's playback stands: one bar of count-in, then the notes. */
 export interface PlaybackState {
 	phase: "count-in" | "playing";
+	/** The sounding note's index: 0 through the count-in, -1 during a written rest. */
+	index: number;
 	/** The flow clock's seconds at the first note's start, song time 0. */
 	origin: number;
+}
+
+/** Beats closer than this count as touching, as in the song module. */
+const BEAT_EPSILON = 1e-3;
+
+/**
+ * When the sounding note changes, in ms from the first note's start and in
+ * time order: each note's index at its start, and -1 at the written end of a
+ * note followed by a rest, until the next note starts. Repeated and slurred
+ * notes change at the next start with no -1 between.
+ */
+export function soundingChanges(
+	song: Song,
+	tempo: number,
+): { atMs: number; index: number }[] {
+	const changes: { atMs: number; index: number }[] = [];
+	song.notes.forEach((note, i) => {
+		changes.push({ atMs: (note.start * 60000) / tempo, index: i });
+		const next = song.notes[i + 1];
+		const end = note.start + note.beats;
+		if (next && next.start - end > BEAT_EPSILON) {
+			changes.push({ atMs: (end * 60000) / tempo, index: -1 });
+		}
+	});
+	return changes;
 }
 
 export interface PlaybackFlowOptions {
@@ -88,25 +115,29 @@ export function createPlaybackFlow(options: PlaybackFlowOptions): PlaybackFlow {
 		const guard = (action: () => void) => () => {
 			if (!stopped) action();
 		};
-		const show = (index: number): void => {
-			const tone = schedule[index] as PlaybackTone;
-			scheduleUpTo(startOf(tone) + METRONOME_LOOKAHEAD_SECONDS);
-			if (index === 0)
-				options.onChange({ phase: "playing", origin: firstSlot });
-			const next = schedule[index + 1];
-			if (next)
+		const changes = soundingChanges(song, tempo);
+		const change = (k: number): void => {
+			const { index } = changes[k] as { atMs: number; index: number };
+			// Batches go out at note starts.
+			const tone = schedule[index];
+			if (tone) scheduleUpTo(startOf(tone) + METRONOME_LOOKAHEAD_SECONDS);
+			options.onChange({ phase: "playing", index, origin: firstSlot });
+			const next = changes[k + 1];
+			if (next) {
 				timer.at(
-					startOf(next),
-					guard(() => show(index + 1)),
+					firstSlot + next.atMs / 1000,
+					guard(() => change(k + 1)),
 				);
-			else timer.at(songEnd, guard(options.onEnd));
+			} else {
+				timer.at(songEnd, guard(options.onEnd));
+			}
 		};
 
-		options.onChange({ phase: "count-in", origin: firstSlot });
+		options.onChange({ phase: "count-in", index: 0, origin: firstSlot });
 		scheduleUpTo(firstSlot + METRONOME_LOOKAHEAD_SECONDS);
 		timer.at(
-			startOf(schedule[0] as PlaybackTone),
-			guard(() => show(0)),
+			firstSlot + (changes[0] as { atMs: number }).atMs / 1000,
+			guard(() => change(0)),
 		);
 	}
 
