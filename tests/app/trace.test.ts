@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { LaneSegment } from "../../src/app/lane";
+import type { LaneSegment, NoteEnd } from "../../src/app/lane";
 import { faultMarks, marksPaths } from "../../src/app/marks";
 import {
 	emptyPaths,
@@ -312,6 +312,12 @@ describe("settledPaths (F12-S02 AC5, AC6)", () => {
 		lane(1, 2, 100, 150),
 		lane(1, 3, 150, 200),
 	];
+	const ends: NoteEnd[] = [
+		{ index: 0, row: 0, x: 150 },
+		{ index: 1, row: 0, x: 200 },
+		{ index: 2, row: 1, x: 150 },
+		{ index: 3, row: 1, x: 200 },
+	];
 	const faults: TimingFault[] = [
 		{ index: 0, edge: "start", kind: "late" },
 		{ index: 2, edge: "end", kind: "early" },
@@ -322,6 +328,7 @@ describe("settledPaths (F12-S02 AC5, AC6)", () => {
 		const settled = settledPaths(
 			{ segments, timingFaults: faults, notSeparated: joins },
 			laneSegs,
+			ends,
 			rows,
 			60,
 			25,
@@ -337,10 +344,13 @@ describe("settledPaths (F12-S02 AC5, AC6)", () => {
 		});
 		expect(settled.fill).toEqual(fill);
 		const m1 = marksPaths(
-			faultMarks(faults.slice(0, 1), joins.slice(0, 0), laneSegs),
+			faultMarks(faults.slice(0, 1), joins.slice(0, 0), laneSegs, ends),
 			rows,
 		);
-		const m2 = marksPaths(faultMarks(faults.slice(1), joins, laneSegs), rows);
+		const m2 = marksPaths(
+			faultMarks(faults.slice(1), joins, laneSegs, ends),
+			rows,
+		);
 		expect(settled.marks).toEqual(
 			rows.map((_, r) => (m1[r] ?? "") + (m2[r] ?? "")),
 		);
@@ -348,10 +358,42 @@ describe("settledPaths (F12-S02 AC5, AC6)", () => {
 		expect(settled.marks.every((m) => m !== "")).toBe(true);
 	});
 
+	test("a fill point in a note's release is drawn, though the lane segment ends before it (F15-S03 AC4)", () => {
+		// Note 0's lane segment ends at x 130 (its release start); the sound runs to x 190.
+		const shortSegs = [lane(0, 0, 100, 130)];
+		const inRelease: Segment = {
+			startMs: 0,
+			endMs: 950,
+			kind: "right-in-tune",
+			on: "note",
+			graded: true,
+			points: [
+				{ timeMs: 100, cents: 0 },
+				{ timeMs: 900, cents: 0 },
+			],
+		};
+		const settled = settledPaths(
+			{ segments: [inRelease], timingFaults: [], notSeparated: [] },
+			shortSegs,
+			[{ index: 0, row: 0, x: 195 }],
+			rows,
+			60,
+			25,
+		);
+		// The point at 900 ms is at x 190, past the shortened segment.
+		const xs = [
+			...(settled.fill[0] as { green: string }).green.matchAll(
+				/-?\d+(?:\.\d+)?/g,
+			),
+		].map((m) => Number(m[0]));
+		expect(Math.max(...xs)).toBeGreaterThan(130);
+	});
+
 	test("nothing scored gives empty paths for every row", () => {
 		const settled = settledPaths(
 			{ segments: [], timingFaults: [], notSeparated: [] },
 			laneSegs,
+			ends,
 			rows,
 			60,
 			25,

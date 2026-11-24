@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { LaneSegment } from "../../src/app/lane";
+import type { LaneSegment, NoteEnd } from "../../src/app/lane";
 import {
 	faultMarks,
 	MARK_HEIGHT,
@@ -36,6 +36,11 @@ const seg = (
 
 // Two notes: 0 from x 20 to 60, 1 from 60 to 100, on one row.
 const segments = [seg(0, 20, 60), seg(1, 60, 100)];
+// Where the notes' written ends are: here the same as their segments' ends.
+const ends: NoteEnd[] = [
+	{ index: 0, row: 0, x: 60 },
+	{ index: 1, row: 0, x: 100 },
+];
 
 describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 	test("each of the four timing faults gives its own shape at its edge", () => {
@@ -48,6 +53,7 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 			],
 			[],
 			segments,
+			ends,
 		);
 		expect(marks).toEqual([
 			{ row: 0, x: 20, shape: "start-late" },
@@ -90,6 +96,7 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 			[],
 			[{ before: 0, after: 1, atMs: 500 }],
 			segments,
+			ends,
 		);
 		expect(marks).toEqual([{ row: 0, x: 60, shape: "not-separated" }]);
 		const d = markPath(marks[0] as Mark, 100, 124);
@@ -139,6 +146,7 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 			],
 			[],
 			across,
+			[{ index: 0, row: 1, x: 60 }],
 		);
 		expect(marks).toEqual([
 			{ row: 0, x: 80, shape: "start-late" },
@@ -150,24 +158,26 @@ describe("faultMarks (F09-S07 AC1 to AC4)", () => {
 				[{ index: 0, edge: "start", kind: "late" }],
 				[],
 				[across[1] as LaneSegment],
+				[{ index: 0, row: 1, x: 60 }],
 			),
 		).toEqual([]);
 	});
 
 	test("a join whose first note is off the rows is marked at the next note's start", () => {
 		const only = [seg(1, 20, 60, { row: 1 })];
-		expect(faultMarks([], [{ before: 0, after: 1, atMs: 500 }], only)).toEqual([
-			{ row: 1, x: 20, shape: "not-separated" },
-		]);
+		expect(
+			faultMarks([], [{ before: 0, after: 1, atMs: 500 }], only, []),
+		).toEqual([{ row: 1, x: 20, shape: "not-separated" }]);
 	});
 
 	test("rests have no marks and no faults give none", () => {
-		expect(faultMarks([], [], segments)).toEqual([]);
+		expect(faultMarks([], [], segments, ends)).toEqual([]);
 		expect(
 			faultMarks(
 				[{ index: 0, edge: "start", kind: "late" }],
 				[],
 				[seg(0, 20, 60, { kind: "rest" })],
+				[],
 			),
 		).toEqual([]);
 	});
@@ -207,6 +217,56 @@ describe("the legend (F09-S07)", () => {
 	});
 });
 
+describe("faultMarks with a release (F15-S03 AC5)", () => {
+	// Notes 0 and 1 have segments ending at their release starts, 50 and 90; their written ends are 60 and 100.
+	const shortened = [seg(0, 20, 50), seg(1, 60, 90)];
+	const written: NoteEnd[] = [
+		{ index: 0, row: 0, x: 60 },
+		{ index: 1, row: 0, x: 100 },
+	];
+
+	test("ended early sits at the shortened end, ended late at the written end, start marks unchanged", () => {
+		const marks = faultMarks(
+			[
+				{ index: 0, edge: "end", kind: "early" },
+				{ index: 1, edge: "end", kind: "late" },
+				{ index: 1, edge: "start", kind: "late" },
+			],
+			[],
+			shortened,
+			written,
+		);
+		expect(marks).toEqual([
+			{ row: 0, x: 50, shape: "end-early" },
+			{ row: 0, x: 100, shape: "end-late" },
+			{ row: 0, x: 60, shape: "start-late" },
+		]);
+	});
+
+	test("an ended-late mark sits at the written end even on a row with no segment of the note", () => {
+		// Note 0's release alone is on row 1: its segment is on row 0 only.
+		const marks = faultMarks(
+			[{ index: 0, edge: "end", kind: "late" }],
+			[],
+			[seg(0, 20, 90, { row: 0 })],
+			[{ index: 0, row: 1, x: 40 }],
+		);
+		expect(marks).toEqual([{ row: 1, x: 40, shape: "end-late" }]);
+	});
+
+	test("a not-separated join sits at the written join, not the shortened end", () => {
+		expect(
+			faultMarks([], [{ before: 0, after: 1, atMs: 500 }], shortened, written),
+		).toEqual([{ row: 0, x: 60, shape: "not-separated" }]);
+	});
+
+	test("with no written end for the earlier note, the join falls back to the next note's start", () => {
+		expect(
+			faultMarks([], [{ before: 0, after: 1, atMs: 500 }], shortened, []),
+		).toEqual([{ row: 0, x: 60, shape: "not-separated" }]);
+	});
+});
+
 describe("what the core reports (F09-S07 AC3, AC4)", () => {
 	const options: CoverageOptions = {
 		toleranceCents: 25,
@@ -241,7 +301,8 @@ describe("what the core reports (F09-S07 AC3, AC4)", () => {
 		// C held through the slurred join and into the second note, then nothing.
 		const r = result(true, (t) => (t >= 0 && t < 1000 ? hz(60) : null));
 		const segs = [seg(0, 20, 60), seg(1, 60, 100), seg(2, 100, 140)];
-		const marks = faultMarks(r.timingFaults, r.notSeparatedJoins, segs);
+		const endsOf = [0, 1, 2].map((i) => ({ index: i, row: 0, x: 60 + 40 * i }));
+		const marks = faultMarks(r.timingFaults, r.notSeparatedJoins, segs, endsOf);
 		// The slurred join between the first two notes is never reported.
 		expect(r.notSeparatedJoins.every((j) => j.before !== 0)).toBe(true);
 		expect(marks.every((m) => m.x !== 60 || m.shape !== "not-separated")).toBe(
@@ -256,7 +317,8 @@ describe("what the core reports (F09-S07 AC3, AC4)", () => {
 		const r = result(false, (t) => (t >= 0 && t < 1000 ? hz(60) : null));
 		expect(r.notSeparatedJoins).toEqual([{ before: 0, after: 1, atMs: 500 }]);
 		const segs = [seg(0, 20, 60), seg(1, 60, 100), seg(2, 100, 140)];
-		expect(faultMarks([], r.notSeparatedJoins, segs)).toEqual([
+		const endsOf = [0, 1, 2].map((i) => ({ index: i, row: 0, x: 60 + 40 * i }));
+		expect(faultMarks([], r.notSeparatedJoins, segs, endsOf)).toEqual([
 			{ row: 0, x: 60, shape: "not-separated" },
 		]);
 	});

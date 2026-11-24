@@ -5,7 +5,7 @@ import {
 	TRACE_SPAN_CENTS,
 } from "../core/coverage";
 import type { RowMap } from "../render/staff";
-import type { LaneSegment } from "./lane";
+import type { LaneSegment, NoteEnd } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
 
 export type TraceColour = "green" | "amber" | "red";
@@ -170,6 +170,7 @@ export function segmentPaths(
 export function settledPaths(
 	scored: Pick<Progress, "segments" | "timingFaults" | "notSeparated">,
 	segments: readonly LaneSegment[],
+	ends: readonly NoteEnd[],
 	rows: readonly LaneRow[],
 	tempo: number,
 	tolerance: number,
@@ -177,7 +178,7 @@ export function settledPaths(
 	return {
 		fill: segmentPaths(scored.segments, rows, tempo, tolerance),
 		marks: marksPaths(
-			faultMarks(scored.timingFaults, scored.notSeparated, segments),
+			faultMarks(scored.timingFaults, scored.notSeparated, segments, ends),
 			rows,
 		),
 	};
