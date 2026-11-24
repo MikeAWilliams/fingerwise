@@ -18,7 +18,7 @@ After a timed song, the player sees why they got the score they did: how much of
 
 **Where the score went**
 
-How the graded note time splits, in shares that add up to 100%. Graded note time is each graded note's written length less its [edge graces](../../glossary.md), as coverage counts it.
+How the graded note time splits, in shares that add up to 100%. Graded note time is each graded note's written length less its [edge graces](../../glossary.md), as coverage counts it. *Changed by [F15](../15-release-allowance/design.md#score-analysis): silence in a note's release is left out.*
 
 - **In tune:** right note within the tolerance.
 - **Out of tune:** right note outside the tolerance.

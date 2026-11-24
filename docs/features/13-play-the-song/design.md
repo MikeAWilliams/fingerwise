@@ -27,7 +27,7 @@ With use song on, the player can press **Play song** and hear the tune: a count-
 
 - A count-in, always: one bar of clicks in the tune's meter, as a timed run's [count-in](../08-timed-play-along/design.md#behavior). Then the metronome's beat clicks when the metronome applies (keep tempo and metronome on), and none otherwise (decided 2026-11-24).
 - Each note as a sine tone at its sounding pitch, at the tune's tempo (`Q:`, or ♩ = 90), with its written length: the same sound as [F03](../03-play-the-note/design.md), equal temperament, A4 = 440 Hz. Rests are silent.
-- Joins are played as an ocarina player would tongue them (decided 2026-11-24): at a **plain** [join](../../glossary.md) each note ends a short gap (*default* 50 ms, less for a very short note) before the next note's start, so repeated notes sound separately; at a **slurred** join there is no gap; a tie is one held note.
+- Joins are played as an ocarina player would tongue them (decided 2026-11-24): at a **plain** [join](../../glossary.md) each note ends a short gap (*default* 50 ms, less for a very short note) before the next note's start, so repeated notes sound separately; at a **slurred** join there is no gap; a tie is one held note. *The fixed gap is replaced by the release allowance in [F15](../15-release-allowance/design.md#playback).*
 - Repeats play out, as in the song itself.
 
 **What is seen**
