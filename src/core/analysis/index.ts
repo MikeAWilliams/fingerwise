@@ -3,6 +3,7 @@ import {
 	EDGE_GRACE_MS,
 	type ItemScore,
 	type Segment,
+	scoredSpan,
 	TIMING_TOLERANCE_MS,
 	type Timeline,
 } from "../coverage";
@@ -182,11 +183,11 @@ function breakdownOf(
 		const slurredStart = timeline.joins.some(
 			(j) => j.after === note.index && j.kind === "slurred",
 		);
-		const slurredEnd = timeline.joins.some(
-			(j) => j.before === note.index && j.kind === "slurred",
-		);
-		const a = note.startMs + (slurredStart ? 0 : EDGE_GRACE_MS);
-		const b = note.endMs - (slurredEnd ? 0 : EDGE_GRACE_MS);
+		const {
+			startMs: a,
+			endMs: b,
+			releaseEndMs: z,
+		} = scoredSpan(note, slurredStart);
 		total += b - a;
 		const mine = sounds.get(note.index);
 		const firstRight = mine?.firstRight ?? null;
@@ -222,6 +223,18 @@ function breakdownOf(
 			at = to;
 		}
 		if (b > at) silent(at, b);
+		// The release: sound there counts in its row, silence is left out.
+		for (const segment of ordered) {
+			const start = Math.max(segment.startMs, b);
+			const to = Math.min(segment.endMs, z);
+			if (to <= start) continue;
+			const length = to - start;
+			if (segment.kind === "right-in-tune") sums.inTune += length;
+			else if (segment.kind === "right-out") sums.outOfTune += length;
+			else if (segment.kind === "wrong") sums.wrong += length;
+			else continue;
+			total += length;
+		}
 	}
 	const share = (ms: number) => (total > 0 ? ms / total : 0);
 	return {

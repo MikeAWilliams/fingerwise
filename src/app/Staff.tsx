@@ -15,7 +15,7 @@ import {
 } from "../render/staff";
 import { spotAnchorId } from "./analysis-text";
 import { createScroller, followTop, type Scroller } from "./follow";
-import { laneRows, laneSegments } from "./lane";
+import { laneNoteEnds, laneRows, laneSegments } from "./lane";
 import { type OverrunTrace, overrunLane } from "./overrun";
 import {
 	type FillSource,
@@ -205,6 +205,10 @@ export function SongStaff({
 		() => (layout ? laneSegments(timeline, lines, layout, tempo) : []),
 		[layout, timeline, lines, tempo],
 	);
+	const noteEnds = useMemo(
+		() => (layout ? laneNoteEnds(timeline, lines, layout, tempo) : []),
+		[layout, timeline, lines, tempo],
+	);
 	const rows = useMemo(
 		() => (layout ? laneRows(lines, layout) : []),
 		[layout, lines],
@@ -229,6 +233,7 @@ export function SongStaff({
 				<SongOverlay
 					layout={layout}
 					segments={segments}
+					ends={noteEnds}
 					rows={rows}
 					tempo={tempo}
 					playhead={playhead}

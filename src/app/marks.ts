@@ -1,5 +1,5 @@
 import type { JoinFault, TimingFault } from "../core/coverage";
-import type { LaneSegment } from "./lane";
+import type { LaneSegment, NoteEnd } from "./lane";
 
 /**
  * Which mark: the four timing faults, told apart by which edge of the note they
@@ -37,37 +37,42 @@ const POINTER_WIDTH = 4;
 const SLUR_HALF = 3.5;
 
 /**
- * Where each reported fault is drawn, on every row. A timing fault sits
- * at the start or end edge of its note's segment on the row that holds that
- * edge; a not-separated join sits at the join, which is the end of the note
- * before it (or the start of the note after, when only that row has it). A
- * fault whose edge is on no row gives no mark.
+ * Where each reported fault is drawn, on every row. A start fault sits at the
+ * start of its note's segment; an ended-early fault at the end of the segment,
+ * where the release starts; an ended-late fault at the note's written end,
+ * which `ends` gives even where no segment reaches it. A not-separated join sits
+ * at the written join: the written end of the note before it, or the start of
+ * the note after when only that row has it. A fault whose edge is on no row
+ * gives no mark.
  */
 export function faultMarks(
 	faults: readonly TimingFault[],
 	joins: readonly JoinFault[],
 	segments: readonly LaneSegment[],
+	ends: readonly NoteEnd[],
 ): Mark[] {
 	const marks: Mark[] = [];
 	const noteSegment = (index: number, holds: "starts" | "ends") =>
 		segments.find((s) => s.kind === "note" && s.index === index && s[holds]);
+	const writtenEnd = (index: number) => ends.find((e) => e.index === index);
 	for (const fault of faults) {
-		const segment = noteSegment(
-			fault.index,
-			fault.edge === "start" ? "starts" : "ends",
-		);
-		if (!segment) continue;
-		marks.push({
-			row: segment.row,
-			x: fault.edge === "start" ? segment.x0 : segment.x1,
-			shape: `${fault.edge}-${fault.kind}`,
-		});
+		const shape: MarkShape = `${fault.edge}-${fault.kind}`;
+		if (fault.edge === "start") {
+			const segment = noteSegment(fault.index, "starts");
+			if (segment) marks.push({ row: segment.row, x: segment.x0, shape });
+		} else if (fault.kind === "early") {
+			const segment = noteSegment(fault.index, "ends");
+			if (segment) marks.push({ row: segment.row, x: segment.x1, shape });
+		} else {
+			const end = writtenEnd(fault.index);
+			if (end) marks.push({ row: end.row, x: end.x, shape });
+		}
 	}
 	for (const join of joins) {
-		const before = noteSegment(join.before, "ends");
+		const before = writtenEnd(join.before);
 		const after = noteSegment(join.after, "starts");
 		if (before)
-			marks.push({ row: before.row, x: before.x1, shape: "not-separated" });
+			marks.push({ row: before.row, x: before.x, shape: "not-separated" });
 		else if (after)
 			marks.push({ row: after.row, x: after.x0, shape: "not-separated" });
 	}

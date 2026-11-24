@@ -144,8 +144,40 @@ export function countInBeats(meter: Meter): {
 /** Beats closer than this count as the same time, as abcjs rounds its starts. */
 const BEAT_EPSILON = 1e-3;
 
-/** The most a plain join shortens a tone, in ms, so repeated notes are heard apart. */
-export const JOIN_GAP_MS = 50;
+// The scoring constants, tuned in the live check (ADR 0011).
+/** Left out at each edge of a note or rest, so a release or the previous pitch blurring in is not counted. Also the least a release lasts. */
+export const EDGE_GRACE_MS = 40;
+/** A note's release is this share of its written length... */
+export const RELEASE_SHARE = 0.25;
+/** ...at most this many quarter notes long. */
+export const RELEASE_CAP_QUARTERS = 0.5;
+
+/** Whether note `i` is slurred into a note that starts at its written end: the two sound as one. */
+function joinedToNext(song: Song, i: number): boolean {
+	const note = song.notes[i] as SongNote;
+	const next = song.notes[i + 1];
+	return (
+		note.slurred === true &&
+		next !== undefined &&
+		Math.abs(next.start - (note.start + note.beats)) < BEAT_EPSILON
+	);
+}
+
+/**
+ * Each note's release in ms at `tempo` (quarter notes per minute): the time at
+ * the end of its written length it may spend silent, to tongue the next note
+ * or breathe. 0 for a note slurred into the next; otherwise `RELEASE_SHARE` of
+ * its length, at most `RELEASE_CAP_QUARTERS` quarter notes, and at least
+ * `EDGE_GRACE_MS`. Not rounded.
+ */
+export function noteReleasesMs(song: Song, tempo: number): number[] {
+	const cap = (RELEASE_CAP_QUARTERS * 60000) / tempo;
+	return song.notes.map((note, i) => {
+		if (joinedToNext(song, i)) return 0;
+		const writtenMs = (note.beats * 60000) / tempo;
+		return Math.max(EDGE_GRACE_MS, Math.min(RELEASE_SHARE * writtenMs, cap));
+	});
+}
 
 /** One tone of the song played back: when it starts and how long it sounds, in ms. */
 export interface PlaybackTone {
@@ -159,10 +191,11 @@ export interface PlaybackTone {
 }
 
 /**
- * One tone per note, as an ocarina player tongues it: a note slurred to a
+ * One tone per note, as the scoring expects it (ADR 0011): a note slurred to a
  * note that starts at its written end sounds its full length, and every other
- * note ends `JOIN_GAP_MS` early (less for a very short note, at most a quarter
- * of it), so repeats are heard apart and nothing sounds in a rest.
+ * note ends where its release starts (`noteReleasesMs`), so repeats are heard
+ * apart and nothing sounds in a rest. A note too short for that (under about
+ * 53 ms) still sounds a quarter of its length, so no tone is zero or negative.
  * `fallbackTempo` applies when the song has no tempo. Not rounded.
  */
 export function playbackSchedule(
@@ -170,19 +203,13 @@ export function playbackSchedule(
 	fallbackTempo: number,
 ): PlaybackTone[] {
 	const tempo = song.tempo ?? fallbackTempo;
+	const releases = noteReleasesMs(song, tempo);
 	return song.notes.map((note, i) => {
-		const next = song.notes[i + 1];
 		const writtenMs = (note.beats * 60000) / tempo;
-		const joined =
-			note.slurred === true &&
-			next !== undefined &&
-			Math.abs(next.start - (note.start + note.beats)) < BEAT_EPSILON;
 		return {
 			pitch: note.pitch,
 			startMs: (note.start * 60000) / tempo,
-			lengthMs: joined
-				? writtenMs
-				: writtenMs - Math.min(JOIN_GAP_MS, writtenMs / 4),
+			lengthMs: Math.max(writtenMs - (releases[i] as number), writtenMs / 4),
 			endMs: ((note.start + note.beats) * 60000) / tempo,
 		};
 	});

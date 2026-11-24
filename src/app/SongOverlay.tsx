@@ -13,7 +13,7 @@ import {
 	OVERRUN_LABEL,
 	overrunMoreText,
 } from "./judge-text";
-import type { LaneSegment } from "./lane";
+import type { LaneSegment, NoteEnd } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
 import { OVERRUN_LABEL_SIZE, type OverrunLane } from "./overrun";
 import { playheadBeat, playheadPlace } from "./playhead";
@@ -114,6 +114,7 @@ function guidePath(layout: SongLayout, tolerance: number): string {
 export function SongOverlay({
 	layout,
 	segments,
+	ends,
 	rows,
 	tempo,
 	playhead,
@@ -128,6 +129,8 @@ export function SongOverlay({
 }: {
 	layout: SongLayout;
 	segments: readonly LaneSegment[];
+	/** Each note's written end, where the ended-late and not-separated marks sit. */
+	ends: readonly NoteEnd[];
 	rows: readonly LaneRow[];
 	/** Quarter notes per minute. */
 	tempo: number;
@@ -248,6 +251,7 @@ export function SongOverlay({
 							soFar.timingFaults.slice(faultsDone),
 							soFar.notSeparated.slice(joinsDone),
 							segments,
+							ends,
 						),
 						rows,
 					);
@@ -303,6 +307,7 @@ export function SongOverlay({
 		layout,
 		rows,
 		segments,
+		ends,
 		running,
 		origin,
 		tempo,
@@ -323,7 +328,14 @@ export function SongOverlay({
 		for (const path of paths.current) path?.setAttribute("d", "");
 		for (const path of markPaths.current) path?.setAttribute("d", "");
 		if (!scored || tolerance === undefined) return;
-		const settled = settledPaths(scored, segments, rows, tempo, tolerance);
+		const settled = settledPaths(
+			scored,
+			segments,
+			ends,
+			rows,
+			tempo,
+			tolerance,
+		);
 		settled.fill.forEach((row, r) => {
 			TRACE_COLOURS.forEach((colour, c) => {
 				set(fillIndex(r, c, 0), row[colour]);
@@ -332,7 +344,7 @@ export function SongOverlay({
 		settled.marks.forEach((d, r) => {
 			markPaths.current[r]?.setAttribute("d", d);
 		});
-	}, [after, scored, rows, segments, tempo, tolerance]);
+	}, [after, scored, rows, segments, ends, tempo, tolerance]);
 	return (
 		<svg
 			class="song-overlay"

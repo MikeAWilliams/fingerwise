@@ -1,6 +1,6 @@
 # F15: Release allowance
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-24. The rules are recorded in [ADR 0011](../../architecture/decisions/0011-release-allowance.md), which replaces [ADR 0009](../../architecture/decisions/0009-timed-songs-scored-by-coverage.md)'s grace at a note's released end.
 

@@ -1,16 +1,21 @@
 import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
+import { buildTimeline } from "../../src/core/coverage";
 import { loadInstrument } from "../../src/core/instrument";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
+import * as songModule from "../../src/core/song";
 import {
 	barBeats,
 	countIn,
 	createSong,
 	DEFAULT_METER,
 	DEFAULT_TEMPO,
-	JOIN_GAP_MS,
+	EDGE_GRACE_MS,
 	type Meter,
+	noteReleasesMs,
 	playbackSchedule,
+	RELEASE_CAP_QUARTERS,
+	RELEASE_SHARE,
 	SongError,
 	type SongNote,
 	songBars,
@@ -350,6 +355,85 @@ describe("bars and lines (timed song staff)", () => {
 	});
 });
 
+describe("noteReleasesMs (F15-S01 AC1, AC2)", () => {
+	const lengths = [0.25, 0.5, 1, 2, 4];
+	/** One note of each length, spaced so none is joined to the next, as plain joins. */
+	const ofLength = (beats: number) => song([["C4", 0, beats]]);
+	const table: [number, number[]][] = [
+		[60, [62.5, 125, 250, 500, 500]],
+		[75, [50, 100, 200, 400, 400]],
+		[100, [40, 75, 150, 300, 300]],
+		[140, [40, 750 / 14, 750 / 7, 1500 / 7, 1500 / 7]],
+		[180, [40, 125 / 3, 250 / 3, 500 / 3, 500 / 3]],
+	];
+
+	test("the constants are the agreed starting values", () => {
+		expect(RELEASE_SHARE).toBe(0.25);
+		expect(RELEASE_CAP_QUARTERS).toBe(0.5);
+		expect(EDGE_GRACE_MS).toBe(40);
+	});
+
+	for (const [tempo, expected] of table) {
+		test(`a quarter of its length, at most half a quarter note, at least 40 ms, at ♩ = ${tempo}`, () => {
+			lengths.forEach((beats, i) => {
+				const [release] = noteReleasesMs(ofLength(beats), tempo);
+				expect(release, `${beats} beats`).toBeCloseTo(expected[i] as number, 6);
+			});
+		});
+	}
+
+	test("the figures the stories name: ♩ = 75 quarter 200 and half and whole 400, ♩ = 100 sixteenth 40, ♩ = 140 eighth about 54", () => {
+		expect(noteReleasesMs(ofLength(1), 75)[0]).toBe(200);
+		expect(noteReleasesMs(ofLength(2), 75)[0]).toBe(400);
+		expect(noteReleasesMs(ofLength(4), 75)[0]).toBe(400);
+		expect(noteReleasesMs(ofLength(0.25), 100)[0]).toBe(40);
+		expect(noteReleasesMs(ofLength(0.5), 140)[0]).toBeCloseTo(53.57, 2);
+	});
+
+	const slurredPair = (second: [string, number, number]) =>
+		createSong(
+			[
+				{ pitch: pitch("C4"), start: 0, beats: 1, slurred: true },
+				{ pitch: pitch(second[0]), start: second[1], beats: second[2] },
+			],
+			{ tempo: null, meter: DEFAULT_METER },
+		);
+
+	test("a note slurred into a note at its written end has none; the last note does", () => {
+		expect(noteReleasesMs(slurredPair(["D4", 1, 1]), 75)).toEqual([0, 200]);
+	});
+
+	test("a slurred note before a rest has a release", () => {
+		expect(noteReleasesMs(slurredPair(["D4", 2, 1]), 75)).toEqual([200, 200]);
+	});
+
+	test("a plain join, a note before a rest and the last note have one", () => {
+		expect(noteReleasesMs(quarters("C4", "D4"), 75)).toEqual([200, 200]);
+		expect(
+			noteReleasesMs(
+				song([
+					["C4", 0, 1],
+					["D4", 2, 1],
+				]),
+				75,
+			),
+		).toEqual([200, 200]);
+	});
+
+	test("a tied note is one long note: its release follows its whole length", () => {
+		// Written as one 3-beat note, as a tie across a bar line is in the song.
+		expect(noteReleasesMs(ofLength(3), 75)[0]).toBe(400);
+		expect(noteReleasesMs(ofLength(3), 180)[0]).toBeCloseTo(500 / 3, 6);
+	});
+
+	test("is not rounded and takes the tempo given, not the song's", () => {
+		expect(noteReleasesMs(song([["C4", 0, 0.5]], 60), 140)[0]).toBeCloseTo(
+			750 / 14,
+			6,
+		);
+	});
+});
+
 describe("playbackSchedule (F13-S01)", () => {
 	function slurSong(
 		notes: [string, number, number, boolean?][],
@@ -366,20 +450,20 @@ describe("playbackSchedule (F13-S01)", () => {
 		);
 	}
 
-	test("equal quarters at 120: starts, pitches and gapped lengths, the last too (AC1, AC2, AC4)", () => {
+	test("equal quarters at 120: starts, pitches and lengths less the release, the last too (AC1, AC3)", () => {
 		const tones = playbackSchedule(quarters("C5", "D5", "E5"), 120);
 		expect(tones.map((t) => t.startMs)).toEqual([0, 500, 1000]);
-		expect(tones.map((t) => t.lengthMs)).toEqual([450, 450, 450]);
+		// A quarter's release at ♩ = 120 is 125 ms.
+		expect(tones.map((t) => t.lengthMs)).toEqual([375, 375, 375]);
 		expect(tones.map((t) => t.endMs)).toEqual([500, 1000, 1500]);
 		expect(tones.map((t) => t.pitch)).toEqual([
 			pitch("C5"),
 			pitch("D5"),
 			pitch("E5"),
 		]);
-		expect(JOIN_GAP_MS).toBe(50);
 	});
 
-	test("mixed lengths (AC1, AC2)", () => {
+	test("mixed lengths (AC1)", () => {
 		const tones = playbackSchedule(
 			song([
 				["C5", 0, 2],
@@ -389,10 +473,42 @@ describe("playbackSchedule (F13-S01)", () => {
 			120,
 		);
 		expect(tones.map((t) => t.startMs)).toEqual([0, 1000, 1250]);
-		expect(tones.map((t) => t.lengthMs)).toEqual([950, 200, 450]);
+		expect(tones.map((t) => t.lengthMs)).toEqual([750, 187.5, 375]);
 	});
 
-	test("a slur sounds its full length and the plain note after it keeps its gap (AC3)", () => {
+	test("quarters, halves and wholes at ♩ = 75 (AC1)", () => {
+		const tones = playbackSchedule(
+			song(
+				[
+					["C5", 0, 1],
+					["D5", 1, 2],
+					["E5", 3, 4],
+				],
+				75,
+			),
+			90,
+		);
+		expect(tones.map((t) => t.lengthMs)).toEqual([600, 1200, 2800]);
+	});
+
+	test("quarters, halves and wholes at ♩ = 180, where the cap binds (AC1)", () => {
+		const tones = playbackSchedule(
+			song(
+				[
+					["C5", 0, 1],
+					["D5", 1, 2],
+					["E5", 3, 4],
+				],
+				180,
+			),
+			90,
+		);
+		expect(tones[0]?.lengthMs).toBeCloseTo(250, 9);
+		expect(tones[1]?.lengthMs).toBeCloseTo(500, 9);
+		expect(tones[2]?.lengthMs).toBeCloseTo(4000 / 3 - 500 / 3, 9);
+	});
+
+	test("a slur sounds its full length and the plain note after it stops at its release (AC2)", () => {
 		const tones = playbackSchedule(
 			slurSong([
 				["C5", 0, 1, true],
@@ -400,10 +516,18 @@ describe("playbackSchedule (F13-S01)", () => {
 			]),
 			120,
 		);
-		expect(tones.map((t) => t.lengthMs)).toEqual([500, 450]);
+		expect(tones.map((t) => t.lengthMs)).toEqual([500, 375]);
 	});
 
-	test("a rest after a slurred note keeps the gap (AC5)", () => {
+	test("a tied note is one tone over its whole tied length (AC2)", () => {
+		// One 3-beat note, as a tie over a bar line is held in the song.
+		const tones = playbackSchedule(song([["C5", 0, 3]], 120), 90);
+		expect(tones).toHaveLength(1);
+		// Its release is the cap, half a quarter: 250 ms.
+		expect(tones[0]?.lengthMs).toBe(1500 - 250);
+	});
+
+	test("a rest after a slurred note still ends at the release (AC3)", () => {
 		const tones = playbackSchedule(
 			slurSong([
 				["C5", 0, 1, true],
@@ -411,11 +535,11 @@ describe("playbackSchedule (F13-S01)", () => {
 			]),
 			120,
 		);
-		expect(tones.map((t) => t.lengthMs)).toEqual([450, 450]);
+		expect(tones.map((t) => t.lengthMs)).toEqual([375, 375]);
 		expect(tones[0]?.endMs).toBe(500);
 	});
 
-	test("a plain note before a rest keeps the gap (AC5)", () => {
+	test("a plain note before a rest ends at the release (AC3)", () => {
 		const tones = playbackSchedule(
 			song([
 				["C5", 0, 1],
@@ -423,10 +547,10 @@ describe("playbackSchedule (F13-S01)", () => {
 			]),
 			120,
 		);
-		expect(tones.map((t) => t.lengthMs)).toEqual([450, 450]);
+		expect(tones.map((t) => t.lengthMs)).toEqual([375, 375]);
 	});
 
-	test("the last note keeps the gap even when flagged slurred (AC4)", () => {
+	test("the last note ends at the release even when flagged slurred (AC3)", () => {
 		const tones = playbackSchedule(
 			slurSong([
 				["C5", 0, 1],
@@ -434,19 +558,68 @@ describe("playbackSchedule (F13-S01)", () => {
 			]),
 			120,
 		);
-		expect(tones[1]?.lengthMs).toBe(450);
+		expect(tones[1]?.lengthMs).toBe(375);
 	});
 
-	test("a sixteenth at 160 gives a quarter of its length as the gap (AC2)", () => {
-		const tones = playbackSchedule(song([["C5", 0, 0.25]], 160), 90);
-		expect(tones[0]?.endMs).toBe(93.75);
-		expect(tones[0]?.lengthMs).toBeCloseTo(93.75 - 23.4375, 10);
+	test("a 130 ms note sounds 90 ms: the release is the 40 ms floor (AC1)", () => {
+		const tones = playbackSchedule(song([["C5", 0, 0.26]], 120), 90);
+		expect(tones[0]?.lengthMs).toBeCloseTo(90, 9);
 	});
 
-	test("no Q: uses the fallback tempo, a Q: wins over it (AC6)", () => {
+	test("a note too short for the floor sounds a quarter of its length, never zero or negative (AC1)", () => {
+		// 40 ms and 20 ms at ♩ = 120.
+		const tones = playbackSchedule(
+			song([
+				["C5", 0, 0.08],
+				["D5", 1, 0.04],
+			]),
+			120,
+		);
+		expect(tones[0]?.lengthMs).toBeCloseTo(10, 9);
+		expect(tones[1]?.lengthMs).toBeCloseTo(5, 9);
+	});
+
+	test("each tone ends where its lane segment ends: the timeline's end less its release (AC5)", () => {
+		const s = song(
+			[
+				["C5", 0, 1],
+				["D5", 1, 0.5],
+				["E5", 1.5, 2],
+				["F5", 4, 1],
+				["G5", 5, 4],
+			],
+			100,
+		);
+		const timeline = buildTimeline(s, 100);
+		const tones = playbackSchedule(s, 90);
+		tones.forEach((tone, i) => {
+			const note = timeline.notes[i];
+			expect(tone.startMs + tone.lengthMs).toBeCloseTo(
+				(note?.endMs ?? 0) - (note?.releaseMs ?? 0),
+				9,
+			);
+		});
+		// A slurred join keeps both.
+		const slurred = slurSong([
+			["C5", 0, 1, true],
+			["D5", 1, 1],
+		]);
+		const joined = playbackSchedule(slurred, 90)[0];
+		const first = buildTimeline(slurred, 120).notes[0];
+		expect((joined?.startMs ?? 0) + (joined?.lengthMs ?? 0)).toBe(
+			(first?.endMs ?? 0) - (first?.releaseMs ?? 0),
+		);
+	});
+
+	test("the fixed join gap is gone (AC4)", () => {
+		expect("JOIN_GAP_MS" in songModule).toBe(false);
+	});
+
+	test("no Q: uses the fallback tempo, a Q: wins over it", () => {
 		const none = playbackSchedule(quarters("C5", "D5"), 90);
 		expect(none.map((t) => t.startMs)).toEqual([0, 60000 / 90]);
-		expect(none[0]?.lengthMs).toBeCloseTo(60000 / 90 - 50, 10);
+		// A quarter at ♩ = 90 is 666.7 ms; its release is 166.7.
+		expect(none[0]?.lengthMs).toBeCloseTo(60000 / 90 - 60000 / 90 / 4, 9);
 		const own = playbackSchedule(slurSong([["C5", 0, 1]], 60), 90);
 		expect(own[0]?.endMs).toBe(1000);
 	});
