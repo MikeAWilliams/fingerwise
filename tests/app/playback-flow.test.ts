@@ -17,7 +17,6 @@ import {
 	createSong,
 	DEFAULT_METER,
 	DEFAULT_TEMPO,
-	JOIN_GAP_MS,
 	type Meter,
 	type Song,
 } from "../../src/core/song";
@@ -160,9 +159,10 @@ describe("the tones (F13-S02 AC2)", () => {
 			first + 0.5,
 			first + 1.25,
 		]);
-		expect(scheduled[0]?.seconds).toBeCloseTo(0.5 - JOIN_GAP_MS / 1000, 10);
-		expect(scheduled[1]?.seconds).toBeCloseTo(0.25 - JOIN_GAP_MS / 1000, 10);
-		expect(scheduled[2]?.seconds).toBeCloseTo(1 - JOIN_GAP_MS / 1000, 10);
+		// A tone ends where its release starts: a quarter of its length, at most half a beat, at least 40 ms.
+		expect(scheduled[0]?.seconds).toBeCloseTo(0.5 - 0.125, 10);
+		expect(scheduled[1]?.seconds).toBeCloseTo(0.25 - 0.0625, 10);
+		expect(scheduled[2]?.seconds).toBeCloseTo(1 - 0.25, 10);
 	});
 
 	test("no Q: plays at the default tempo", () => {
