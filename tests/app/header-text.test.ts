@@ -1,7 +1,13 @@
 import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaults from "../../data/settings/defaults.json";
-import { headerSong, tempoText } from "../../src/app/header-text";
+import {
+	headerSong,
+	PLAY_SONG_TEXT,
+	playButton,
+	STOP_TEXT,
+	tempoText,
+} from "../../src/app/header-text";
 import { loadInstrument } from "../../src/core/instrument";
 import { parsePitch } from "../../src/core/pitch";
 import { parseDefaults, type Settings } from "../../src/core/settings";
@@ -70,5 +76,74 @@ describe("headerSong (F10-S01 AC3, AC4, AC7)", () => {
 			title: null,
 			tempo: null,
 		});
+	});
+});
+
+describe("headerSong while playing (F13-S02 AC11)", () => {
+	test("the tempo shows with keep tempo off", () => {
+		const untimed = { ...on, keepTempo: false };
+		expect(headerSong(untimed, song(120), false).tempo).toBeNull();
+		expect(headerSong(untimed, song(120), false, true).tempo).toBe("♩ = 120");
+		expect(headerSong(untimed, song(null), false, true).tempo).toBe("♩ = 90");
+	});
+
+	test("no song or Settings open still shows nothing", () => {
+		expect(headerSong(on, null, false, true).tempo).toBeNull();
+		expect(headerSong(on, song(120), true, true).tempo).toBeNull();
+	});
+});
+
+describe("playButton (F13-S02)", () => {
+	const args = {
+		settings: on,
+		song: song(120),
+		open: false,
+		webAudio: true,
+		playing: false,
+		phase: undefined,
+	} as const;
+
+	test("shown with keep tempo, judging and scoring on or off (AC1)", () => {
+		for (const keepTempo of [true, false]) {
+			for (const judgeEnabled of [true, false]) {
+				for (const scoring of ["after", "live"] as const) {
+					const settings = { ...on, keepTempo, judgeEnabled, scoring };
+					expect(playButton({ ...args, settings })).toEqual({
+						icon: "▶",
+						text: PLAY_SONG_TEXT,
+						disabled: false,
+					});
+				}
+			}
+		}
+	});
+
+	test("hidden when Settings is open, use song is off, there is no song or no Web Audio (AC1)", () => {
+		expect(playButton({ ...args, open: true })).toBeNull();
+		expect(
+			playButton({ ...args, settings: { ...on, useSong: false } }),
+		).toBeNull();
+		expect(playButton({ ...args, song: null })).toBeNull();
+		expect(playButton({ ...args, webAudio: false })).toBeNull();
+	});
+
+	test("greyed out while a timed run is playing, not in ready, summary or without one (AC7)", () => {
+		expect(playButton({ ...args, phase: "playing" })?.disabled).toBe(true);
+		expect(playButton({ ...args, phase: "ready" })?.disabled).toBe(false);
+		expect(playButton({ ...args, phase: "summary" })?.disabled).toBe(false);
+		expect(playButton(args)?.disabled).toBe(false);
+	});
+
+	test("while playing it reads Stop and can be pressed (AC4)", () => {
+		expect(playButton({ ...args, playing: true })).toEqual({
+			icon: "■",
+			text: STOP_TEXT,
+			disabled: false,
+		});
+	});
+
+	test("play note off still shows it (AC12)", () => {
+		const settings = { ...on, soundEnabled: false };
+		expect(playButton({ ...args, settings })?.text).toBe(PLAY_SONG_TEXT);
 	});
 });

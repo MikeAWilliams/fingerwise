@@ -61,9 +61,24 @@ main {
 	white-space: nowrap;
 }
 
+.app-header-play {
+	min-height: 44px;
+	min-width: 44px;
+}
+
+.app-header-play:disabled {
+	color: GrayText;
+	cursor: default;
+}
+
 @media (max-width: 480px) {
 	.app-header h1 {
 		font-size: 1.25rem;
+	}
+
+	/* The button is its icon alone, so the header never scrolls sideways. */
+	.app-header-play-text {
+		display: none;
 	}
 }
 

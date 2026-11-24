@@ -20,6 +20,7 @@ import {
 	songSlotsMs,
 } from "../core/song";
 import type { Listening } from "./card-flow";
+import { CLOCK_EPSILON, createClockTimer } from "./clock-timer";
 import { createSilenceWatch, type SilenceWatch } from "./overrun";
 
 /** Time between the start tap and the first click, so a resuming audio context is running by then. */
@@ -56,9 +57,6 @@ export const METRONOME_LOOKAHEAD_SECONDS = 1;
 export const OVERRUN_SILENCE_MS = 1000;
 /** The longest the listening goes on past the last slot's end plus the scoring lag, when the sound never stops. */
 export const OVERRUN_CAP_MS = 10000;
-
-/** Seconds of slack when checking a boundary against the clock, for rounding in the sums. */
-const CLOCK_EPSILON = 1e-9;
 
 /**
  * Where a timed song stands: `ready` shows the first note and waits for a tap,
@@ -155,7 +153,7 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 	let phase: TimedPhase = "ready";
 	let origin: number | null = null;
 	let countBeat: number | null = null;
-	let timer: ReturnType<typeof setTimeout> | null = null;
+	const timer = createClockTimer(clock);
 	let stopped = false;
 
 	let listening: Listening = listen ? "locked" : "off";
@@ -211,30 +209,13 @@ export function createTimedFlow(options: TimedFlowOptions): TimedFlow {
 		});
 	}
 
-	function cancel(): void {
-		if (timer !== null) clearTimeout(timer);
-		timer = null;
-	}
+	const cancel = timer.cancel;
 
-	/** Run `action` once the clock reaches `at`; a clock that lags the timer re-arms it. */
+	/** Run `action` once the clock reaches `time`, unless the flow has stopped. */
 	function at(time: number, action: () => void): void {
-		const fire = () => {
-			timer = null;
-			if (stopped) return;
-			if (clock.now() < time - CLOCK_EPSILON) {
-				arm();
-				return;
-			}
-			action();
-		};
-		const arm = () => {
-			const wait = Math.max(
-				0,
-				Math.ceil((time - clock.now()) * 1000 - CLOCK_EPSILON * 1000),
-			);
-			timer = setTimeout(fire, wait);
-		};
-		arm();
+		timer.at(time, () => {
+			if (!stopped) action();
+		});
 	}
 
 	/** Places a reading and its level blocks in song time and feeds them to the scoring. */
