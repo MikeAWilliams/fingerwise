@@ -7,6 +7,8 @@ import {
 	playButton,
 	STOP_TEXT,
 	tempoText,
+	tuneChoice,
+	tuneLabels,
 } from "../../src/app/header-text";
 import { loadInstrument } from "../../src/core/instrument";
 import { parsePitch } from "../../src/core/pitch";
@@ -145,5 +147,49 @@ describe("playButton (F13-S02)", () => {
 	test("play note off still shows it (AC12)", () => {
 		const settings = { ...on, soundEnabled: false };
 		expect(playButton({ ...args, settings })?.text).toBe(PLAY_SONG_TEXT);
+	});
+});
+
+describe("tune list (F14-S02)", () => {
+	const tunes = [song(100, "One"), song(100), song(100, "Three")];
+	const args = {
+		settings: { ...on, songTune: 1 },
+		tunes,
+		open: false,
+		phase: undefined,
+	} as const;
+
+	test("labels follow the text, a missing title is Tune N by position (AC2)", () => {
+		expect(tuneLabels(tunes)).toEqual(["One", "Tune 2", "Three"]);
+	});
+
+	test("hidden with one tune, use song off or Settings open (AC4)", () => {
+		expect(tuneChoice({ ...args, tunes: [tunes[0] as never] })).toBeNull();
+		expect(tuneChoice({ ...args, tunes: [] })).toBeNull();
+		expect(
+			tuneChoice({ ...args, settings: { ...on, useSong: false } }),
+		).toBeNull();
+		expect(tuneChoice({ ...args, open: true })).toBeNull();
+	});
+
+	test("selected is the chosen tune's index, the first for a past-the-end position (AC1)", () => {
+		for (const [songTune, selected] of [
+			[1, 0],
+			[2, 1],
+			[3, 2],
+			[4, 0],
+		] as const) {
+			expect(
+				tuneChoice({ ...args, settings: { ...on, songTune } })?.selected,
+			).toBe(selected);
+		}
+		expect(tuneChoice(args)?.labels).toEqual(["One", "Tune 2", "Three"]);
+	});
+
+	test("greyed out only while a timed run is playing (AC8)", () => {
+		expect(tuneChoice({ ...args, phase: "playing" })?.disabled).toBe(true);
+		for (const phase of ["ready", "summary", undefined] as const) {
+			expect(tuneChoice({ ...args, phase })?.disabled).toBe(false);
+		}
 	});
 });

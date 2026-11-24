@@ -4,6 +4,8 @@ import { type AbcResult, parseAbc } from "../../src/abc";
 import {
 	applySongText,
 	canUseSong,
+	chooseTune,
+	chosenTune,
 	NO_SONG,
 	NO_TEMPO_NOTE,
 	problemLine,
@@ -38,13 +40,25 @@ const SETTINGS: Settings = {
 	scoring: "live",
 	barsPerLine: 2,
 	songAbc: "",
+	songTune: 1,
 };
 
 const song = createSong([{ pitch: C4, start: 0, beats: 1 }], {
 	tempo: null,
 	meter: DEFAULT_METER,
 });
-const passing: AbcResult = { ok: true, song, notes: 21, converted: 2 };
+const passing: AbcResult = {
+	ok: true,
+	tunes: [{ song, notes: 21, converted: 2 }],
+};
+const several: AbcResult = {
+	ok: true,
+	tunes: [
+		{ song, notes: 10, converted: 1 },
+		{ song, notes: 12, converted: 0 },
+		{ song, notes: 5, converted: 2 },
+	],
+};
 const failing: AbcResult = {
 	ok: false,
 	problems: [
@@ -85,11 +99,64 @@ describe("messages", () => {
 	});
 });
 
+describe("several tunes (F14-S01)", () => {
+	test("the summary names the tunes only when there are several (AC4, AC9)", () => {
+		expect(songSummary(27, 3, 3)).toBe(
+			"3 tunes, 27 notes, 3 flats converted to sharps",
+		);
+		expect(songSummary(27, 0, 2)).toBe("2 tunes, 27 notes");
+		expect(songSummary(1, 1, 1)).toBe("1 note, 1 flat converted to a sharp");
+		expect(songStatus(several)).toEqual({
+			ok: true,
+			lines: ["3 tunes, 27 notes, 3 flats converted to sharps"],
+		});
+	});
+
+	test("a problem leads with its tune (AC2)", () => {
+		expect(problemLine({ message: "m", line: 12, note: 7, tune: 3 })).toBe(
+			"Tune 3, line 12, note 7: m",
+		);
+		expect(problemLine({ message: "m", line: 2, column: 6, tune: 1 })).toBe(
+			"Tune 1, line 2, column 6: m",
+		);
+		expect(problemLine({ message: "m", line: 2, tune: 2 })).toBe(
+			"Tune 2, line 2: m",
+		);
+		expect(problemLine({ message: "m", line: 2, note: 4 })).toBe(
+			"Line 2, note 4: m",
+		);
+	});
+
+	test("chosenTune picks the position, else the first, else none", () => {
+		const a = createSong([{ pitch: C4, start: 0, beats: 1 }], {
+			tempo: 80,
+			meter: DEFAULT_METER,
+		});
+		expect(chosenTune([song, a], 2)).toBe(a);
+		expect(chosenTune([song, a], 3)).toBe(song);
+		expect(chosenTune([], 1)).toBeNull();
+	});
+
+	test("chooseTune returns null for the same position (F14-S02 AC7)", () => {
+		expect(chooseTune(SETTINGS, 1)).toBeNull();
+		expect(chooseTune(SETTINGS, 2)).toEqual({ ...SETTINGS, songTune: 2 });
+	});
+
+	test("an edit keeps the position while the text has that many tunes (AC8)", () => {
+		const on = { ...SETTINGS, songTune: 3 };
+		expect(applySongText(on, "C", several).settings.songTune).toBe(3);
+		expect(applySongText(on, "C", passing).settings.songTune).toBe(1);
+		expect(applySongText(on, "C", failing).settings).toBe(on);
+		expect(applySongText(on, "", null).settings.songTune).toBe(1);
+		expect(songStateFrom(several).tunes).toHaveLength(3);
+	});
+});
+
 describe("applySongText", () => {
 	test("a passing text is saved and gives its song", () => {
 		const edit = applySongText(SETTINGS, "C", passing);
 		expect(edit.settings).toEqual({ ...SETTINGS, songAbc: "C" });
-		expect(edit.state?.song).toBe(song);
+		expect(edit.state?.tunes).toEqual([song]);
 		expect(edit.state?.summary).toBe("21 notes, 2 flats converted to sharps");
 		expect(edit.problems).toEqual([]);
 	});
@@ -127,7 +194,7 @@ describe("applySongText", () => {
 describe("state", () => {
 	test("a passing result holds its song and summary", () => {
 		expect(songStateFrom(passing)).toEqual({
-			song,
+			tunes: [song],
 			summary: "21 notes, 2 flats converted to sharps",
 			problems: [],
 		});
@@ -135,7 +202,7 @@ describe("state", () => {
 
 	test("a failing result holds its problems and no song", () => {
 		expect(songStateFrom(failing)).toEqual({
-			song: null,
+			tunes: [],
 			summary: null,
 			problems: failing.problems,
 		});

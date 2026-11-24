@@ -50,7 +50,7 @@ import {
 	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { headerSong, playButton } from "./header-text";
+import { headerSong, playButton, tuneChoice } from "./header-text";
 import {
 	LISTENING_PAST_END,
 	PLAYING_SONG,
@@ -65,7 +65,13 @@ import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
-import { NO_SONG, type SongState, songStateFrom } from "./song-form";
+import {
+	chooseTune,
+	chosenTune,
+	NO_SONG,
+	type SongState,
+	songStateFrom,
+} from "./song-form";
 import {
 	createTimedFlow,
 	type TimedFlow,
@@ -197,6 +203,11 @@ export function App() {
 			setSongState(songStateFrom(result));
 			if (!result.ok && settingsRef.current.useSong) {
 				changeSettings({ ...settingsRef.current, useSong: false });
+			} else if (
+				result.ok &&
+				settingsRef.current.songTune > result.tunes.length
+			) {
+				changeSettings({ ...settingsRef.current, songTune: 1 });
 			}
 		});
 		return () => {
@@ -235,7 +246,7 @@ export function App() {
 	// Scoring after the song: no live lanes, playhead or readout; the result comes at the end.
 	const after = scoringAfterApplies(settings);
 	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
-	const song = songState.song;
+	const song = chosenTune(songState.tunes, settings.songTune);
 	const barsPerLine = settings.barsPerLine;
 	const lines = useMemo(
 		() => (song === null ? [] : songLines(song, barsPerLine)),
@@ -403,15 +414,44 @@ export function App() {
 		playing,
 		phase: timed ? cardPhase(timed) : undefined,
 	});
+	const choice = tuneChoice({
+		settings,
+		tunes: songState.tunes,
+		open,
+		phase: timed ? cardPhase(timed) : undefined,
+	});
 	const headerRef = useRef<HTMLElement>(null);
 	return (
 		<main>
 			<header class="app-header" ref={headerRef}>
 				<h1>fingerwise</h1>
-				{header.title !== null && (
-					<span class="app-header-title" title={header.title}>
-						{header.title}
-					</span>
+				{choice !== null ? (
+					<select
+						class="app-header-tunes"
+						aria-label="Tune"
+						disabled={choice.disabled}
+						value={String(choice.selected)}
+						onChange={(e) => {
+							const next = chooseTune(
+								settings,
+								Number(e.currentTarget.value) + 1,
+							);
+							if (next) changeSettings(next);
+						}}
+					>
+						{choice.labels.map((label, i) => (
+							// Position is the identity: titles can repeat.
+							<option key={i} value={String(i)}>
+								{label}
+							</option>
+						))}
+					</select>
+				) : (
+					header.title !== null && (
+						<span class="app-header-title" title={header.title}>
+							{header.title}
+						</span>
+					)
 				)}
 				{header.tempo !== null && (
 					<span class="app-header-tempo">{header.tempo}</span>

@@ -24,11 +24,15 @@ test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s,
 	expect(settings.keepTempo).toBe(false);
 	expect(settings.metronome).toBe(false);
 	expect(settings.scoring).toBe("live");
+	expect(settings.songTune).toBe(1);
 	expect(settings.songAbc).not.toBe("");
 	expect(settings.songAbc.startsWith("T: Mary Had a Little Lamb")).toBe(true);
 });
 
 test("the default song parses with no problems for the alto C", async () => {
 	const result = await parseAbc(defaults.songAbc, loadInstrument(alto));
-	expect(result).toMatchObject({ ok: true, notes: 26, converted: 0 });
+	expect(result).toMatchObject({
+		ok: true,
+		tunes: [{ notes: 26, converted: 0 }],
+	});
 });

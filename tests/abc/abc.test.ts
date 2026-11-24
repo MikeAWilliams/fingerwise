@@ -11,10 +11,17 @@ import { formatPitch } from "../../src/core/pitch";
 
 const instrument = loadInstrument(alto);
 
-async function parsed(text: string) {
+async function parsedAll(text: string) {
 	const result: AbcResult = await parseAbc(text, instrument);
 	if (!result.ok) throw new Error(JSON.stringify(result.problems));
-	return result;
+	return result.tunes;
+}
+
+/** The first tune of a text that passes. */
+async function parsed(text: string) {
+	return (await parsedAll(text))[0] as Awaited<
+		ReturnType<typeof parsedAll>
+	>[number];
 }
 
 async function names(text: string): Promise<string[]> {
@@ -238,10 +245,9 @@ describe("rejections with positions (AC7)", () => {
 		expect(problem?.line).toBe(7);
 	});
 
-	test("more than one tune", async () => {
-		const [problem] = await problems("X:1\nK:C\nCDE|\n\nX:2\nK:C\nGGG|\n");
-		expect(problem?.message).toMatch(/one tune/i);
-		expect(problem?.line).toBe(5);
+	test("a second tune is no longer a problem (F14-S01 AC1)", async () => {
+		const tunes = await parsedAll("X:1\nK:C\nCDE|\n\nX:2\nK:C\nGGG|\n");
+		expect(tunes).toHaveLength(2);
 	});
 
 	test.each(["D.C.", "D.S.", "fine", "coda", "segno"])(
@@ -349,7 +355,8 @@ describe("warnings and failures (AC9)", () => {
 			"!!!!",
 		]) {
 			const result = await parseAbc(text, instrument);
-			if (result.ok) expect(result.song.pitches.length).toBeGreaterThan(0);
+			if (result.ok)
+				expect(result.tunes[0]?.song.pitches.length).toBeGreaterThan(0);
 			else expect(result.problems.length).toBeGreaterThan(0);
 		}
 	});
@@ -430,7 +437,6 @@ describe("tempo (F08-S01 AC5)", () => {
 
 	test("no Q: gives null and the tune is valid", async () => {
 		const result = await parsed(`${head}K:C\nC D|`);
-		expect(result.ok).toBe(true);
 		expect(result.song.tempo).toBeNull();
 	});
 });
@@ -608,5 +614,173 @@ describe("slurs (F09-S01)", () => {
 		expect(song.tempo).toBe(100);
 		expect(song.meter).toEqual({ beats: 3, unit: 4 });
 		expect(song.firstBar).toBe(3);
+	});
+});
+
+describe("several tunes (F14-S01)", () => {
+	const tune = (n: number, body: string, title = `T${n}`, extra = "") =>
+		`X:${n}\nT:${title}\n${extra}K:C\n${body}`;
+	const two = `${tune(1, "C D E F|", "One", "Q:100\nM:3/4\n")}\n\n${tune(2, "G A B c|", "Two", "Q:60\n")}\n`;
+
+	test("two tunes: each tune's own notes, title, tempo and meter (AC1, AC7)", async () => {
+		const tunes = await parsedAll(two);
+		expect(tunes).toHaveLength(2);
+		const [a, b] = tunes as [(typeof tunes)[0], (typeof tunes)[0]];
+		expect(a.song.pitches.map(formatPitch)).toEqual(["C4", "D4", "E4", "F4"]);
+		// With no L:, the unit is an eighth: a half beat each.
+		expect(a.song.notes.map((n) => [n.start, n.beats])).toEqual([
+			[0, 0.5],
+			[0.5, 0.5],
+			[1, 0.5],
+			[1.5, 0.5],
+		]);
+		expect(a.song.title).toBe("One");
+		expect(a.song.tempo).toBe(100);
+		expect(a.song.meter).toEqual({ beats: 3, unit: 4 });
+		expect([a.notes, a.converted]).toEqual([4, 0]);
+		expect(b.song.pitches.map(formatPitch)).toEqual(["G4", "A4", "B4", "C5"]);
+		expect(b.song.title).toBe("Two");
+		expect(b.song.tempo).toBe(60);
+		expect(b.song.meter).toEqual({ beats: 4, unit: 4 });
+		expect([b.notes, b.converted]).toEqual([4, 0]);
+	});
+
+	test("three tunes, with conversions counted per tune (AC1)", async () => {
+		const text = [
+			tune(1, "C D|"),
+			tune(2, "B _B|", "T2", ""),
+			tune(3, "E F G|"),
+		]
+			.join("\n\n")
+			.replace("T:T2\nK:C", "T:T2\nK:F");
+		const tunes = await parsedAll(text);
+		expect(tunes.map((t) => [t.notes, t.converted, t.song.title])).toEqual([
+			[2, 0, "T1"],
+			[2, 2, "T2"],
+			[3, 0, "T3"],
+		]);
+	});
+
+	test("abcjs splits as the line mapping expects", async () => {
+		const abcjs = (await import("abcjs/src/api/abc_tunebook.js")).default;
+		const book = new abcjs.TuneBook(two);
+		expect(book.tunes.length).toBe(2);
+		expect(book.header).toBe("");
+	});
+
+	test("a failing tune first, in the middle and last: tune, whole-text line and note (AC2)", async () => {
+		const good = (n: number) => tune(n, "C D E|");
+		const bad = (n: number) => tune(n, "C [CE] D|");
+		const at = async (texts: string[]) =>
+			(await problems(texts.join("\n\n")))[0];
+		// Each tune is 4 lines plus a blank line, so tune n starts on line 6(n-1)+1... computed below.
+		expect(await at([bad(1), good(2), good(3)])).toMatchObject({
+			tune: 1,
+			line: 4,
+			note: 2,
+		});
+		expect(await at([good(1), bad(2), good(3)])).toMatchObject({
+			tune: 2,
+			line: 9,
+			note: 2,
+		});
+		expect(await at([good(1), good(2), bad(3)])).toMatchObject({
+			tune: 3,
+			line: 14,
+			note: 2,
+		});
+	});
+
+	test("an abcjs warning in tune 2 or 3 gets its whole-text line (AC2)", async () => {
+		const good = (n: number) => tune(n, "C D E|");
+		const text = [good(1), tune(2, "C D$ E|"), tune(3, "C D E|\nQ:zz")].join(
+			"\n\n",
+		);
+		const found = await problems(text);
+		expect(found).toHaveLength(2);
+		expect(found[0]).toMatchObject({ tune: 2, line: 9, column: 4 });
+		expect(found[1]).toMatchObject({ tune: 3, line: 15, column: 3 });
+	});
+
+	test("more than 10 problems across tunes are cut, with the tune on the summary line (AC2)", async () => {
+		const chords = (n: number, count: number) =>
+			tune(n, `${"[CE] ".repeat(count)}|`);
+		const found = await problems([chords(1, 6), chords(2, 6)].join("\n\n"));
+		expect(found).toHaveLength(11);
+		expect(found[9]).toMatchObject({ tune: 2 });
+		expect(found[10]).toMatchObject({
+			message: "and 2 more problems",
+			tune: 2,
+			line: 9,
+		});
+		expect(found.slice(0, 6).every((p) => p.tune === 1)).toBe(true);
+	});
+
+	test("the tune follows position, not the X: number (AC3)", async () => {
+		for (const numbers of [
+			[1, 5, 9],
+			[1, 1, 1],
+			[3, 2, 1],
+		]) {
+			const text = numbers
+				.map((n, i) => tune(n, i === 2 ? "C [CE]|" : "C D|"))
+				.join("\n\n");
+			const [problem] = await problems(text);
+			expect(problem?.tune).toBe(3);
+		}
+	});
+
+	test("500 notes are the limit for each tune, not in total (AC5)", async () => {
+		const many = (n: number, count: number) =>
+			tune(n, `${"C ".repeat(count)}|`);
+		const passes = await parsedAll([many(1, 300), many(2, 300)].join("\n\n"));
+		expect(passes.map((t) => t.notes)).toEqual([300, 300]);
+		const [over] = await problems([many(1, 3), many(2, 501)].join("\n\n"));
+		expect(over).toMatchObject({ tune: 2, line: 9, note: 501 });
+		// Counted after repeats: 251 notes played twice go over at the 501st played note, the 250th written one.
+		const [again] = await problems(
+			[many(1, 3), tune(2, `|: ${"C ".repeat(251)}:|`)].join("\n\n"),
+		);
+		expect(again).toMatchObject({ tune: 2, note: 250 });
+		expect(over?.message).toContain(String(MAX_ABC_NOTES));
+	});
+
+	test("the character limit is on the whole text and names no tune (AC5)", async () => {
+		const found = await problems(
+			`${tune(1, "C|")}\n\n${tune(2, "C|")}\n%${"x".repeat(MAX_ABC_CHARS)}`,
+		);
+		expect(found).toHaveLength(1);
+		expect(found[0]?.tune).toBeUndefined();
+	});
+
+	test("a file header: only %% lines reach the tunes, and warning lines stay right", async () => {
+		const text = `%%scale 1\nL:1/4\n\n${tune(1, "C D|")}\n\n${tune(2, "C D$|")}\n`;
+		const tunes = await parsedAll(text.replace("D$", "D"));
+		// L:1/4 before the first X: is dropped, so notes keep the default unit, an eighth.
+		expect(tunes.map((t) => t.song.notes.map((n) => n.beats))).toEqual([
+			[0.5, 0.5],
+			[0.5, 0.5],
+		]);
+		const [problem] = await problems(text);
+		expect(problem).toMatchObject({ tune: 2, line: 12, column: 4 });
+	});
+
+	test("prose between tunes after a blank line is ignored (AC1)", async () => {
+		const text = `${tune(1, "C D|")}\n\nA note about the next tune, with D: and K: inside.\n\n${tune(2, "E F|")}\n`;
+		const tunes = await parsedAll(text);
+		expect(tunes.map((t) => t.notes)).toEqual([2, 2]);
+	});
+
+	test("a no-notes tune points at its own X: line (AC2)", async () => {
+		const found = await problems(`${tune(1, "C D|")}\n\nX:2\nK:C\n`);
+		expect(found).toEqual([{ message: "No notes found", line: 6, tune: 2 }]);
+	});
+
+	test("a one-tune text gives no tune on any problem (AC9)", async () => {
+		for (const body of ["C [CE]|", "C D$|", "C, c'|"]) {
+			const found = await problems(tune(1, body));
+			expect(found.length).toBeGreaterThan(0);
+			expect(found.every((p) => p.tune === undefined)).toBe(true);
+		}
 	});
 });

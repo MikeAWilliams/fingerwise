@@ -5,23 +5,37 @@ import { DEFAULT_TEMPO, type Song } from "../core/song";
 
 /** What the app holds of the player's song, apart from the saved text. */
 export interface SongState {
-	/** The last good song; null when none passes. */
-	song: Song | null;
-	/** The validator's summary of that song, such as "21 notes, 2 flats converted to sharps". */
+	/** The tunes of the last good text, in text order; empty when none passes. */
+	tunes: Song[];
+	/** The validator's summary of that text, such as "21 notes, 2 flats converted to sharps". */
 	summary: string | null;
 	/** Problems with the saved text, from the load-time parse. */
 	problems: AbcProblem[];
 }
 
-export const NO_SONG: SongState = { song: null, summary: null, problems: [] };
+export const NO_SONG: SongState = { tunes: [], summary: null, problems: [] };
 
 function plural(n: number, one: string, many: string): string {
 	return `${n} ${n === 1 ? one : many}`;
 }
 
-/** "21 notes, 2 flats converted to sharps"; "1 note, 1 flat converted to a sharp". */
-export function songSummary(notes: number, converted: number): string {
-	const count = plural(notes, "note", "notes");
+/** The chosen tune: the one at the 1-based position, else the first, else none. */
+export function chosenTune(tunes: Song[], position: number): Song | null {
+	return tunes[position - 1] ?? tunes[0] ?? null;
+}
+
+/**
+ * "21 notes, 2 flats converted to sharps"; "1 note, 1 flat converted to a sharp";
+ * with several tunes, "3 tunes, 40 notes".
+ */
+export function songSummary(
+	notes: number,
+	converted: number,
+	tunes = 1,
+): string {
+	const count =
+		(tunes > 1 ? `${plural(tunes, "tune", "tunes")}, ` : "") +
+		plural(notes, "note", "notes");
 	if (converted === 0) return count;
 	const what =
 		converted === 1
@@ -30,7 +44,7 @@ export function songSummary(notes: number, converted: number): string {
 	return `${count}, ${what}`;
 }
 
-/** "Line 3, note 7: message", or with a column, or the line alone. */
+/** "Line 3, note 7: message", or with a column, or the line alone; "Tune 3, line 12, note 7: ..." in a text of several tunes. */
 export function problemLine(problem: AbcProblem): string {
 	const where =
 		problem.note !== undefined
@@ -38,7 +52,21 @@ export function problemLine(problem: AbcProblem): string {
 			: problem.column !== undefined
 				? `Line ${problem.line}, column ${problem.column}`
 				: `Line ${problem.line}`;
-	return `${where}: ${problem.message}`;
+	const lead =
+		problem.tune === undefined
+			? where
+			: `Tune ${problem.tune}, ${where.charAt(0).toLowerCase()}${where.slice(1)}`;
+	return `${lead}: ${problem.message}`;
+}
+
+function summaryOf(result: Extract<AbcResult, { ok: true }>): string {
+	let notes = 0;
+	let converted = 0;
+	for (const tune of result.tunes) {
+		notes += tune.notes;
+		converted += tune.converted;
+	}
+	return songSummary(notes, converted, result.tunes.length);
 }
 
 /** The validator's words for a result: one summary line, or one line per problem. */
@@ -47,7 +75,7 @@ export function songStatus(result: AbcResult): {
 	lines: string[];
 } {
 	if (result.ok) {
-		return { ok: true, lines: [songSummary(result.notes, result.converted)] };
+		return { ok: true, lines: [summaryOf(result)] };
 	}
 	return { ok: false, lines: result.problems.map(problemLine) };
 }
@@ -59,8 +87,8 @@ export const NO_TEMPO_NOTE = `No tempo in the tune, using ♩ = ${DEFAULT_TEMPO}
 export function songStateFrom(result: AbcResult): SongState {
 	if (!result.ok) return { ...NO_SONG, problems: result.problems };
 	return {
-		song: result.song,
-		summary: songSummary(result.notes, result.converted),
+		tunes: result.tunes.map((t) => t.song),
+		summary: summaryOf(result),
 		problems: [],
 	};
 }
@@ -79,7 +107,8 @@ export interface SongEdit {
 }
 
 /**
- * The effect of the text in the box. A passing text is saved. A failing text
+ * The effect of the text in the box. A passing text is saved, and keeps the
+ * chosen tune when the text still has that many tunes (tune 1 otherwise). A failing text
  * changes nothing but the problems shown. An empty text clears the song and
  * turns use song off; `result` is not looked at then (it may be null).
  */
@@ -90,14 +119,19 @@ export function applySongText(
 ): SongEdit {
 	if (isEmptySong(text)) {
 		return {
-			settings: { ...settings, songAbc: "", useSong: false },
+			settings: { ...settings, songAbc: "", songTune: 1, useSong: false },
 			state: NO_SONG,
 			problems: [],
 		};
 	}
 	if (result?.ok) {
 		return {
-			settings: { ...settings, songAbc: text },
+			settings: {
+				...settings,
+				songAbc: text,
+				songTune:
+					result.tunes.length >= settings.songTune ? settings.songTune : 1,
+			},
 			state: songStateFrom(result),
 			problems: [],
 		};
@@ -107,6 +141,16 @@ export function applySongText(
 		state: undefined,
 		problems: result ? result.problems : [],
 	};
+}
+
+/** The settings with the tune at this 1-based position chosen; null when it already is. */
+export function chooseTune(
+	settings: Settings,
+	position: number,
+): Settings | null {
+	return position === settings.songTune
+		? null
+		: { ...settings, songTune: position };
 }
 
 /** Whether the use song toggle may be turned on: only while a valid song is held. */

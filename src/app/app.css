@@ -61,6 +61,21 @@ main {
 	white-space: nowrap;
 }
 
+.app-header-tunes {
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font: inherit;
+}
+
+.app-header-tunes:disabled {
+	color: GrayText;
+	cursor: default;
+}
+
 .app-header-play {
 	min-height: 44px;
 	min-width: 44px;

@@ -30,7 +30,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 11  | Score analysis                 | done          |
 | 12  | Score after the song           | done          |
 | 13  | Play the song                  | done          |
-| 14  | Tune choice                    | designed      |
+| 14  | Tune choice                    | done          |
 
 This index is the feature order. Folders are created when a feature is designed, not before.
 
