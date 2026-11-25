@@ -1,3 +1,4 @@
+import type { Timeline } from "../core/coverage";
 import type { RowLayout } from "../render/staff";
 import { rowMap } from "../render/staff";
 
@@ -40,4 +41,21 @@ export function playheadPlace(
 	);
 	if (stops.length === 0) return null;
 	return { row, x: rowMap(stops).beatToX(beat) };
+}
+
+/**
+ * Where Single note's fixed play head sits: at the start of song note `index`,
+ * placed as the moving playhead is at that beat. A note that starts a new row
+ * is on that row, at its first note. Null for an index that is no note or a
+ * song with no rows.
+ */
+export function headPlace(
+	index: number,
+	timeline: Timeline,
+	tempo: number,
+	rows: readonly RowLayout[],
+): { row: number; x: number } | null {
+	const note = timeline.notes[index];
+	if (!note) return null;
+	return playheadPlace((note.startMs * tempo) / 60000, rows);
 }

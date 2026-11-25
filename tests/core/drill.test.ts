@@ -6,7 +6,6 @@ import {
 	drawPitch,
 	drawWeighted,
 	fullRange,
-	nextInOrder,
 	type RandomSource,
 } from "../../src/core/drill";
 import drillSource from "../../src/core/drill/index.ts?raw";
@@ -138,36 +137,6 @@ describe("drawPitch", () => {
 
 	test("an empty pool throws DrillError", () => {
 		expect(() => drawPitch([], null, () => 0)).toThrow(DrillError);
-	});
-});
-
-describe("nextInOrder (F05-S01 AC3 to AC5)", () => {
-	const tune = [pitch("A3"), pitch("C4"), pitch("E4")];
-
-	test("null gives the first, then the following one", () => {
-		expect(nextInOrder(tune, null)).toEqual({ index: 0, pitch: tune[0] });
-		expect(nextInOrder(tune, 0)).toEqual({ index: 1, pitch: tune[1] });
-		expect(nextInOrder(tune, 1)).toEqual({ index: 2, pitch: tune[2] });
-	});
-
-	test("wraps to the first after the last", () => {
-		expect(nextInOrder(tune, 2)).toEqual({ index: 0, pitch: tune[0] });
-	});
-
-	test("repeated adjacent pitches are returned in turn", () => {
-		const repeated = [pitch("C4"), pitch("C4"), pitch("D4")];
-		expect(nextInOrder(repeated, 0)).toEqual({ index: 1, pitch: pitch("C4") });
-		expect(nextInOrder(repeated, 1)).toEqual({ index: 2, pitch: pitch("D4") });
-	});
-
-	test("a one-note list always gives index 0", () => {
-		const one = [pitch("G4")];
-		expect(nextInOrder(one, null)).toEqual({ index: 0, pitch: one[0] });
-		expect(nextInOrder(one, 0)).toEqual({ index: 0, pitch: one[0] });
-	});
-
-	test("an empty list throws DrillError", () => {
-		expect(() => nextInOrder([], null)).toThrow(DrillError);
 	});
 });
 

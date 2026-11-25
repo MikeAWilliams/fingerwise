@@ -7,7 +7,12 @@ import type { StaffOptions } from "../render/staff";
 import { type TabFont, tabView } from "../render/tab";
 import { ANALYSIS_ID, ANALYSIS_TITLE_ID, Analysis } from "./Analysis";
 import type { Listening, Verdict } from "./card-flow";
-import { JUDGE_UNAVAILABLE, LISTEN_PROMPT, START_PROMPT } from "./judge-text";
+import {
+	END_OF_SONG,
+	JUDGE_UNAVAILABLE,
+	LISTEN_PROMPT,
+	START_PROMPT,
+} from "./judge-text";
 import { Legend } from "./Legend";
 import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
@@ -24,8 +29,6 @@ interface CardProps {
 	/** Judge on: the reveal area is taller and shows the verdict. */
 	judging?: boolean;
 	verdict?: Verdict | null;
-	/** Show the note name and glyph on a card that is not revealed. */
-	hint?: boolean;
 	/** Smart sampling need score (0 to 1), shown on reveal. */
 	need?: number | null;
 	/**
@@ -48,6 +51,12 @@ interface CardProps {
 	readout?: boolean;
 	/** A timed song's lines of music; the staff shows them instead of one note. */
 	song?: SongView;
+	/**
+	 * Single note (F16-S02): the song card with no clock. `fingering` shows the
+	 * current note's letter and tablature in the strip; `ended` shows "End of song"
+	 * in the bar. There is no start prompt and the page is never locked.
+	 */
+	single?: { ended: boolean; fingering: boolean };
 	/** The app's header, whose height a timed song's page keeps clear when it scrolls. */
 	header?: RefObject<HTMLElement | null>;
 	instrument: Instrument;
@@ -62,7 +71,6 @@ export function Card({
 	listening = "off",
 	judging = false,
 	verdict = null,
-	hint = false,
 	need = null,
 	timed,
 	timedSummary,
@@ -73,6 +81,7 @@ export function Card({
 	legend = false,
 	readout = false,
 	song,
+	single,
 	header,
 	instrument,
 	staffOptions,
@@ -95,11 +104,18 @@ export function Card({
 	const showAnalysis = timed === "summary" && timedAnalysis !== null;
 	const analysisBelow = useAnalysisBelow(showAnalysis, bar);
 	if (song) {
+		const shown: SongView =
+			single?.fingering && !single.ended
+				? {
+						...song,
+						fingering: { name: formatPitch(pitch), tab: view },
+					}
+				: song;
 		return (
 			<div class="card card-song">
 				<div class="card-staff">
 					<SongStaff
-						view={song}
+						view={shown}
 						options={staffOptions}
 						readout={heard}
 						phase={timed}
@@ -112,6 +128,7 @@ export function Card({
 				)}
 				<div class="song-bar" ref={bar}>
 					{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
+					{single?.ended && <p class="card-status">{END_OF_SONG}</p>}
 					{timed === "summary" && <p class="card-status">{timedSummary}</p>}
 					{timed === "summary" && timedTuning && (
 						<p class="card-status">{timedTuning}</p>
@@ -139,9 +156,7 @@ export function Card({
 			<div class="card-staff">
 				<Staff pitch={pitch} options={staffOptions} beats={beats} />
 			</div>
-			<div
-				class={`${judging ? "card-reveal judging" : "card-reveal"}${hint && !revealed ? " card-hint" : ""}`}
-			>
+			<div class={judging ? "card-reveal judging" : "card-reveal"}>
 				{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
 				{timed === "summary" && <p class="card-status">{timedSummary}</p>}
 				{timed === "summary" && timedTuning && (
@@ -154,7 +169,7 @@ export function Card({
 				{!revealed && listening === "unavailable" && (
 					<p class="card-status">{JUDGE_UNAVAILABLE}</p>
 				)}
-				{(revealed || hint) && (
+				{revealed && (
 					<>
 						<div class="card-name">{formatPitch(pitch)}</div>
 						{need !== null && (

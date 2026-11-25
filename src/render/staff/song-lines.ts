@@ -36,6 +36,11 @@ export const LANE_HEIGHT = 24;
 export const LANE_GAP = 6;
 /** One row: the staff, the gap and the lane. */
 export const ROW_HEIGHT = LINE_HEIGHT + LANE_GAP + LANE_HEIGHT;
+/**
+ * Height of the fingering strip under a row's lane in Single note, where the
+ * current note's letter and tablature are drawn (a live-check value).
+ */
+export const STRIP_HEIGHT = 60;
 /** Extra space between one row's lane and the next row's staff. */
 export const ROW_SPACING = 0;
 const MARGIN = 10;
@@ -56,6 +61,9 @@ export interface RowLayout {
 	/** Where the lane sits under it. */
 	laneTop: number;
 	laneBottom: number;
+	/** The fingering strip under the lane (F16); equal to `laneBottom` without one. */
+	stripTop: number;
+	stripBottom: number;
 	/** In order of x: the line's first note position, each note piece and rest, and each bar line. */
 	stops: Stop[];
 	/** The drawn elements of each note on this row, with its ties, by its index in the song. */
@@ -70,23 +78,35 @@ export interface RowFrame {
 	/** Where the lane sits under it. */
 	laneTop: number;
 	laneBottom: number;
+	stripTop: number;
+	stripBottom: number;
 }
 
-/** The frame of row `index`: rows follow one another, each ROW_HEIGHT tall. */
-export function rowFrame(index: number): RowFrame {
-	const top = index * (ROW_HEIGHT + ROW_SPACING);
+/** One row's height: the staff, the lane, and the strip when there is one. */
+export function rowHeight(strip = false): number {
+	return ROW_HEIGHT + (strip ? STRIP_HEIGHT : 0);
+}
+
+/** The frame of row `index`: rows follow one another, each `rowHeight(strip)` tall. */
+export function rowFrame(index: number, strip = false): RowFrame {
+	const top = index * (rowHeight(strip) + ROW_SPACING);
+	const laneBottom = top + ROW_HEIGHT;
 	return {
 		top,
 		bottom: top + LINE_HEIGHT,
 		laneTop: top + LINE_HEIGHT + LANE_GAP,
-		laneBottom: top + ROW_HEIGHT,
+		laneBottom,
+		stripTop: laneBottom,
+		stripBottom: laneBottom + (strip ? STRIP_HEIGHT : 0),
 	};
 }
 
 /** The height of a drawing of `lineCount` rows, with a margin under the last. */
-export function songHeight(lineCount: number): number {
+export function songHeight(lineCount: number, strip = false): number {
 	return (
-		lineCount * ROW_HEIGHT + Math.max(0, lineCount - 1) * ROW_SPACING + MARGIN
+		lineCount * rowHeight(strip) +
+		Math.max(0, lineCount - 1) * ROW_SPACING +
+		MARGIN
 	);
 }
 
@@ -147,7 +167,7 @@ function lastItem(line: readonly Bar[] | undefined): BarItem | undefined {
  *
  * Line n is row n, one under another at `rowFrame(n)`, so a line never moves
  * and the song is drawn once. Under each staff is room for a lane, drawn by
- * the caller.
+ * the caller, and with `strip` a fingering strip under the lane (Single note).
  */
 export function drawSongLines(
 	element: HTMLDivElement,
@@ -155,6 +175,7 @@ export function drawSongLines(
 	options: StaffOptions,
 	meter: Meter,
 	barsPerLine: number,
+	{ strip = false }: { strip?: boolean } = {},
 ): SongLayout {
 	// Clef and key signature take the same room on every line; measure it once.
 	const clefLayout = noteLayout(options.lowest, options);
@@ -162,7 +183,7 @@ export function drawSongLines(
 		buildStave(clefLayout, 0, 0, 1000).getNoteStartX() -
 		new Stave(0, 0, 1000).getNoteStartX();
 	const width = prefix + barsPerLine * BAR_WIDTH + 2 * MARGIN;
-	const height = songHeight(lines.length);
+	const height = songHeight(lines.length, strip);
 
 	element.replaceChildren();
 	const renderer = new Renderer(element, Renderer.Backends.SVG);
@@ -195,7 +216,7 @@ export function drawSongLines(
 	const tied: { tie: StaveTie; index: number; row: RowLayout }[] = [];
 
 	lines.forEach((line, lineIndex) => {
-		const frame = rowFrame(lineIndex);
+		const frame = rowFrame(lineIndex, strip);
 		const y = frame.top;
 		const row: RowLayout = {
 			line: lineIndex,

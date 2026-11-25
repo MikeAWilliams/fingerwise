@@ -31,7 +31,9 @@ export {
 	type RowFrame,
 	type RowLayout,
 	rowFrame,
+	rowHeight,
 	type SongLayout,
+	STRIP_HEIGHT,
 	songHeight,
 	splitBeats,
 } from "./song-lines";
