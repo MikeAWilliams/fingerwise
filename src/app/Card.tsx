@@ -56,7 +56,7 @@ interface CardProps {
 	 * current note's letter and tablature in the strip; `ended` shows "End of song"
 	 * in the bar. There is no start prompt and the page is never locked.
 	 */
-	single?: { ended: boolean; fingering: boolean };
+	single?: { ended: boolean; fingering: boolean; message?: string | null };
 	/** The app's header, whose height a timed song's page keeps clear when it scrolls. */
 	header?: RefObject<HTMLElement | null>;
 	instrument: Instrument;
@@ -129,6 +129,9 @@ export function Card({
 				<div class="song-bar" ref={bar}>
 					{timed === "ready" && <p class="card-status">{START_PROMPT}</p>}
 					{single?.ended && <p class="card-status">{END_OF_SONG}</p>}
+					{single?.message && !single.ended && (
+						<p class="card-status">{single.message}</p>
+					)}
 					{timed === "summary" && <p class="card-status">{timedSummary}</p>}
 					{timed === "summary" && timedTuning && (
 						<p class="card-status">{timedTuning}</p>

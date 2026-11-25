@@ -11,13 +11,15 @@ import {
 } from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer, createToneScheduler } from "../audio/tone";
-import { buildTimeline } from "../core/coverage";
+import { buildTimeline, type Segment, type Timeline } from "../core/coverage";
 import { buildPool } from "../core/drill";
 import { loadInstrument, soundingPitch } from "../core/instrument";
 import {
 	createToneTracker,
+	createToneWatch,
 	DEFAULT_THRESHOLDS,
 	frequencyBand,
+	gradeTone,
 	judge,
 } from "../core/judge";
 import type { Pitch } from "../core/pitch";
@@ -36,7 +38,12 @@ import {
 	smartSamplingApplies,
 	tempoApplies,
 } from "../core/settings";
-import { DEFAULT_TEMPO, type SongNote, songLines } from "../core/song";
+import {
+	DEFAULT_TEMPO,
+	type Song,
+	type SongNote,
+	songLines,
+} from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { lanesShown } from "./after-song";
@@ -64,7 +71,11 @@ import { loadProgress, resetProgress, saveProgress } from "./progress-store";
 import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
-import { createSingleNoteFlow, type SingleNoteState } from "./single-note-flow";
+import {
+	createSingleNoteFlow,
+	type SingleNoteListen,
+	type SingleNoteState,
+} from "./single-note-flow";
 import { singleNoteView } from "./single-note-view";
 import {
 	chooseTune,
@@ -79,6 +90,7 @@ import {
 	type TimedListen,
 	type TimedState,
 } from "./timed-flow";
+import { toneSegment } from "./trace";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -121,6 +133,9 @@ const playheadLatency = () => outputLatencySeconds(audio);
 /** The timed flow now running, for the overlay to read its scoring and readings; stable functions, so its frame loop restarts only with the song. */
 let activeTimed: TimedFlow | null = null;
 const fillProgress = () => activeTimed?.progress() ?? null;
+/** The Single note flow's live trace of the tone now sounding, for the overlay; null when none runs. */
+let activeSingleTrace: (() => Segment | null) | null = null;
+const toneTrace = () => activeSingleTrace?.() ?? null;
 const fillReading = () => activeTimed?.reading() ?? null;
 
 function listenFor(settings: Settings): CardListen | null {
@@ -144,6 +159,32 @@ function timedListenFor(settings: Settings): TimedListen | null {
 			checks: { ...DEFAULT_THRESHOLDS, band: BAND },
 			sounding: (p) => soundingPitch(instrument, p),
 		},
+	};
+}
+
+/** Judges each Single note from the microphone: the tone rule against the note's sounding pitch and written length. */
+function singleListenFor(
+	settings: Settings,
+	song: Song,
+	timeline: Timeline,
+): SingleNoteListen | null {
+	if (!settings.judgeEnabled) return null;
+	return {
+		listener,
+		watch: createToneWatch(CHECKS),
+		grade: (index, readings) => {
+			const note = timeline.notes[index];
+			const written = song.notes[index];
+			if (!note || !written) return "wrong";
+			return gradeTone(readings, {
+				expected: soundingPitch(instrument, written.pitch),
+				toleranceCents: settings.toleranceCents,
+				lengthMs: note.endMs - note.startMs,
+				checks: CHECKS,
+			});
+		},
+		// The same clock as the requestAnimationFrame timestamps on readings.
+		now: () => performance.now(),
 	};
 }
 
@@ -280,13 +321,33 @@ export function App() {
 		};
 		let flow: { start(): void; step(): void; stop(): void };
 		if (singleNote && song !== null) {
-			// One note at a time with no clock; with judging on this is the same until F16-S03.
-			flow = createSingleNoteFlow({
+			// One note at a time with no clock; with judging on the microphone decides.
+			const built = buildTimeline(song, song.tempo ?? DEFAULT_TEMPO);
+			let currentNote = 0;
+			const single = createSingleNoteFlow({
 				count: song.notes.length,
 				fingeringDelayMs: settings.fingeringDelaySeconds * 1000,
 				advanceDelayMs: settings.singleAdvanceDelaySeconds * 1000,
-				onChange: setSingle,
+				listen: singleListenFor(settings, song, built),
+				onChange: (state) => {
+					currentNote = state.index;
+					setSingle(state);
+					if (state.listening === "unavailable") setJudgeUnavailable(true);
+					else if (state.listening === "running") setJudgeUnavailable(false);
+				},
 			});
+			flow = single;
+			activeSingleTrace = () => {
+				const note = built.notes[currentNote];
+				const written = song.notes[currentNote];
+				if (!note || !written) return null;
+				return toneSegment(
+					single.tone(),
+					note,
+					soundingPitch(instrument, written.pitch),
+					CHECKS,
+				);
+			};
 			setCard(null);
 			setTimed(null);
 		} else if (timedSong && song !== null) {
@@ -367,6 +428,7 @@ export function App() {
 		flow.start();
 		return () => {
 			if (activeTimed === flow) activeTimed = null;
+			activeSingleTrace = null;
 			document.removeEventListener("click", onClick);
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
@@ -526,8 +588,13 @@ export function App() {
 							(song.notes[single.index] ?? (song.notes[0] as SongNote)).pitch
 						}
 						revealed={false}
-						judging={false}
-						single={{ ended: single.ended, fingering: single.fingering }}
+						judging={settings.judgeEnabled}
+						legend={settings.judgeEnabled}
+						single={{
+							ended: single.ended,
+							fingering: single.fingering,
+							message: single.message,
+						}}
 						song={singleNoteView(
 							{
 								lines,
@@ -537,6 +604,9 @@ export function App() {
 								tempo: songTempo,
 							},
 							single,
+							settings.judgeEnabled
+								? { trace: toneTrace, tolerance: settings.toleranceCents }
+								: null,
 						)}
 						header={headerRef}
 						instrument={instrument}

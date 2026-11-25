@@ -1,7 +1,7 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Spot } from "../core/analysis";
-import type { Progress, Timeline } from "../core/coverage";
+import type { Progress, Segment, Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
 import {
@@ -77,6 +77,11 @@ export interface SongView {
 	strip?: boolean;
 	/** The note letter and tablature drawn in the strip under the head; null for none. */
 	fingering?: { name: string; tab: TabView | null } | null;
+	/**
+	 * Single note with the microphone running: the tone sounding now as a trace in the
+	 * current note's lane segment, read each frame; null for none.
+	 */
+	tone?: { trace(): Segment | null; tolerance: number } | null;
 }
 
 /**
@@ -124,6 +129,7 @@ export function SongStaff({
 		head = undefined,
 		strip = false,
 		fingering = null,
+		tone = null,
 	} = view;
 	// What the effects read when they run, without making them redraw.
 	const now = useRef({ current, countBeat });
@@ -266,6 +272,7 @@ export function SongStaff({
 					head={head}
 					strip={strip}
 					fingering={fingering}
+					tone={tone}
 				/>
 			)}
 			{layout &&

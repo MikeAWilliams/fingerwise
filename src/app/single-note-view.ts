@@ -1,3 +1,4 @@
+import type { Segment } from "../core/coverage";
 import type { PlaybackBase } from "./playback-view";
 import type { SongView } from "./Staff";
 import type { SingleNoteState } from "./single-note-flow";
@@ -11,6 +12,7 @@ import type { SingleNoteState } from "./single-note-flow";
 export function singleNoteView(
 	base: PlaybackBase,
 	state: SingleNoteState,
+	tone: { trace(): Segment | null; tolerance: number } | null = null,
 ): SongView {
 	return {
 		...base,
@@ -27,6 +29,8 @@ export function singleNoteView(
 			now: () => 0,
 			outputLatency: () => null,
 		},
+		// The tone's trace shows only while the stream runs.
+		tone: state.listening === "running" && !state.ended ? tone : null,
 		lanes: true,
 		fill: null,
 		after: false,

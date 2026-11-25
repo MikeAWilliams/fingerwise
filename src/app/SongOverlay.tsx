@@ -4,6 +4,7 @@ import type { Spot } from "../core/analysis";
 import {
 	type Progress,
 	RIGHT_NOTE_BAND_CENTS,
+	type Segment,
 	type Timeline,
 } from "../core/coverage";
 import type { Instrument } from "../core/instrument";
@@ -139,6 +140,7 @@ export function SongOverlay({
 	timeline,
 	head,
 	fingering = null,
+	tone = null,
 }: {
 	layout: SongLayout;
 	segments: readonly LaneSegment[];
@@ -172,6 +174,8 @@ export function SongOverlay({
 	strip?: boolean;
 	/** Single note: the fingering drawn under the head. */
 	fingering?: { name: string; tab: TabView | null } | null;
+	/** Single note listening: the live trace of the tone sounding, read each frame. */
+	tone?: { trace(): Segment | null; tolerance: number } | null;
 }) {
 	const onRowRef = useRef(onRow);
 	onRowRef.current = onRow;
@@ -184,7 +188,8 @@ export function SongOverlay({
 	const show = lanes && (!after || scored !== null);
 	const progress = fill?.progress;
 	const reading = fill?.reading;
-	const tolerance = fill?.tolerance;
+	const tolerance = fill?.tolerance ?? tone?.tolerance;
+	const toneTrace = tone?.trace;
 	const instrument = fill?.instrument;
 	useEffect(() => {
 		const el = line.current;
@@ -373,6 +378,52 @@ export function SongOverlay({
 			onRowRef.current?.(headAt.row);
 		}
 	}, [headAt, layout]);
+	// Single note's tone trace: one frame loop while a tone source is set, writing the open fill of the rows it reaches.
+	useEffect(() => {
+		if (!toneTrace || tolerance === undefined) return;
+		const set = (row: number, colour: number, d: string) =>
+			paths.current[fillIndex(row, colour, 1)]?.setAttribute("d", d);
+		let frame = 0;
+		let openRows: number[] = [];
+		const written = new Map<number, string>();
+		const write = (row: number, colour: number, d: string) => {
+			const key = row * TRACE_COLOURS.length + colour;
+			if ((written.get(key) ?? "") === d) return;
+			written.set(key, d);
+			set(row, colour, d);
+		};
+		const move = () => {
+			const segment = toneTrace();
+			const touched = segment ? rowsToUpdate(rows, null, [segment], tempo) : [];
+			// A row the trace left, or a cleared trace, is emptied once.
+			for (const r of openRows) {
+				if (touched.includes(r)) continue;
+				TRACE_COLOURS.forEach((_, c) => {
+					write(r, c, "");
+				});
+			}
+			openRows = touched;
+			if (segment) {
+				const subset = touched.map((r) => rows[r] as LaneRow);
+				segmentPaths([segment], subset, tempo, tolerance).forEach((now, i) => {
+					const r = touched[i] as number;
+					TRACE_COLOURS.forEach((colour, c) => {
+						write(r, c, now[colour]);
+					});
+				});
+			}
+			frame = requestAnimationFrame(move);
+		};
+		frame = requestAnimationFrame(move);
+		return () => {
+			cancelAnimationFrame(frame);
+			for (const r of openRows) {
+				TRACE_COLOURS.forEach((_, c) => {
+					set(r, c, "");
+				});
+			}
+		};
+	}, [toneTrace, tolerance, rows, tempo]);
 	// Scoring after the song: every row's fill and marks, written once with the summary.
 	useEffect(() => {
 		if (!after) return;

@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { PLAY_WHOLE_VALUE } from "../../src/app/judge-text";
 import {
 	createSingleNoteFlow,
 	type SingleNoteState,
 } from "../../src/app/single-note-flow";
+import type { ListenResult, PitchReading } from "../../src/audio/listener";
+import type { Reading, ToneEvent, ToneOutcome } from "../../src/core/judge";
 import type { Pitch } from "../../src/core/pitch";
 import { createSong, DEFAULT_METER } from "../../src/core/song";
 
@@ -39,6 +42,7 @@ describe("createSingleNoteFlow (F16-S02)", () => {
 			index: 0,
 			fingering: false,
 			ended: false,
+			message: null,
 			listening: "off",
 		});
 	});
@@ -127,6 +131,7 @@ describe("createSingleNoteFlow (F16-S02)", () => {
 			index: 0,
 			fingering: false,
 			ended: false,
+			message: null,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(FINGERING);
@@ -168,5 +173,315 @@ describe("createSingleNoteFlow (F16-S02)", () => {
 		flow.step();
 		flow.step();
 		expect(last()).toMatchObject({ ended: true });
+	});
+});
+
+describe("createSingleNoteFlow listening (F16-S03)", () => {
+	const RUNNING: ListenResult = { status: "running" };
+
+	class FakeListener {
+		starts = 0;
+		stops = 0;
+		onReading: ((r: PitchReading) => void) | null = null;
+		auto: ListenResult | null = RUNNING;
+		pending: ((r: ListenResult) => void)[] = [];
+		start(onReading: (r: PitchReading) => void): Promise<ListenResult> {
+			this.starts++;
+			this.onReading = onReading;
+			if (this.auto) return Promise.resolve(this.auto);
+			return new Promise((resolve) => this.pending.push(resolve));
+		}
+		stop() {
+			this.stops++;
+		}
+	}
+
+	/** A watch the test drives: events are pushed into it by hand. */
+	function fakeWatch() {
+		const resets: number[] = [];
+		let next: ToneEvent | null = null;
+		let current: { startMs: number; readings: Reading[] } | null = null;
+		return {
+			resets,
+			emit(event: ToneEvent | null) {
+				next = event;
+			},
+			setTone(t: { startMs: number; readings: Reading[] } | null) {
+				current = t;
+			},
+			watch: {
+				reset: (ms: number) => {
+					resets.push(ms);
+				},
+				push: () => {
+					const e = next;
+					next = null;
+					return e;
+				},
+				tone: () => current,
+			},
+		};
+	}
+
+	function setup(
+		over: {
+			count?: number;
+			auto?: ListenResult | null;
+			outcome?: ToneOutcome;
+		} = {},
+	) {
+		const listener = new FakeListener();
+		if (over.auto !== undefined) listener.auto = over.auto;
+		const w = fakeWatch();
+		const graded: { index: number; readings: readonly Reading[] }[] = [];
+		let outcome: ToneOutcome = over.outcome ?? "passed";
+		const flow = createSingleNoteFlow({
+			count: over.count ?? 3,
+			fingeringDelayMs: FINGERING,
+			advanceDelayMs: ADVANCE,
+			listen: {
+				listener,
+				watch: w.watch,
+				grade: (index, readings) => {
+					graded.push({ index, readings });
+					return outcome;
+				},
+				now: () => Date.now(),
+			},
+			onChange: (s) => states.push(s),
+		});
+		return {
+			flow,
+			listener,
+			w,
+			graded,
+			setOutcome: (o: ToneOutcome) => {
+				outcome = o;
+			},
+			/** A tone starts, then ends with `readings`, as the watch would report. */
+			start() {
+				w.emit({ kind: "start", startMs: 0 });
+				listener.onReading?.(reading());
+			},
+			end(readings: Reading[] = [reading()]) {
+				w.emit({ kind: "end", readings });
+				listener.onReading?.(reading());
+			},
+		};
+	}
+
+	const reading = (): Reading => ({
+		time: 0,
+		frequency: 440,
+		clarity: 0.98,
+		level: -30,
+	});
+	async function settle() {
+		for (let k = 0; k < 5; k++) await Promise.resolve();
+	}
+
+	test("AC1: the current note listens from the moment it becomes current, with the hold-off", async () => {
+		vi.setSystemTime(1000);
+		const t = setup();
+		t.flow.start();
+		await settle();
+		expect(last()).toMatchObject({ index: 0, listening: "running" });
+		expect(t.listener.starts).toBe(1);
+		// The stream running starts the current note's listening.
+		expect(t.w.resets).toEqual([1000]);
+		vi.setSystemTime(2000);
+		t.start();
+		t.end();
+		await settle();
+		expect(last().index).toBe(1);
+		expect(t.w.resets).toEqual([1000, 2000]);
+		// The stream is opened once for the flow.
+		expect(t.listener.starts).toBe(1);
+	});
+
+	test("AC4: a passed tone moves to the next note", async () => {
+		const t = setup({ outcome: "passed" });
+		t.flow.start();
+		await settle();
+		t.start();
+		t.end();
+		expect(last()).toMatchObject({ index: 1, fingering: false, message: null });
+		expect(t.graded).toHaveLength(1);
+		expect(t.graded[0]?.index).toBe(0);
+	});
+
+	test("AC5: a right tone that was too short asks for the whole value, until the next tone starts", async () => {
+		const t = setup({ outcome: "too-short" });
+		t.flow.start();
+		await settle();
+		t.start();
+		t.end();
+		expect(last()).toMatchObject({
+			index: 0,
+			fingering: false,
+			message: PLAY_WHOLE_VALUE,
+		});
+		// The note keeps listening, and the message stays through time.
+		vi.advanceTimersByTime(1000);
+		expect(last().message).toBe(PLAY_WHOLE_VALUE);
+		t.start();
+		expect(last().message).toBeNull();
+	});
+
+	test("AC6: a wrong tone shows the fingering, which stays; the note keeps listening", async () => {
+		const t = setup({ outcome: "wrong" });
+		t.flow.start();
+		await settle();
+		t.start();
+		t.end();
+		expect(last()).toMatchObject({ index: 0, fingering: true });
+		// No advance delay: the fingering stays until the head moves on.
+		vi.advanceTimersByTime(FINGERING + ADVANCE * 5);
+		expect(last()).toMatchObject({ index: 0, fingering: true });
+		t.setOutcome("passed");
+		t.start();
+		t.end();
+		expect(last()).toMatchObject({ index: 1, fingering: false });
+	});
+
+	test("AC7: the fingering shows after its delay and the note keeps listening; the advance delay plays no part", async () => {
+		const t = setup();
+		t.flow.start();
+		await settle();
+		vi.advanceTimersByTime(FINGERING - 1);
+		expect(last().fingering).toBe(false);
+		vi.advanceTimersByTime(1);
+		expect(last()).toMatchObject({ index: 0, fingering: true });
+		vi.advanceTimersByTime(ADVANCE * 10);
+		expect(last()).toMatchObject({ index: 0, fingering: true });
+		t.start();
+		t.end();
+		expect(last().index).toBe(1);
+	});
+
+	test("AC8: taps work as without the microphone", async () => {
+		const t = setup();
+		t.flow.start();
+		await settle();
+		t.flow.step();
+		expect(last()).toMatchObject({ index: 0, fingering: true });
+		vi.advanceTimersByTime(ADVANCE * 4);
+		expect(last()).toMatchObject({ index: 0, fingering: true });
+		t.flow.step();
+		expect(last()).toMatchObject({ index: 1, fingering: false });
+	});
+
+	test("every end, whatever the outcome, leaves the trace to clear (tone() is the watch's)", async () => {
+		const t = setup();
+		t.flow.start();
+		await settle();
+		t.w.setTone({ startMs: 5, readings: [reading()] });
+		expect(t.flow.tone()?.startMs).toBe(5);
+		t.w.setTone(null);
+		expect(t.flow.tone()).toBeNull();
+	});
+
+	test("AC9: after a passed note the next note starts a fresh watch, so a held pitch needs a stop", async () => {
+		const t = setup();
+		t.flow.start();
+		await settle();
+		t.start();
+		t.end();
+		expect(t.w.resets).toHaveLength(2);
+	});
+
+	test("the last note passed ends the song", async () => {
+		const t = setup({ count: 1 });
+		t.flow.start();
+		await settle();
+		t.start();
+		t.end();
+		expect(last()).toMatchObject({ ended: true });
+		// Readings after the end are ignored.
+		t.start();
+		t.end();
+		expect(last().ended).toBe(true);
+		expect(t.graded).toHaveLength(1);
+	});
+
+	test("AC11: while opening, the S02 timers apply, and the note listens once it runs", async () => {
+		const t = setup({ auto: null });
+		t.flow.start();
+		await settle();
+		expect(last().listening).toBe("opening");
+		vi.advanceTimersByTime(FINGERING);
+		expect(last().fingering).toBe(true);
+		// The advance timer runs while the stream is not running.
+		vi.advanceTimersByTime(ADVANCE - 1);
+		expect(last().index).toBe(0);
+		// The stream starts: the current note listens and the advance is dropped.
+		t.listener.pending[0]?.({ status: "running" });
+		await settle();
+		expect(last()).toMatchObject({
+			index: 0,
+			fingering: true,
+			listening: "running",
+		});
+		vi.advanceTimersByTime(ADVANCE * 5);
+		expect(last().index).toBe(0);
+		t.start();
+		t.end();
+		expect(last().index).toBe(1);
+	});
+
+	test("AC11: a locked stream behaves as with judging off, and is tried again at the next note", async () => {
+		const t = setup({ auto: { status: "locked" } });
+		t.flow.start();
+		await settle();
+		expect(last().listening).toBe("locked");
+		vi.advanceTimersByTime(FINGERING + ADVANCE);
+		expect(last()).toMatchObject({ index: 1, fingering: false });
+		await settle();
+		expect(t.listener.starts).toBe(2);
+		// A tone is not judged while locked.
+		t.start();
+		t.end();
+		expect(t.graded).toHaveLength(0);
+	});
+
+	test("AC11: an unavailable stream behaves as with judging off for the rest of the flow", async () => {
+		const t = setup({ auto: { status: "unavailable", reason: "denied" } });
+		t.flow.start();
+		await settle();
+		expect(last().listening).toBe("unavailable");
+		vi.advanceTimersByTime(FINGERING + ADVANCE);
+		expect(last().index).toBe(1);
+		await settle();
+		expect(t.listener.starts).toBe(1);
+		expect(last().listening).toBe("unavailable");
+		t.start();
+		t.end();
+		expect(t.graded).toHaveLength(0);
+		expect(t.flow.tone()).toBeNull();
+	});
+
+	test("stop releases the microphone and a late result does nothing", async () => {
+		const t = setup({ auto: null });
+		t.flow.start();
+		await settle();
+		t.flow.stop();
+		expect(t.listener.stops).toBe(1);
+		const count = states.length;
+		t.listener.pending[0]?.({ status: "running" });
+		await settle();
+		expect(states).toHaveLength(count);
+	});
+
+	test("a throwing watch or grade leaves the note to its timers and taps", async () => {
+		const t = setup();
+		t.flow.start();
+		await settle();
+		t.w.watch.push = () => {
+			throw new Error("boom");
+		};
+		t.listener.onReading?.(reading());
+		expect(last().index).toBe(0);
+		t.flow.step();
+		expect(last()).toMatchObject({ fingering: true });
 	});
 });

@@ -25,6 +25,7 @@ const state = (over: Partial<SingleNoteState> = {}): SingleNoteState => ({
 	index: 1,
 	fingering: false,
 	ended: false,
+	message: null,
 	listening: "off",
 	...over,
 });
@@ -65,6 +66,24 @@ describe("singleNoteView (F16-S02)", () => {
 		).toBeNull();
 	});
 
+	test("the tone trace shows only while listening runs and the song has not ended", () => {
+		const tone = { trace: () => null, tolerance: 40 };
+		expect(singleNoteView(base, state(), tone).tone).toBeNull();
+		expect(
+			singleNoteView(base, state({ listening: "running" }), tone).tone,
+		).toBe(tone);
+		expect(
+			singleNoteView(base, state({ listening: "running", ended: true }), tone)
+				.tone,
+		).toBeNull();
+		expect(
+			singleNoteView(base, state({ listening: "locked" }), tone).tone,
+		).toBeNull();
+		expect(
+			singleNoteView(base, state({ listening: "running" })).tone,
+		).toBeNull();
+	});
+
 	test("AC3: playback and the Tempo view have no strip or head", () => {
 		const playing: PlaybackState = { index: 0, origin: 1 } as PlaybackState;
 		const view = playbackView(base, playing, {
@@ -73,5 +92,6 @@ describe("singleNoteView (F16-S02)", () => {
 		});
 		expect(view.strip).toBeUndefined();
 		expect(view.head).toBeUndefined();
+		expect(view.tone).toBeUndefined();
 	});
 });

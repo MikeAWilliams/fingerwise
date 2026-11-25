@@ -42,7 +42,6 @@ import {
 	MODE_LABELS,
 	micSummary,
 	PRACTICE_LABELS,
-	practiceControls,
 	practiceSummary,
 	RESET_CONFIRM,
 	SCORING_LABELS,

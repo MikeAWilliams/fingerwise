@@ -5,13 +5,18 @@ import { loadInstrument } from "../../src/core/instrument";
 import {
 	centsFrom,
 	createToneTracker,
+	createToneWatch,
 	DEFAULT_THRESHOLDS,
 	frequencyBand,
+	gradeTone,
 	judge,
 	nearestPitch,
 	passesChecks,
 	type Reading,
+	SINGLE_NOTE_PASS_SHARE,
 	type StabilityOptions,
+	TONE_END_SILENCE_MS,
+	type ToneEvent,
 } from "../../src/core/judge";
 import judgeSource from "../../src/core/judge/index.ts?raw";
 import {
@@ -382,6 +387,231 @@ describe("passesChecks (F09-S02)", () => {
 		expect(passesChecks({ ...ok, frequency: 50 }, DEFAULT_THRESHOLDS)).toBe(
 			true,
 		);
+	});
+});
+
+describe("gradeTone (F16-S03 AC4, AC5, AC6, AC10)", () => {
+	const A4_PITCH = pitch("A4");
+	const TOL = 40;
+	const LENGTH = 4000;
+	const grade = (readings: Reading[], lengthMs = LENGTH) =>
+		gradeTone(readings, {
+			expected: A4_PITCH,
+			toleranceCents: TOL,
+			lengthMs,
+			checks: WITH_BAND,
+		});
+	/** `ms` of readings every 10 ms at `hz`, from `from`. */
+	const hold = (from: number, ms: number, hz: number | null) =>
+		Array.from({ length: Math.round(ms / 10) }, (_, i) =>
+			tone(from + i * 10, hz),
+		);
+	/** The silence after a tone, as the watch would end it. */
+	const quiet = (from: number) => hold(from, 200, null);
+
+	test("a full correct tone passes", () => {
+		expect(grade([...hold(0, 4000, A4), ...quiet(4000)])).toBe("passed");
+	});
+
+	test("exactly 75% of the length within passes, just under does not", () => {
+		const exact = [...hold(0, 3000, A4), ...quiet(3000)];
+		expect(SINGLE_NOTE_PASS_SHARE).toBe(0.75);
+		expect(grade(exact)).toBe("passed");
+		expect(grade([...hold(0, 2990, A4), ...quiet(2990)])).toBe("too-short");
+	});
+
+	test("a short right tone is too short", () => {
+		expect(grade([...hold(0, 1000, A4), ...quiet(1000)])).toBe("too-short");
+	});
+
+	test("a mostly wrong tone is wrong", () => {
+		const wrong = shift(A4, 200);
+		expect(grade([...hold(0, 3000, wrong), ...quiet(3000)])).toBe("wrong");
+		expect(
+			grade([...hold(0, 2000, wrong), ...hold(2000, 1000, A4), ...quiet(3000)]),
+		).toBe("wrong");
+	});
+
+	test("a scoop into the right note passes once enough is within", () => {
+		const scoop = [
+			...hold(0, 500, shift(A4, -200)),
+			...hold(500, 3500, A4),
+			...quiet(4000),
+		];
+		expect(grade(scoop)).toBe("passed");
+	});
+
+	test("right notes out of tune beyond the tolerance are wrong", () => {
+		expect(grade([...hold(0, 4000, shift(A4, 45)), ...quiet(4000)])).toBe(
+			"wrong",
+		);
+		expect(grade([...hold(0, 4000, shift(A4, 39)), ...quiet(4000)])).toBe(
+			"passed",
+		);
+	});
+
+	test("a tone longer than the note passes with no extra rule", () => {
+		expect(grade([...hold(0, 9000, A4), ...quiet(9000)])).toBe("passed");
+	});
+
+	test("readings that fail the checks are not sounding time", () => {
+		const noisy = [
+			...hold(0, 2000, A4),
+			...hold(2000, 1000, null),
+			...hold(3000, 1000, A4),
+			...quiet(4000),
+		];
+		expect(grade(noisy)).toBe("passed");
+		expect(grade(noisy, 8000)).toBe("too-short");
+	});
+
+	test("no sounding time is wrong", () => {
+		expect(grade(hold(0, 1000, null))).toBe("wrong");
+		expect(grade([])).toBe("wrong");
+	});
+});
+
+describe("createToneWatch (F16-S03 AC3)", () => {
+	const watch = () => {
+		const w = createToneWatch(WITH_BAND);
+		w.reset(0);
+		return w;
+	};
+	/** A watch that has heard the silence before the player starts. */
+	const armedWatch = () => {
+		const w = watch();
+		for (let t = 0; t < HOLD; t += 10) w.push(tone(t, null));
+		return w;
+	};
+	/** Pushes readings and collects the events. */
+	function feed(w: ReturnType<typeof createToneWatch>, readings: Reading[]) {
+		const events: { time: number; event: ToneEvent }[] = [];
+		for (const r of readings) {
+			const event = w.push(r);
+			if (event) events.push({ time: r.time, event });
+		}
+		return events;
+	}
+	const hold = (from: number, ms: number, hz: number | null) =>
+		Array.from({ length: Math.round(ms / 10) }, (_, i) =>
+			tone(from + i * 10, hz),
+		);
+
+	test("the end constant is exported", () => {
+		expect(TONE_END_SILENCE_MS).toBeGreaterThan(0);
+	});
+
+	test("the hold-off ignores readings, so a tone starts after it plus the settle time", () => {
+		const w = watch();
+		const events = feed(w, [...hold(0, 100, null), ...hold(100, 1500, A4)]);
+		expect(events).toHaveLength(1);
+		const first = events[0];
+		expect(first?.event.kind).toBe("start");
+		if (first?.event.kind === "start") {
+			expect(first.event.startMs).toBeGreaterThanOrEqual(HOLD);
+		}
+		expect(first?.time).toBeGreaterThanOrEqual(HOLD + 200);
+	});
+
+	test("a sound held from before the reset is not a tone until it stops and starts again", () => {
+		const w = watch();
+		expect(feed(w, hold(0, 2000, A4))).toEqual([]);
+		expect(w.tone()).toBeNull();
+		const events = feed(w, [...hold(2000, 50, null), ...hold(2050, 600, A4)]);
+		expect(events.map((e) => e.event.kind)).toEqual(["start"]);
+	});
+
+	test("silence during the hold-off arms it", () => {
+		const w = watch();
+		const events = feed(w, [...hold(0, 300, null), ...hold(300, 1500, A4)]);
+		expect(events.map((e) => e.event.kind)).toEqual(["start"]);
+		// The tone's start is after the hold-off, not at the first sounding reading.
+		expect(
+			(events[0]?.event as { startMs: number } | undefined)?.startMs ?? 0,
+		).toBeGreaterThanOrEqual(HOLD);
+	});
+
+	test("a blip shorter than the settle time is not a tone and reports nothing", () => {
+		const w = watch();
+		const events = feed(w, [
+			...hold(HOLD, 150, A4),
+			...hold(HOLD + 150, 400, null),
+		]);
+		expect(events).toEqual([]);
+		expect(w.tone()).toBeNull();
+	});
+
+	test("a pitch change inside one tone does not end it", () => {
+		const w = armedWatch();
+		const events = feed(w, [
+			...hold(HOLD, 1000, A4),
+			...hold(HOLD + 1000, 1000, shift(A4, 300)),
+		]);
+		expect(events.map((e) => e.event.kind)).toEqual(["start"]);
+		expect(w.tone()?.readings.length).toBe(200);
+	});
+
+	test("a dropout shorter than the end constant does not end it", () => {
+		const w = armedWatch();
+		const events = feed(w, [
+			...hold(HOLD, 1000, A4),
+			...hold(HOLD + 1000, 100, null),
+			...hold(HOLD + 1100, 1000, A4),
+		]);
+		expect(events.map((e) => e.event.kind)).toEqual(["start"]);
+		expect(w.tone()).not.toBeNull();
+	});
+
+	test("silence for the end constant ends it with all its readings", () => {
+		const w = armedWatch();
+		const readings = [...hold(HOLD, 1000, A4), ...hold(HOLD + 1000, 300, null)];
+		const events = feed(w, readings);
+		expect(events.map((e) => e.event.kind)).toEqual(["start", "end"]);
+		const end = events[1];
+		expect(end?.time).toBeGreaterThanOrEqual(HOLD + 1000 + TONE_END_SILENCE_MS);
+		if (end?.event.kind === "end") {
+			expect(end.event.readings[0]?.time).toBe(HOLD);
+			expect(end.event.readings.length).toBeGreaterThan(100);
+		}
+		expect(w.tone()).toBeNull();
+	});
+
+	test("after an end a new tone can start, with no new hold-off", () => {
+		const w = armedWatch();
+		const events = feed(w, [
+			...hold(HOLD, 1000, A4),
+			...hold(HOLD + 1000, 300, null),
+			...hold(HOLD + 1300, 1000, A4),
+			...hold(HOLD + 2300, 300, null),
+		]);
+		expect(events.map((e) => e.event.kind)).toEqual([
+			"start",
+			"end",
+			"start",
+			"end",
+		]);
+	});
+
+	test("reset applies the hold-off again and drops a tone in progress", () => {
+		const w = armedWatch();
+		feed(w, hold(HOLD, 1000, A4));
+		expect(w.tone()).not.toBeNull();
+		w.reset(5000);
+		expect(w.tone()).toBeNull();
+		expect(feed(w, hold(5000, 400, A4))).toEqual([]);
+	});
+
+	test("readings before a reset report nothing", () => {
+		const w = createToneWatch(WITH_BAND);
+		expect(feed(w, hold(HOLD, 1000, A4))).toEqual([]);
+	});
+
+	test("tone() gives the start and the readings so far", () => {
+		const w = armedWatch();
+		feed(w, hold(HOLD, 600, A4));
+		const t = w.tone();
+		expect(t?.startMs).toBe(HOLD);
+		expect(t?.readings[0]?.time).toBe(HOLD);
 	});
 });
 
