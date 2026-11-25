@@ -8,6 +8,20 @@ export function isScoring(value: unknown): value is Scoring {
 	return value === "live" || value === "after";
 }
 
+/** What the player drills: random cards from the range, or a song. */
+export type Mode = "flashcards" | "song";
+
+export function isMode(value: unknown): value is Mode {
+	return value === "flashcards" || value === "song";
+}
+
+/** How a song is practised: one note at a time, or in tempo through the whole song. */
+export type Practice = "single" | "tempo";
+
+export function isPractice(value: unknown): value is Practice {
+	return value === "single" || value === "tempo";
+}
+
 export interface Settings {
 	lowest: Pitch;
 	highest: Pitch;
@@ -21,8 +35,12 @@ export interface Settings {
 	judgeEnabled: boolean;
 	smartSampling: boolean;
 	toleranceCents: number;
-	useSong: boolean;
-	keepTempo: boolean;
+	mode: Mode;
+	practice: Practice;
+	/** Single note: seconds before the fingering shows. */
+	fingeringDelaySeconds: number;
+	/** Single note, microphone off: seconds after the fingering shows before the next note. */
+	singleAdvanceDelaySeconds: number;
 	metronome: boolean;
 	scoring: Scoring;
 	barsPerLine: number;
@@ -45,8 +63,12 @@ export interface SettingsJson {
 	judgeEnabled: boolean;
 	smartSampling: boolean;
 	toleranceCents: number;
-	useSong: boolean;
-	keepTempo: boolean;
+	mode: Mode;
+	practice: Practice;
+	/** Single note: seconds before the fingering shows. */
+	fingeringDelaySeconds: number;
+	/** Single note, microphone off: seconds after the fingering shows before the next note. */
+	singleAdvanceDelaySeconds: number;
 	metronome: boolean;
 	scoring: Scoring;
 	barsPerLine: number;
@@ -94,8 +116,10 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		judgeEnabled: settings.judgeEnabled,
 		smartSampling: settings.smartSampling,
 		toleranceCents: settings.toleranceCents,
-		useSong: settings.useSong,
-		keepTempo: settings.keepTempo,
+		mode: settings.mode,
+		practice: settings.practice,
+		fingeringDelaySeconds: settings.fingeringDelaySeconds,
+		singleAdvanceDelaySeconds: settings.singleAdvanceDelaySeconds,
 		metronome: settings.metronome,
 		scoring: settings.scoring,
 		barsPerLine: settings.barsPerLine,
@@ -141,24 +165,29 @@ export function soundRuleApplies(s: Settings): boolean {
 	return s.soundEnabled && s.autoAdvance;
 }
 
-/** Smart sampling draws by need, which takes the judge's grades and a random draw, so a song or no judging turns it off. */
+/** Smart sampling draws by need, which takes the judge's grades and a random draw, so it needs judging and Flashcards. */
 export function smartSamplingApplies(s: Settings): boolean {
-	return s.smartSampling && s.judgeEnabled && !s.useSong;
+	return s.smartSampling && s.judgeEnabled && s.mode === "flashcards";
 }
 
-/** Keep tempo times a held song's cards, so it needs the song on. */
-export function keepTempoApplies(s: Settings): boolean {
-	return s.useSong && s.keepTempo;
+/** Tempo times the whole song, so it needs Song mode with the Tempo practice. */
+export function tempoApplies(s: Settings): boolean {
+	return s.mode === "song" && s.practice === "tempo";
 }
 
-/** The metronome clicks on every beat of a timed song, so it needs keep tempo to apply. */
+/** Single note steps through the song one note at a time. */
+export function singleNoteApplies(s: Settings): boolean {
+	return s.mode === "song" && s.practice === "single";
+}
+
+/** The metronome clicks on every beat of a timed song, so it needs Tempo. */
 export function metronomeApplies(s: Settings): boolean {
-	return keepTempoApplies(s) && s.metronome;
+	return tempoApplies(s) && s.metronome;
 }
 
-/** Scoring after the song hides the judging until the end, so it needs keep tempo and judging on. */
+/** Scoring after the song hides the judging until the end, so it needs Tempo and judging on. */
 export function scoringAfterApplies(s: Settings): boolean {
-	return keepTempoApplies(s) && s.judgeEnabled && s.scoring === "after";
+	return tempoApplies(s) && s.judgeEnabled && s.scoring === "after";
 }
 
 /** Sound delay plus duration fits in the advance delay (compared with a tolerance for half seconds). */
@@ -334,10 +363,29 @@ export function validateSettings(
 		? obj.toleranceCents
 		: defaults.toleranceCents;
 
-	const useSong =
-		typeof obj.useSong === "boolean" ? obj.useSong : defaults.useSong;
-	const keepTempo =
-		typeof obj.keepTempo === "boolean" ? obj.keepTempo : defaults.keepTempo;
+	// Data saved before F16 has useSong and keepTempo instead; they are read only here.
+	const oldMode: Mode | null =
+		typeof obj.useSong === "boolean"
+			? obj.useSong
+				? "song"
+				: "flashcards"
+			: null;
+	const oldPractice: Practice | null =
+		typeof obj.keepTempo === "boolean"
+			? obj.keepTempo
+				? "tempo"
+				: "single"
+			: null;
+	const mode = isMode(obj.mode) ? obj.mode : (oldMode ?? defaults.mode);
+	const practice = isPractice(obj.practice)
+		? obj.practice
+		: (oldPractice ?? defaults.practice);
+	const fingeringDelaySeconds = isValidDelay(obj.fingeringDelaySeconds)
+		? obj.fingeringDelaySeconds
+		: defaults.fingeringDelaySeconds;
+	const singleAdvanceDelaySeconds = isValidDelay(obj.singleAdvanceDelaySeconds)
+		? obj.singleAdvanceDelaySeconds
+		: defaults.singleAdvanceDelaySeconds;
 	const metronome =
 		typeof obj.metronome === "boolean" ? obj.metronome : defaults.metronome;
 	const scoring = isScoring(obj.scoring) ? obj.scoring : defaults.scoring;
@@ -380,8 +428,10 @@ export function validateSettings(
 		judgeEnabled,
 		smartSampling,
 		toleranceCents,
-		useSong,
-		keepTempo,
+		mode,
+		practice,
+		fingeringDelaySeconds,
+		singleAdvanceDelaySeconds,
 		metronome,
 		scoring,
 		barsPerLine,
@@ -450,14 +500,21 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 			`toleranceCents must be a number from ${MIN_TOLERANCE_CENTS} to ${MAX_TOLERANCE_CENTS}`,
 		);
 	}
-	if (typeof obj.useSong !== "boolean") {
-		throw new SettingsError("useSong must be true or false");
+	if (!isMode(obj.mode)) {
+		throw new SettingsError('mode must be "flashcards" or "song"');
 	}
-	if (obj.useSong) {
-		throw new SettingsError("useSong must be false in the defaults");
+	if (!isPractice(obj.practice)) {
+		throw new SettingsError('practice must be "single" or "tempo"');
 	}
-	if (typeof obj.keepTempo !== "boolean") {
-		throw new SettingsError("keepTempo must be true or false");
+	if (!isValidDelay(obj.fingeringDelaySeconds)) {
+		throw new SettingsError(
+			`fingeringDelaySeconds must be a number from ${MIN_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}`,
+		);
+	}
+	if (!isValidDelay(obj.singleAdvanceDelaySeconds)) {
+		throw new SettingsError(
+			`singleAdvanceDelaySeconds must be a number from ${MIN_DELAY_SECONDS} to ${MAX_DELAY_SECONDS}`,
+		);
 	}
 	if (typeof obj.metronome !== "boolean") {
 		throw new SettingsError("metronome must be true or false");
@@ -513,8 +570,10 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		judgeEnabled: obj.judgeEnabled,
 		smartSampling: obj.smartSampling,
 		toleranceCents: obj.toleranceCents,
-		useSong: obj.useSong,
-		keepTempo: obj.keepTempo,
+		mode: obj.mode,
+		practice: obj.practice,
+		fingeringDelaySeconds: obj.fingeringDelaySeconds,
+		singleAdvanceDelaySeconds: obj.singleAdvanceDelaySeconds,
 		metronome: obj.metronome,
 		scoring: obj.scoring,
 		barsPerLine: obj.barsPerLine,

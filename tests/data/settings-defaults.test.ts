@@ -20,8 +20,10 @@ test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s,
 	expect(settings.judgeEnabled).toBe(false);
 	expect(settings.smartSampling).toBe(false);
 	expect(settings.toleranceCents).toBe(40);
-	expect(settings.useSong).toBe(false);
-	expect(settings.keepTempo).toBe(false);
+	expect(settings.mode).toBe("flashcards");
+	expect(settings.practice).toBe("single");
+	expect(settings.fingeringDelaySeconds).toBe(3);
+	expect(settings.singleAdvanceDelaySeconds).toBe(3);
 	expect(settings.metronome).toBe(false);
 	expect(settings.scoring).toBe("live");
 	expect(settings.songTune).toBe(1);

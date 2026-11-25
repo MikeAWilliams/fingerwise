@@ -29,8 +29,10 @@ const DEFAULTS: Settings = {
 	judgeEnabled: false,
 	smartSampling: false,
 	toleranceCents: 40,
-	useSong: false,
-	keepTempo: false,
+	mode: "flashcards",
+	practice: "single",
+	fingeringDelaySeconds: 3,
+	singleAdvanceDelaySeconds: 3,
 	metronome: false,
 	scoring: "live",
 	barsPerLine: 2,
@@ -64,8 +66,10 @@ test("saved settings load back unchanged", () => {
 		judgeEnabled: true,
 		smartSampling: true,
 		toleranceCents: 25.5,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -87,8 +91,10 @@ test("saved settings load back unchanged", () => {
 		judgeEnabled: true,
 		smartSampling: true,
 		toleranceCents: 25.5,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -146,8 +152,10 @@ test("settings saved before auto-advance load with its defaults", () => {
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -180,8 +188,10 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -214,8 +224,10 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -244,8 +256,10 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -283,16 +297,20 @@ test("a song and its switch save and load back", () => {
 	const { storage, data } = fakeStorage();
 	const settings: Settings = {
 		...DEFAULTS,
-		useSong: true,
-		keepTempo: false,
+		mode: "song",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		songAbc: "X:1\nK:C\nC D E|",
 	};
 	saveSettings(storage, settings);
 	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
-		useSong: true,
-		keepTempo: false,
+		mode: "song",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		songAbc: "X:1\nK:C\nC D E|",
@@ -320,8 +338,10 @@ test("settings saved before songs load with use song off and no text", () => {
 		delaySeconds: 4,
 		judgeEnabled: true,
 		toleranceCents: 30,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -342,8 +362,10 @@ test("settings saved before smart sampling load with it off and keep their field
 		soundDurationSeconds: 1.5,
 		judgeEnabled: true,
 		toleranceCents: 30,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		songAbc: "",
@@ -357,45 +379,83 @@ test("settings saved before smart sampling load with it off and keep their field
 	});
 });
 
-test("keep tempo saves and loads back", () => {
+test("mode, practice and the two delays save and load back (AC7)", () => {
 	const { storage, data } = fakeStorage();
-	const settings: Settings = { ...DEFAULTS, useSong: true, keepTempo: true };
+	const settings: Settings = {
+		...DEFAULTS,
+		mode: "song",
+		practice: "tempo",
+		fingeringDelaySeconds: 5,
+		singleAdvanceDelaySeconds: 7,
+	};
 	saveSettings(storage, settings);
-	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
-		keepTempo: true,
-		metronome: false,
-		scoring: "live",
+	const stored = JSON.parse(data.get(SETTINGS_KEY) as string);
+	expect(stored).toMatchObject({
+		mode: "song",
+		practice: "tempo",
+		fingeringDelaySeconds: 5,
+		singleAdvanceDelaySeconds: 7,
 	});
+	expect(stored).not.toHaveProperty("useSong");
+	expect(stored).not.toHaveProperty("keepTempo");
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
 
-test("settings saved before keep tempo load with it off and keep their fields", () => {
-	const { keepTempo, ...old } = {
-		...toSettingsJson({ ...DEFAULTS, delaySeconds: 4, useSong: true }),
-	};
-	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+test("settings saved with use song and keep tempo load as a mode and practice (AC13)", () => {
+	const cases: [boolean, boolean | undefined, Partial<Settings>][] = [
+		[false, false, { mode: "flashcards", practice: "single" }],
+		[true, false, { mode: "song", practice: "single" }],
+		[true, true, { mode: "song", practice: "tempo" }],
+		[false, undefined, { mode: "flashcards", practice: "single" }],
+	];
+	for (const [useSong, keepTempo, expected] of cases) {
+		const {
+			mode,
+			practice,
+			fingeringDelaySeconds,
+			singleAdvanceDelaySeconds,
+			...rest
+		} = toSettingsJson({
+			...DEFAULTS,
+			delaySeconds: 4,
+			judgeEnabled: true,
+			songAbc: "X:1\nK:C\nC|",
+		});
+		const old: Record<string, unknown> = { ...rest, useSong };
+		if (keepTempo !== undefined) old.keepTempo = keepTempo;
+		const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
+		expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 4,
+			judgeEnabled: true,
+			songAbc: "X:1\nK:C\nC|",
+			...expected,
+		});
+	}
+});
+
+test("stored data with neither field loads Flashcards with Single note", () => {
+	const { mode, practice, ...rest } = toSettingsJson({
+		...DEFAULTS,
+		delaySeconds: 4,
+	});
+	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(rest) });
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
 		...DEFAULTS,
 		delaySeconds: 4,
-		useSong: true,
-		keepTempo: false,
-		metronome: false,
-		scoring: "live",
 	});
 });
 
-test("a non-boolean keep tempo resets alone", () => {
+test("a bad stored practice resets alone", () => {
 	const bad = {
-		...toSettingsJson({ ...DEFAULTS, delaySeconds: 4 }),
-		keepTempo: "yes",
+		...toSettingsJson({ ...DEFAULTS, delaySeconds: 4, mode: "song" }),
+		practice: "yes",
 	};
 	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(bad) });
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
 		...DEFAULTS,
 		delaySeconds: 4,
-		keepTempo: false,
-		metronome: false,
-		scoring: "live",
+		mode: "song",
 	});
 });
 
@@ -403,8 +463,8 @@ test("metronome saves and loads back", () => {
 	const { storage, data } = fakeStorage();
 	const settings: Settings = {
 		...DEFAULTS,
-		useSong: true,
-		keepTempo: true,
+		mode: "song",
+		practice: "tempo",
 		metronome: true,
 	};
 	saveSettings(storage, settings);
@@ -418,13 +478,15 @@ test("settings saved before the metronome load with it off and keep their fields
 	const { metronome, ...old } = toSettingsJson({
 		...DEFAULTS,
 		delaySeconds: 4,
-		keepTempo: true,
+		mode: "song",
+		practice: "tempo",
 	});
 	const { storage } = fakeStorage({ [SETTINGS_KEY]: JSON.stringify(old) });
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual({
 		...DEFAULTS,
 		delaySeconds: 4,
-		keepTempo: true,
+		mode: "song",
+		practice: "tempo",
 		metronome: false,
 		scoring: "live",
 	});

@@ -16,7 +16,8 @@ import { parseDefaults, type Settings } from "../../src/core/settings";
 import { createSong, DEFAULT_METER } from "../../src/core/song";
 
 const base = parseDefaults(defaults, loadInstrument(alto));
-const on: Settings = { ...base, useSong: true, keepTempo: true };
+const on: Settings = { ...base, mode: "song", practice: "tempo" };
+const flashcards: Settings = { ...base, mode: "flashcards" };
 
 function song(tempo: number | null, title?: string) {
 	const pitch = parsePitch("C4");
@@ -52,21 +53,21 @@ describe("headerSong (F10-S01 AC3, AC4, AC7)", () => {
 		expect(headerSong(on, song(60), false).tempo).toBe("♩ = 60");
 	});
 
-	test("the title shows with use song", () => {
+	test("the title shows in Song mode, in either practice", () => {
 		expect(headerSong(on, song(null, "Ode"), false).title).toBe("Ode");
-		const untimed = { ...on, keepTempo: false };
-		expect(headerSong(untimed, song(null, "Ode"), false).title).toBe("Ode");
+		const single = { ...on, practice: "single" as const };
+		expect(headerSong(single, song(null, "Ode"), false).title).toBe("Ode");
 	});
 
-	test("no title without one, or with use song off", () => {
+	test("no title without one, or in Flashcards (AC9)", () => {
 		expect(headerSong(on, song(null), false).title).toBeNull();
-		const off = { ...on, useSong: false };
-		expect(headerSong(off, song(null, "Ode"), false).title).toBeNull();
+		expect(headerSong(flashcards, song(null, "Ode"), false).title).toBeNull();
 	});
 
-	test("no tempo without keep tempo", () => {
-		const untimed = { ...on, keepTempo: false };
-		expect(headerSong(untimed, song(120, "Ode"), false).tempo).toBeNull();
+	test("the tempo shows in Song mode in either practice, not in Flashcards", () => {
+		const single = { ...on, practice: "single" as const };
+		expect(headerSong(single, song(120, "Ode"), false).tempo).toBe("♩ = 120");
+		expect(headerSong(flashcards, song(120, "Ode"), false).tempo).toBeNull();
 	});
 
 	test("no song shows nothing", () => {
@@ -82,11 +83,14 @@ describe("headerSong (F10-S01 AC3, AC4, AC7)", () => {
 });
 
 describe("headerSong while playing (F13-S02 AC11)", () => {
-	test("the tempo shows with keep tempo off", () => {
-		const untimed = { ...on, keepTempo: false };
-		expect(headerSong(untimed, song(120), false).tempo).toBeNull();
-		expect(headerSong(untimed, song(120), false, true).tempo).toBe("♩ = 120");
-		expect(headerSong(untimed, song(null), false, true).tempo).toBe("♩ = 90");
+	test("the tempo shows in Flashcards while the song plays", () => {
+		expect(headerSong(flashcards, song(120), false).tempo).toBeNull();
+		expect(headerSong(flashcards, song(120), false, true).tempo).toBe(
+			"♩ = 120",
+		);
+		expect(headerSong(flashcards, song(null), false, true).tempo).toBe(
+			"♩ = 90",
+		);
 	});
 
 	test("no song or Settings open still shows nothing", () => {
@@ -105,11 +109,11 @@ describe("playButton (F13-S02)", () => {
 		phase: undefined,
 	} as const;
 
-	test("shown with keep tempo, judging and scoring on or off (AC1)", () => {
-		for (const keepTempo of [true, false]) {
+	test("shown in either practice, judging and scoring on or off (AC1)", () => {
+		for (const practice of ["tempo", "single"] as const) {
 			for (const judgeEnabled of [true, false]) {
 				for (const scoring of ["after", "live"] as const) {
-					const settings = { ...on, keepTempo, judgeEnabled, scoring };
+					const settings = { ...on, practice, judgeEnabled, scoring };
 					expect(playButton({ ...args, settings })).toEqual({
 						icon: "▶",
 						text: PLAY_SONG_TEXT,
@@ -120,11 +124,9 @@ describe("playButton (F13-S02)", () => {
 		}
 	});
 
-	test("hidden when Settings is open, use song is off, there is no song or no Web Audio (AC1)", () => {
+	test("hidden when Settings is open, the mode is Flashcards, there is no song or no Web Audio (AC1)", () => {
 		expect(playButton({ ...args, open: true })).toBeNull();
-		expect(
-			playButton({ ...args, settings: { ...on, useSong: false } }),
-		).toBeNull();
+		expect(playButton({ ...args, settings: flashcards })).toBeNull();
 		expect(playButton({ ...args, song: null })).toBeNull();
 		expect(playButton({ ...args, webAudio: false })).toBeNull();
 	});
@@ -163,12 +165,10 @@ describe("tune list (F14-S02)", () => {
 		expect(tuneLabels(tunes)).toEqual(["One", "Tune 2", "Three"]);
 	});
 
-	test("hidden with one tune, use song off or Settings open (AC4)", () => {
+	test("hidden with one tune, in Flashcards or Settings open (AC4)", () => {
 		expect(tuneChoice({ ...args, tunes: [tunes[0] as never] })).toBeNull();
 		expect(tuneChoice({ ...args, tunes: [] })).toBeNull();
-		expect(
-			tuneChoice({ ...args, settings: { ...on, useSong: false } }),
-		).toBeNull();
+		expect(tuneChoice({ ...args, settings: flashcards })).toBeNull();
 		expect(tuneChoice({ ...args, open: true })).toBeNull();
 	});
 

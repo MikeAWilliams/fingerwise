@@ -3,7 +3,6 @@ import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import { type AbcResult, parseAbc } from "../../src/abc";
 import {
 	applySongText,
-	canUseSong,
 	chooseTune,
 	chosenTune,
 	NO_SONG,
@@ -34,8 +33,10 @@ const SETTINGS: Settings = {
 	judgeEnabled: false,
 	smartSampling: false,
 	toleranceCents: 40,
-	useSong: false,
-	keepTempo: false,
+	mode: "flashcards",
+	practice: "single",
+	fingeringDelaySeconds: 3,
+	singleAdvanceDelaySeconds: 3,
 	metronome: false,
 	scoring: "live",
 	barsPerLine: 2,
@@ -161,32 +162,39 @@ describe("applySongText", () => {
 		expect(edit.problems).toEqual([]);
 	});
 
-	test("a passing text keeps use song as it was", () => {
-		const on = { ...SETTINGS, useSong: true, songAbc: "old" };
-		expect(applySongText(on, "C", passing).settings.useSong).toBe(true);
+	test("a passing text leaves the mode and practice as they were (AC12)", () => {
+		const on: Settings = {
+			...SETTINGS,
+			mode: "song",
+			practice: "tempo",
+			songAbc: "old",
+		};
+		const out = applySongText(on, "C", passing).settings;
+		expect(out.mode).toBe("song");
+		expect(out.practice).toBe("tempo");
 	});
 
-	test("a failing text keeps the last good song and the saved text", () => {
-		const saved = { ...SETTINGS, useSong: true, songAbc: "C" };
+	test("a failing text keeps the last good song, the saved text and the mode (AC12)", () => {
+		const saved: Settings = { ...SETTINGS, mode: "song", songAbc: "C" };
 		const edit = applySongText(saved, "[CE]", failing);
 		expect(edit.settings).toBe(saved);
 		expect(edit.state).toBeUndefined();
 		expect(edit.problems).toEqual(failing.problems);
 	});
 
-	test("an empty text clears the song and turns use song off, without a result", () => {
-		const saved = { ...SETTINGS, useSong: true, songAbc: "C" };
+	test("an empty text clears the song and leaves the mode alone, without a result", () => {
+		const saved: Settings = { ...SETTINGS, mode: "song", songAbc: "C" };
 		const edit = applySongText(saved, "", null);
-		expect(edit.settings).toEqual({ ...saved, songAbc: "", useSong: false });
+		expect(edit.settings).toEqual({ ...saved, songAbc: "", songTune: 1 });
 		expect(edit.state).toBe(NO_SONG);
 		expect(edit.problems).toEqual([]);
 	});
 
 	test("whitespace alone counts as empty", () => {
-		const saved = { ...SETTINGS, useSong: true, songAbc: "C" };
+		const saved: Settings = { ...SETTINGS, mode: "song", songAbc: "C" };
 		const edit = applySongText(saved, " \n\t ", null);
 		expect(edit.settings.songAbc).toBe("");
-		expect(edit.settings.useSong).toBe(false);
+		expect(edit.settings.mode).toBe("song");
 		expect(edit.state).toBe(NO_SONG);
 	});
 });
@@ -208,36 +216,23 @@ describe("state", () => {
 		});
 	});
 
-	test("the toggle is enabled only with a parsed song", () => {
-		expect(canUseSong(null)).toBe(false);
-		expect(canUseSong(song)).toBe(true);
-	});
-
-	test("the closed section says on or off", () => {
-		expect(songSectionSummary(SETTINGS)).toBe("off");
-		expect(songSectionSummary({ ...SETTINGS, useSong: true })).toBe("on");
-	});
-
-	test("with keep tempo on it says so, and keep tempo alone says off (F08-S02 AC2)", () => {
+	test("the closed section describes the song and bars per line", () => {
 		expect(
-			songSectionSummary({ ...SETTINGS, useSong: true, keepTempo: true }),
-		).toBe("on, keep tempo");
-		expect(songSectionSummary({ ...SETTINGS, keepTempo: true })).toBe("off");
-	});
-});
-
-describe("the closed section with scoring (F12-S01)", () => {
-	test("says scored after the song only when it applies", () => {
-		const on = { ...SETTINGS, useSong: true, keepTempo: true };
+			songSectionSummary(SETTINGS, {
+				tunes: [song],
+				summary: "21 notes, 2 flats converted to sharps",
+				problems: [],
+			}),
+		).toBe("21 notes, 2 flats converted to sharps, 2 bars per line");
 		expect(
-			songSectionSummary({ ...on, judgeEnabled: true, scoring: "after" }),
-		).toBe("on, keep tempo, scored after the song");
-		expect(
-			songSectionSummary({ ...on, judgeEnabled: false, scoring: "after" }),
-		).toBe("on, keep tempo");
-		expect(
-			songSectionSummary({ ...on, judgeEnabled: true, scoring: "live" }),
-		).toBe("on, keep tempo");
+			songSectionSummary(
+				{ ...SETTINGS, barsPerLine: 1 },
+				songStateFrom(passing),
+			),
+		).toBe("21 notes, 2 flats converted to sharps, 1 bar per line");
+		expect(songSectionSummary(SETTINGS, NO_SONG)).toBe(
+			"no song, 2 bars per line",
+		);
 	});
 });
 

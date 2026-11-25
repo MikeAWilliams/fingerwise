@@ -1,3 +1,4 @@
+import { Fragment, type JSX } from "preact";
 import { useRef, useState } from "preact/hooks";
 import { type AbcProblem, parseAbc } from "../abc";
 import type { Instrument } from "../core/instrument";
@@ -6,7 +7,6 @@ import {
 	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
 	canTurnSoundOn,
-	keepTempoApplies,
 	MAX_BARS_PER_LINE,
 	MAX_DELAY_SECONDS,
 	MAX_TOLERANCE_CENTS,
@@ -15,6 +15,8 @@ import {
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
 	MIN_TOLERANCE_CENTS,
+	type Mode,
+	type Practice,
 	type Scoring,
 	type Settings as SettingsValue,
 	setAutoAdvance,
@@ -27,17 +29,28 @@ import { Section } from "./Section";
 import {
 	applyBarsPerLineInput,
 	applyDelayInput,
+	applyFingeringDelayInput,
+	applyModeInput,
+	applyPracticeInput,
 	applyScoringInput,
+	applySingleAdvanceDelayInput,
 	applyToleranceInput,
 	cardsSummary,
 	editTiming,
 	highestOptions,
 	lowestOptions,
+	MODE_LABELS,
 	micSummary,
+	PRACTICE_LABELS,
+	practiceControls,
+	practiceSummary,
 	RESET_CONFIRM,
 	SCORING_LABELS,
-	SONG_IN_USE,
+	type SettingsSection,
+	SINGLE_ADVANCE_NOTE,
 	scoringEnabled,
+	settingsSections,
+	singleAdvanceDisabled,
 	smartSamplingDisabled,
 	smartSamplingNote,
 	soundSummary,
@@ -45,7 +58,6 @@ import {
 } from "./settings-form";
 import {
 	applySongText,
-	canUseSong,
 	chosenTune,
 	isEmptySong,
 	NO_TEMPO_NOTE,
@@ -136,9 +148,25 @@ export function Settings({
 			onChange(result.settings);
 		}
 	};
-	return (
-		<section class="settings">
-			<h2>Settings</h2>
+	const modeControl = (
+		<label>
+			Mode
+			<select
+				value={settings.mode}
+				onChange={(e) =>
+					onChange(applyModeInput(settings, e.currentTarget.value))
+				}
+			>
+				{(Object.keys(MODE_LABELS) as Mode[]).map((value) => (
+					<option key={value} value={value}>
+						{MODE_LABELS[value]}
+					</option>
+				))}
+			</select>
+		</label>
+	);
+	const pieces: Record<SettingsSection, JSX.Element> = {
+		cards: (
 			<Section
 				title="Cards"
 				summary={cardsSummary(settings)}
@@ -147,11 +175,9 @@ export function Settings({
 				}
 				initiallyOpen
 			>
-				{settings.useSong && <p class="settings-note">{SONG_IN_USE}</p>}
 				<label>
 					Lowest note
 					<select
-						disabled={settings.useSong}
 						value={settings.lowest}
 						onChange={(e) =>
 							onChange({
@@ -170,7 +196,6 @@ export function Settings({
 				<label>
 					Highest note
 					<select
-						disabled={settings.useSong}
 						value={settings.highest}
 						onChange={(e) =>
 							onChange({
@@ -190,7 +215,7 @@ export function Settings({
 					<input
 						type="checkbox"
 						checked={settings.includeSharps}
-						disabled={sharpsLocked || settings.useSong}
+						disabled={sharpsLocked}
 						onChange={(e) => {
 							const result = setIncludeSharps(
 								settings,
@@ -269,6 +294,8 @@ export function Settings({
 					Reset progress
 				</button>
 			</Section>
+		),
+		sound: (
 			<Section
 				title="Sound"
 				summary={soundSummary(settings)}
@@ -326,42 +353,12 @@ export function Settings({
 					<p class="settings-note">{rejectionFor("soundDurationSeconds")}</p>
 				)}
 			</Section>
-			<Section
-				title="Microphone"
-				summary={micSummary(settings)}
-				hasMessage={judgeUnavailable}
-			>
-				<label>
-					<input
-						type="checkbox"
-						checked={settings.judgeEnabled}
-						onChange={(e) =>
-							onChange({ ...settings, judgeEnabled: e.currentTarget.checked })
-						}
-					/>
-					Judge my playing
-				</label>
-				<p class="settings-note">{JUDGE_HELP}</p>
-				{judgeUnavailable && <p class="settings-note">{JUDGE_UNAVAILABLE}</p>}
-				<label>
-					Tolerance (¢)
-					<input
-						type="number"
-						min={MIN_TOLERANCE_CENTS}
-						max={MAX_TOLERANCE_CENTS}
-						step="1"
-						value={settings.toleranceCents}
-						onInput={(e) =>
-							onChange(
-								applyToleranceInput(settings, e.currentTarget.valueAsNumber),
-							)
-						}
-					/>
-				</label>
-			</Section>
+		),
+		song: (
 			<Section
 				title="Song"
-				summary={songSectionSummary(settings)}
+				initiallyOpen
+				summary={songSectionSummary(settings, songState)}
 				hasMessage={songProblems.length > 0}
 			>
 				<label class="settings-song-text">
@@ -402,55 +399,6 @@ export function Settings({
 					)}
 				</div>
 				<label>
-					<input
-						type="checkbox"
-						checked={settings.useSong}
-						disabled={!canUseSong(chosen)}
-						onChange={(e) =>
-							onChange({ ...settings, useSong: e.currentTarget.checked })
-						}
-					/>
-					Use song
-				</label>
-				<label>
-					<input
-						type="checkbox"
-						checked={settings.keepTempo}
-						disabled={!settings.useSong}
-						onChange={(e) =>
-							onChange({ ...settings, keepTempo: e.currentTarget.checked })
-						}
-					/>
-					Keep tempo
-				</label>
-				<label>
-					<input
-						type="checkbox"
-						checked={settings.metronome}
-						disabled={!keepTempoApplies(settings)}
-						onChange={(e) =>
-							onChange({ ...settings, metronome: e.currentTarget.checked })
-						}
-					/>
-					Metronome
-				</label>
-				<label>
-					Scoring
-					<select
-						value={settings.scoring}
-						disabled={!scoringEnabled(settings)}
-						onChange={(e) =>
-							onChange(applyScoringInput(settings, e.currentTarget.value))
-						}
-					>
-						{(Object.keys(SCORING_LABELS) as Scoring[]).map((value) => (
-							<option key={value} value={value}>
-								{SCORING_LABELS[value]}
-							</option>
-						))}
-					</select>
-				</label>
-				<label>
 					Bars per line
 					<input
 						type="number"
@@ -458,7 +406,6 @@ export function Settings({
 						max={MAX_BARS_PER_LINE}
 						step="1"
 						value={settings.barsPerLine}
-						disabled={!keepTempoApplies(settings)}
 						onInput={(e) =>
 							onChange(
 								applyBarsPerLineInput(settings, e.currentTarget.valueAsNumber),
@@ -467,6 +414,142 @@ export function Settings({
 					/>
 				</label>
 			</Section>
+		),
+		practice: (
+			<Section title="Practice" summary={practiceSummary(settings)}>
+				<label>
+					Practice
+					<select
+						value={settings.practice}
+						onChange={(e) =>
+							onChange(applyPracticeInput(settings, e.currentTarget.value))
+						}
+					>
+						{(Object.keys(PRACTICE_LABELS) as Practice[]).map((value) => (
+							<option key={value} value={value}>
+								{PRACTICE_LABELS[value]}
+							</option>
+						))}
+					</select>
+				</label>
+				{settings.practice === "single" ? (
+					<>
+						<label>
+							Fingering delay (seconds)
+							<input
+								type="number"
+								min={MIN_DELAY_SECONDS}
+								max={MAX_DELAY_SECONDS}
+								step="0.5"
+								value={settings.fingeringDelaySeconds}
+								onInput={(e) =>
+									onChange(
+										applyFingeringDelayInput(
+											settings,
+											e.currentTarget.valueAsNumber,
+										),
+									)
+								}
+							/>
+						</label>
+						<label>
+							Advance delay (seconds)
+							<input
+								type="number"
+								min={MIN_DELAY_SECONDS}
+								max={MAX_DELAY_SECONDS}
+								step="0.5"
+								value={settings.singleAdvanceDelaySeconds}
+								disabled={singleAdvanceDisabled(settings)}
+								onInput={(e) =>
+									onChange(
+										applySingleAdvanceDelayInput(
+											settings,
+											e.currentTarget.valueAsNumber,
+										),
+									)
+								}
+							/>
+						</label>
+						{singleAdvanceDisabled(settings) && (
+							<p class="settings-note">{SINGLE_ADVANCE_NOTE}</p>
+						)}
+					</>
+				) : (
+					<>
+						<label>
+							<input
+								type="checkbox"
+								checked={settings.metronome}
+								onChange={(e) =>
+									onChange({ ...settings, metronome: e.currentTarget.checked })
+								}
+							/>
+							Metronome
+						</label>
+						<label>
+							Scoring
+							<select
+								value={settings.scoring}
+								disabled={!scoringEnabled(settings)}
+								onChange={(e) =>
+									onChange(applyScoringInput(settings, e.currentTarget.value))
+								}
+							>
+								{(Object.keys(SCORING_LABELS) as Scoring[]).map((value) => (
+									<option key={value} value={value}>
+										{SCORING_LABELS[value]}
+									</option>
+								))}
+							</select>
+						</label>
+					</>
+				)}
+			</Section>
+		),
+		microphone: (
+			<Section
+				title="Microphone"
+				summary={micSummary(settings)}
+				hasMessage={judgeUnavailable}
+			>
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.judgeEnabled}
+						onChange={(e) =>
+							onChange({ ...settings, judgeEnabled: e.currentTarget.checked })
+						}
+					/>
+					Judge my playing
+				</label>
+				<p class="settings-note">{JUDGE_HELP}</p>
+				{judgeUnavailable && <p class="settings-note">{JUDGE_UNAVAILABLE}</p>}
+				<label>
+					Tolerance (¢)
+					<input
+						type="number"
+						min={MIN_TOLERANCE_CENTS}
+						max={MAX_TOLERANCE_CENTS}
+						step="1"
+						value={settings.toleranceCents}
+						onInput={(e) =>
+							onChange(
+								applyToleranceInput(settings, e.currentTarget.valueAsNumber),
+							)
+						}
+					/>
+				</label>
+			</Section>
+		),
+	};
+	return (
+		<section class="settings">
+			<h2>Settings</h2>
+			{modeControl}
+			{settingsSections(settings).map((name) => (
+				<Fragment key={name}>{pieces[name]}</Fragment>
+			))}
 			<div class="settings-footer">
 				<button type="button" onClick={onClose}>
 					Close

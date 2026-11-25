@@ -28,12 +28,12 @@ import {
 	type Scores,
 } from "../core/progress";
 import {
-	keepTempoApplies,
 	metronomeApplies,
 	parseDefaults,
 	type Settings,
 	scoringAfterApplies,
 	smartSamplingApplies,
+	tempoApplies,
 } from "../core/settings";
 import { DEFAULT_TEMPO, type SongNote, songLines } from "../core/song";
 import type { StaffOptions } from "../render/staff";
@@ -190,23 +190,15 @@ export function App() {
 		saveSettings(browserStorage(), next);
 	};
 	// The saved song text is parsed once at load (abcjs loads only when there is
-	// one). A text that no longer passes turns use song off but stays visible.
+	// one). A text that no longer passes leaves no song, and Settings shows the problems.
 	useEffect(() => {
 		const saved = settingsRef.current;
-		if (saved.songAbc === "") {
-			if (saved.useSong) changeSettings({ ...saved, useSong: false });
-			return;
-		}
+		if (saved.songAbc === "") return;
 		let current = true;
 		parseAbc(saved.songAbc, instrument).then((result) => {
 			if (!current || songEdited.current) return;
 			setSongState(songStateFrom(result));
-			if (!result.ok && settingsRef.current.useSong) {
-				changeSettings({ ...settingsRef.current, useSong: false });
-			} else if (
-				result.ok &&
-				settingsRef.current.songTune > result.tunes.length
-			) {
+			if (result.ok && settingsRef.current.songTune > result.tunes.length) {
 				changeSettings({ ...settingsRef.current, songTune: 1 });
 			}
 		});
@@ -242,7 +234,7 @@ export function App() {
 	// With judging on, a hidden page has no flow, so the microphone is released;
 	// showing it again deals a fresh card. With judging off visibility is ignored.
 	// A timed song stops when the page is hidden, whether or not it judges.
-	const timedSong = keepTempoApplies(settings);
+	const timedSong = tempoApplies(settings);
 	// Scoring after the song: no live lanes, playhead or readout; the result comes at the end.
 	const after = scoringAfterApplies(settings);
 	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
@@ -274,7 +266,7 @@ export function App() {
 		const smart = smartSamplingApplies(settings);
 		let next: PitchSource;
 		let beats: number | undefined;
-		if (settings.useSong) {
+		if (settings.mode === "song") {
 			if (song === null) {
 				setCard(null);
 				setTimed(null);
@@ -337,7 +329,7 @@ export function App() {
 								}
 							: null,
 						listen: listenFor(settings),
-						wait: settings.useSong && settings.judgeEnabled,
+						wait: settings.mode === "song" && settings.judgeEnabled,
 						onGraded: smart ? onGraded : null,
 						onChange,
 					});
@@ -376,7 +368,7 @@ export function App() {
 	}, [settings, open, visibleKey, song, playing]);
 	// The song played from the header: a count-in, then its tones on the audio clock.
 	useEffect(() => {
-		if (!playing || open || song === null || !settings.useSong) return;
+		if (!playing || open || song === null || settings.mode !== "song") return;
 		const flow = createPlaybackFlow({
 			song,
 			clock: timedClock,
@@ -590,7 +582,7 @@ export function App() {
 					verdict={card.verdict}
 					hint={card.hint}
 					need={
-						smartSamplingApplies(settings) && !settings.useSong
+						smartSamplingApplies(settings)
 							? needOf(scoresRef.current as Scores, card.pitch)
 							: null
 					}
