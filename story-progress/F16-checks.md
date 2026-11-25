@@ -12,19 +12,33 @@ Run with `make dev` (and an ocarina for the microphone checks). The pure parts a
 - [ ] Old data: store settings with `useSong` off / on+`keepTempo` off / on+`keepTempo` on (and neither field) in `localStorage` key `fingerwise.settings`, reload: Flashcards / Song+Single note / Song+Tempo / Flashcards+Single note, other values kept.
 - [ ] A song text that fails keeps the mode and the last good song.
 
+### Tune these constants (S01)
+
+- [ ] None in this story.
+
 ## S02: Single note view, microphone off
 
 - [ ] Song with Single note and judging off: the whole song is drawn with lanes and a strip under every lane, the head is on the first note, no start prompt or count-in.
-- [ ] After the fingering delay the letter and glyph show in the strip under the head; after the advance delay the head moves and the fingering hides. Nothing on the page moves when it shows or hides. Tune `STRIP_HEIGHT` and the sizes in `SongOverlay.tsx` (`FINGERING_*`) if the glyph is cut off or crowded.
+- [ ] After the fingering delay the letter and glyph show in the strip under the head; after the advance delay the head moves and the fingering hides. Nothing on the page moves when it shows or hides.
 - [ ] Taps (click, tap, key): first shows the fingering, second moves on. Rests are skipped; a tied note is one note.
 - [ ] 1 and 4 bars per line, and a song long enough to follow onto a new line: the page follows the head, and manual scrolling is never locked. Check a fingering at 4 bars per line for overhang.
 - [ ] The last note: "End of song" in the bar, no black note, no head; a tap starts again at the first note. No tone is ever played except by Play song.
 - [ ] Opening Settings, hiding the page, choosing a tune and Play song stop it; coming back starts at the first note. The tune list and Play song work at any time.
+
+### Tune these constants (S02)
+
+- [ ] `STRIP_HEIGHT` (`src/render/staff/song-lines.ts`, now 60): the strip is tall enough for the letter and glyph without wasting space.
+- [ ] `FINGERING_NAME_SIZE`, `FINGERING_GLYPH_SIZE`, `FINGERING_MESSAGE_SIZE` (`src/app/SongOverlay.tsx`, now 13, 38, 10): the glyph is not cut off or crowded, at 1 and 4 bars per line.
 
 ## S03: Single note, microphone on
 
 - [ ] With judging on and the microphone allowed: holding the right note grows a trace from the left of the current note's segment, green in tune, amber out of tune, red beyond ±50 cents. A tone held past the written length draws nothing more.
 - [ ] Hold the whole note value: the head moves on. Hold only a short right tone: "Play the note's whole value" shows until the next tone starts. Play a wrong fingering: the fingering shows and stays; the note keeps listening.
 - [ ] A held tone longer than the note passes with no message. Two notes at the same pitch: a tone held across both passes only the first.
-- [ ] Tune live-check constants if needed: `TONE_END_SILENCE_MS` (a breath or tongue stop should end a tone, a dropout inside a held note should not), `SINGLE_NOTE_PASS_SHARE` (a whole note at ♩ = 60 needs 3 s), and the trace's reach into the release gap.
 - [ ] Without the microphone (denied, or before the first tap): Single note behaves as with judging off and Settings shows the unavailable notice. The legend shows with judging on, and there is no verdict row.
+
+### Tune these constants (S03)
+
+- [ ] `TONE_END_SILENCE_MS` (`src/core/judge/index.ts`, now 150): a breath or tongue stop ends a tone, a dropout inside a held note does not.
+- [ ] `SINGLE_NOTE_PASS_SHARE` (`src/core/judge/index.ts`, now 0.75): a whole note at ♩ = 60 needs 3 s within tolerance; lower it if that feels too long.
+- [ ] The trace's reach past the grey segment into the release gap looks right.
