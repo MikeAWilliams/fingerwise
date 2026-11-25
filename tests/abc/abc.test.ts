@@ -4,6 +4,7 @@ import {
 	type AbcResult,
 	type DroppedTune,
 	isDroppedTune,
+	loadAbcFile,
 	MAX_ABC_CHARS,
 	MAX_ABC_NOTES,
 	type ParsedTune,
@@ -336,7 +337,12 @@ describe("warnings and failures (AC9)", () => {
 	test("a length after a space names the stray character", async () => {
 		const found = await problems(`${head}K:C\nE D C D | E E E 2 |`);
 		expect(found).toEqual([
-			{ message: 'Unknown character "2" ignored', line: 4, column: 17 },
+			{
+				message: 'Unknown character "2" ignored',
+				line: 4,
+				column: 17,
+				kind: "ABC errors",
+			},
 		]);
 	});
 
@@ -579,6 +585,7 @@ describe("slurs (F09-S01)", () => {
 				line: 4,
 				note: 2,
 				column: expect.any(Number),
+				kind: "unmatched slur",
 			},
 		]);
 		expect(found[0]?.column).toBeLessThanOrEqual(4);
@@ -596,6 +603,7 @@ describe("slurs (F09-S01)", () => {
 		expect(found).toEqual([
 			{
 				message: "Slur closed here was never opened",
+				kind: "unmatched slur",
 				line: 4,
 				note: 2,
 				column: 3,
@@ -778,7 +786,9 @@ describe("several tunes (F14-S01)", () => {
 
 	test("a no-notes tune points at its own X: line (AC2)", async () => {
 		const found = await problems(`${tune(1, "C D|")}\n\nX:2\nK:C\n`);
-		expect(found).toEqual([{ message: "No notes found", line: 6, tune: 2 }]);
+		expect(found).toEqual([
+			{ message: "No notes found", line: 6, tune: 2, kind: "no notes" },
+		]);
 	});
 
 	test("a one-tune text gives no tune on any problem (AC9)", async () => {
@@ -825,9 +835,9 @@ describe("dropped tunes (F17-S01)", () => {
 	test("every tune dropped fails with No notes found (AC2)", async () => {
 		expect(
 			await problems([dropped(1, "A"), dropped(2, "B")].join("\n\n")),
-		).toEqual([{ message: "No notes found", line: 1 }]);
+		).toEqual([{ message: "No notes found", line: 1, kind: "no notes" }]);
 		expect(await problems("X:1\nT:A")).toEqual([
-			{ message: "No notes found", line: 1 },
+			{ message: "No notes found", line: 1, kind: "no notes" },
 		]);
 	});
 
@@ -861,5 +871,176 @@ describe("dropped tunes (F17-S01)", () => {
 	test("a text with no dropped tune is as before (AC7)", async () => {
 		const tunes = await all([good(1), good(2)].join("\n\n"));
 		expect(tunes.some(isDroppedTune)).toBe(false);
+	});
+});
+
+describe("loading a file (F17-S02)", () => {
+	const good = (n: number, extra = "") =>
+		`X:${n}\nT:Good ${n}\n${extra}K:C\nC D E|`;
+	const bad = (n: number, body: string, title = `Bad ${n}`) =>
+		`X:${n}\n${title === "" ? "" : `T:${title}\n`}K:C\n${body}`;
+	const load = async (text: string) => loadAbcFile(text, instrument);
+	const loaded = async (text: string) => {
+		const result = await load(text);
+		if (!result.ok) throw new Error(result.reason);
+		return result;
+	};
+	/** The T: line a replaced tune ends up with. */
+	const replaced = async (body: string) => {
+		const { text } = await loaded([good(1), bad(2, body)].join("\n\n"));
+		return /T:Bad 2[^\n]*/.exec(text)?.[0];
+	};
+
+	test("each kind has its label (AC4)", async () => {
+		const cases: [string, string][] = [
+			["C [CE] D|", "chords"],
+			["C {D}E F|", "grace notes"],
+			["V:1\nC D|\nV:2\nE F|", "second voice"],
+			["C (D E F|]", "unmatched slur"],
+			["C D !D.C.! E|", "D.C. or D.S."],
+			["C D$ E|", "ABC errors"],
+			["z z z|", "no notes"],
+			["c'' c'' c''|", "out of range"],
+		];
+		for (const [body, kind] of cases) {
+			expect(await replaced(body), body).toBe(`T:Bad 2 (not loaded: ${kind})`);
+		}
+		const many = Array.from({ length: 501 }, () => "C").join(" ");
+		expect(await replaced(many)).toBe("T:Bad 2 (not loaded: too many notes)");
+	});
+
+	test("several kinds in one tune come in the fixed order (AC4)", async () => {
+		expect(await replaced("C [CE] c''|")).toBe(
+			"T:Bad 2 (not loaded: chords, out of range)",
+		);
+		expect(await replaced("C [CE] D$ {D}E (F|")).toBe(
+			"T:Bad 2 (not loaded: chords, grace notes, unmatched slur, ABC errors)",
+		);
+	});
+
+	test("kinds beyond the first 10 problems still count (AC5)", async () => {
+		const body = `${"[CE] ".repeat(12)}c''|`;
+		expect(await replaced(body)).toBe(
+			"T:Bad 2 (not loaded: chords, out of range)",
+		);
+	});
+
+	test("an untitled failing tune is named by its position (AC4)", async () => {
+		const { text } = await loaded(
+			[good(1), bad(2, "C [CE]|", "")].join("\n\n"),
+		);
+		expect(text).toContain("X:2\nT:Tune 2 (not loaded: chords)");
+	});
+
+	test("the replaced tune keeps its X: line, and prose after it (AC3, AC7)", async () => {
+		const { text } = await loaded(
+			[good(1), `${bad(7, "C [CE]|")}\n\nSome words.`, good(3)].join("\n\n"),
+		);
+		expect(text).toBe(
+			[
+				good(1),
+				"X:7\nT:Bad 7 (not loaded: chords)\n\nSome words.",
+				good(3),
+			].join("\n\n"),
+		);
+	});
+
+	test("a passing file comes back unchanged (AC2)", async () => {
+		const file = `${[good(1), good(2)].join("\n\n")}\n`;
+		expect(await load(file)).toEqual({
+			ok: true,
+			text: file,
+			loaded: 2,
+			total: 2,
+			cut: false,
+		});
+	});
+
+	test("a file header and prose between tunes are kept and counted (AC7)", async () => {
+		const file = `%%scale 0.8\nMy tune book\n\n${good(1)}\n\nA note on tune one.\n\n${good(2)}`;
+		const result = await loaded(file);
+		expect(result.text).toBe(file);
+		expect(result.total).toBe(2);
+		const long = await load(`${"% pad\n".repeat(2000)}\n${good(1)}`);
+		expect(long).toEqual({ ok: false, reason: "first-too-long" });
+	});
+
+	test("the cut falls at a tune boundary, with the counts (AC6)", async () => {
+		const filler = `X:9\nT:Fill\nK:C\n${"C D E F|".repeat(40)}`;
+		const tunes = Array.from({ length: 50 }, (_, i) =>
+			filler.replace("X:9", `X:${i + 1}`),
+		);
+		const result = await loaded(tunes.join("\n\n"));
+		expect(result.cut).toBe(true);
+		expect(result.total).toBe(50);
+		expect(result.loaded).toBeLessThan(50);
+		expect(result.text.length).toBeLessThanOrEqual(MAX_ABC_CHARS);
+		// Each tune keeps the line break that ended it.
+		expect(result.text).toBe(`${tunes.slice(0, result.loaded).join("\n\n")}\n`);
+	});
+
+	test("a file that fits only because failing tunes were replaced is not cut (AC6)", async () => {
+		const huge = bad(2, `${"C [CE] ".repeat(1500)}|`);
+		const file = [good(1), huge, good(3)].join("\n\n");
+		expect(file.length).toBeGreaterThan(MAX_ABC_CHARS);
+		const result = await loaded(file);
+		expect(result).toMatchObject({ loaded: 3, total: 3, cut: false });
+	});
+
+	test("every tune failing, or only a cut-off one passing, fails (AC8)", async () => {
+		expect(
+			await load([bad(1, "C [CE]|"), bad(2, "C [CE]|")].join("\n\n")),
+		).toEqual({ ok: false, reason: "no-tune" });
+		expect(await load("just words")).toEqual({
+			ok: false,
+			reason: "no-tune",
+		});
+		const filler = `X:1\nT:Fill\nK:C\n${"C [CE] ".repeat(600)}|`;
+		expect(
+			await load([bad(1, "C [CE]|"), `${filler}\n`, good(3)].join("\n\n")),
+		).toMatchObject({ ok: true });
+	});
+
+	test("a first tune over the limit fails (AC8)", async () => {
+		const first = `X:1\nT:${"Long ".repeat(2100)}\nK:C\nC D E|`;
+		expect(await load(first)).toEqual({ ok: false, reason: "first-too-long" });
+	});
+
+	test("an already dropped tune is kept and does not pass (AC3)", async () => {
+		const file = [good(1), "X:2\nT:Lost", good(3)].join("\n\n");
+		expect(await load(file)).toMatchObject({ ok: true, text: file });
+		expect(await load("X:1\nT:Lost")).toEqual({
+			ok: false,
+			reason: "no-tune",
+		});
+	});
+
+	test("CRLF files load with LF endings", async () => {
+		const file = [good(1), bad(2, "C [CE]|")].join("\n\n");
+		const result = await loaded(file.replace(/\n/g, "\r\n"));
+		expect(result.text).not.toContain("\r");
+		expect(result.text).toContain("T:Bad 2 (not loaded: chords)");
+	});
+
+	test("the loaded text passes parseAbc with the dropped tunes in place", async () => {
+		const file = [
+			"%%scale 0.8\n",
+			good(1),
+			bad(2, "C [CE]|"),
+			bad(3, "C D$|", ""),
+			good(4),
+		].join("\n");
+		const { text } = await loaded(file);
+		const result = await parseAbc(text, instrument);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(
+			result.tunes.map((t) => (isDroppedTune(t) ? t.title : "ok")),
+		).toEqual([
+			"ok",
+			"Bad 2 (not loaded: chords)",
+			"Tune 3 (not loaded: ABC errors)",
+			"ok",
+		]);
 	});
 });

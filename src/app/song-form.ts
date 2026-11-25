@@ -4,6 +4,7 @@ import {
 	type AbcResult,
 	type DroppedTune,
 	isDroppedTune,
+	MAX_ABC_CHARS,
 } from "../abc";
 import type { Settings } from "../core/settings";
 import { DEFAULT_TEMPO, type Song } from "../core/song";
@@ -19,6 +20,15 @@ export interface SongState {
 }
 
 export const NO_SONG: SongState = { tunes: [], summary: null, problems: [] };
+
+/** Shown after a file was loaded but its last tunes did not fit (F17-S02). */
+export function fileCutMessage(loaded: number, total: number): string {
+	return `The file was too long: tunes 1 to ${loaded} of ${total} were loaded.`;
+}
+
+export const NO_TUNE_IN_FILE = "No tune in the file could be loaded.";
+export const FIRST_TUNE_TOO_LONG = `The first tune is longer than ${MAX_ABC_CHARS.toLocaleString("en-US")} characters.`;
+export const FILE_UNREADABLE = "The file could not be read.";
 
 function plural(n: number, one: string, many: string): string {
 	return `${n} ${n === 1 ? one : many}`;

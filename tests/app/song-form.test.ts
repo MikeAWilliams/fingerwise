@@ -5,9 +5,13 @@ import {
 	applySongText,
 	chooseTune,
 	chosenTune,
+	FILE_UNREADABLE,
+	FIRST_TUNE_TOO_LONG,
+	fileCutMessage,
 	firstPassing,
 	NO_SONG,
 	NO_TEMPO_NOTE,
+	NO_TUNE_IN_FILE,
 	problemLine,
 	songSectionSummary,
 	songStateFrom,
@@ -305,5 +309,18 @@ describe("dropped tunes (F17-S01)", () => {
 		}
 		expect(chosenTune([lost], 1)).toBeNull();
 		expect(chosenTune([], 1)).toBeNull();
+	});
+});
+
+describe("file messages (F17-S02)", () => {
+	test("the cut and failure messages (AC6, AC8)", () => {
+		expect(fileCutMessage(12, 40)).toBe(
+			"The file was too long: tunes 1 to 12 of 40 were loaded.",
+		);
+		expect(NO_TUNE_IN_FILE).toBe("No tune in the file could be loaded.");
+		expect(FIRST_TUNE_TOO_LONG).toBe(
+			"The first tune is longer than 10,000 characters.",
+		);
+		expect(FILE_UNREADABLE).toBe("The file could not be read.");
 	});
 });
