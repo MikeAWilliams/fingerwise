@@ -2,6 +2,8 @@
 
 - **Status:** done
 
+> Songs as card order is to be removed by [F16](../16-setting-clarification/design.md) ([ADR 0012](../../architecture/decisions/0012-two-practice-modes.md)). Song text and validation stay.
+
 ## Goal
 
 The player pastes one tune in ABC notation into the settings, and the drill shows its notes in order, one card each, looping at the end. Everything else about a card (reveal delay, reveal, tone, microphone judging, auto-advance) works as it does for random cards.
