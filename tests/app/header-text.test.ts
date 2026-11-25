@@ -193,3 +193,31 @@ describe("tune list (F14-S02)", () => {
 		}
 	});
 });
+
+describe("tuneChoice with dropped tunes (F17-S01 AC5)", () => {
+	const lost = { dropped: true, title: "Lost" } as const;
+	const blank = { dropped: true, title: "" } as const;
+	const args = {
+		settings: { ...on, songTune: 1 },
+		open: false,
+		phase: undefined,
+	} as const;
+
+	test("labels in text order, dropped flagged, selected skips the dropped (AC5, AC6)", () => {
+		const tunes = [lost, song(null, "Two"), blank];
+		const choice = tuneChoice({ ...args, tunes });
+		expect(choice?.labels).toEqual(["Lost", "Two", "Tune 3"]);
+		expect(choice?.dropped).toEqual([true, false, true]);
+		expect(choice?.selected).toBe(1);
+	});
+
+	test("one passing and one dropped tune still shows the list (AC5)", () => {
+		const choice = tuneChoice({ ...args, tunes: [song(null, "A"), lost] });
+		expect(choice?.labels).toEqual(["A", "Lost"]);
+		expect(choice?.dropped).toEqual([false, true]);
+	});
+
+	test("tuneLabels names a blank dropped tune by position", () => {
+		expect(tuneLabels([blank, song(null)])).toEqual(["Tune 1", "Tune 2"]);
+	});
+});

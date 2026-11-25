@@ -600,6 +600,15 @@ footer {
 	width: 100%;
 }
 
+.settings-song-load {
+	align-self: flex-start;
+	max-width: 100%;
+}
+
+.settings-song-file {
+	overflow-wrap: anywhere;
+}
+
 .settings-song-status ul {
 	margin: 0;
 	padding-left: 1.25rem;

@@ -12,6 +12,7 @@ You are a planning partner. The user does most of their work in the planning doc
 
 Planning happens on a `plan/<topic>` branch (see CLAUDE.md#branches).
 - On a `plan/` branch: proceed.
+- On a `quick-fix/<slug>` branch (one feature planned and built on one branch; see CLAUDE.md#branches): proceed, for that feature's docs only.
 - On `main`: before editing anything, agree a topic with the user, then create `plan/<topic>` from the current `main`. Exploring in conversation needs no branch; the branch is needed before the first write.
 - On any other branch (`feature/`, `chore/`, `fix/`): do not edit planning docs. Tell the user, and suggest switching to or creating a `plan/` branch. Planning changes discovered during a feature build belong on their own branch.
 - Never push or merge. The user merges `plan/` branches to `main` before any story branch is cut.

@@ -1,6 +1,6 @@
 import { Fragment, type JSX } from "preact";
 import { useRef, useState } from "preact/hooks";
-import { type AbcProblem, parseAbc } from "../abc";
+import { type AbcProblem, loadAbcFile, parseAbc } from "../abc";
 import type { Instrument } from "../core/instrument";
 import { formatPitch, type Pitch } from "../core/pitch";
 import {
@@ -24,6 +24,7 @@ import {
 	setSoundEnabled,
 	soundTooLongReason,
 } from "../core/settings";
+import { pickTextFile } from "./file-picker";
 import { JUDGE_HELP, JUDGE_UNAVAILABLE } from "./judge-text";
 import { Section } from "./Section";
 import {
@@ -58,8 +59,12 @@ import {
 import {
 	applySongText,
 	chosenTune,
+	FILE_UNREADABLE,
+	FIRST_TUNE_TOO_LONG,
+	fileCutMessage,
 	isEmptySong,
 	NO_TEMPO_NOTE,
+	NO_TUNE_IN_FILE,
 	problemLine,
 	SONG_EXAMPLE,
 	type SongState,
@@ -120,6 +125,31 @@ export function Settings({
 			}
 		};
 		parseAbc(text, instrument).then(apply);
+	};
+
+	// What the last file load has to say; gone with the next edit or load, and with the view.
+	const [fileMessage, setFileMessage] = useState<string | null>(null);
+	const loadFromFile = async () => {
+		setFileMessage(null);
+		let file: File | null;
+		let text: string;
+		try {
+			file = await pickTextFile();
+			if (file === null) return;
+			text = await file.text();
+		} catch {
+			setFileMessage(FILE_UNREADABLE);
+			return;
+		}
+		const load = await loadAbcFile(text, instrument);
+		if (!load.ok) {
+			setFileMessage(
+				load.reason === "no-tune" ? NO_TUNE_IN_FILE : FIRST_TUNE_TOO_LONG,
+			);
+			return;
+		}
+		editSong(load.text);
+		if (load.cut) setFileMessage(fileCutMessage(load.loaded, load.total));
 	};
 
 	const [rejection, setRejection] = useState<{
@@ -368,9 +398,19 @@ export function Settings({
 						placeholder={SONG_EXAMPLE}
 						spellcheck={false}
 						autocapitalize="off"
-						onInput={(e) => editSong(e.currentTarget.value)}
+						onInput={(e) => {
+							setFileMessage(null);
+							editSong(e.currentTarget.value);
+						}}
 					/>
 				</label>
+				<button
+					type="button"
+					class="settings-song-load"
+					onClick={() => void loadFromFile()}
+				>
+					Load from file…
+				</button>
 				<p class="settings-note">
 					Paste one tune with one voice and no chords. Flats are shown as
 					sharps. Write and check a tune in the{" "}
@@ -395,6 +435,9 @@ export function Settings({
 					)}
 					{chosen?.tempo === null && (
 						<p class="settings-note">{NO_TEMPO_NOTE}</p>
+					)}
+					{fileMessage !== null && (
+						<p class="settings-note settings-song-file">{fileMessage}</p>
 					)}
 				</div>
 				<label>

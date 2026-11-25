@@ -5,13 +5,19 @@ import {
 	applySongText,
 	chooseTune,
 	chosenTune,
+	FILE_UNREADABLE,
+	FIRST_TUNE_TOO_LONG,
+	fileCutMessage,
+	firstPassing,
 	NO_SONG,
 	NO_TEMPO_NOTE,
+	NO_TUNE_IN_FILE,
 	problemLine,
 	songSectionSummary,
 	songStateFrom,
 	songStatus,
 	songSummary,
+	tunePosition,
 } from "../../src/app/song-form";
 import { loadInstrument } from "../../src/core/instrument";
 import { type Pitch, parsePitch } from "../../src/core/pitch";
@@ -239,5 +245,82 @@ describe("state", () => {
 describe("NO_TEMPO_NOTE (F08-S01 AC5)", () => {
 	test("names the default tempo", () => {
 		expect(NO_TEMPO_NOTE).toBe("No tempo in the tune, using ♩ = 90");
+	});
+});
+
+describe("dropped tunes (F17-S01)", () => {
+	const lost = { dropped: true, title: "Lost" } as const;
+	const withDropped: AbcResult = {
+		ok: true,
+		tunes: [
+			lost,
+			{ song, notes: 10, converted: 1 },
+			lost,
+			{ song, notes: 5, converted: 0 },
+		],
+	};
+
+	test("the summary counts dropped tunes and totals the passing ones (AC4)", () => {
+		expect(songSummary(15, 1, 4, 2)).toBe(
+			"4 tunes (2 not loaded), 15 notes, 1 flat converted to a sharp",
+		);
+		expect(songSummary(27, 0, 3, 1)).toBe("3 tunes (1 not loaded), 27 notes");
+		expect(songSummary(27, 0, 3)).toBe("3 tunes, 27 notes");
+		expect(songStatus(withDropped)).toEqual({
+			ok: true,
+			lines: ["4 tunes (2 not loaded), 15 notes, 1 flat converted to a sharp"],
+		});
+	});
+
+	test("the state keeps dropped tunes in their places (AC5)", () => {
+		expect(songStateFrom(withDropped).tunes).toEqual([lost, song, lost, song]);
+	});
+
+	test("firstPassing is the first Song, else 1", () => {
+		expect(firstPassing([lost, lost, song])).toBe(3);
+		expect(firstPassing([song, lost])).toBe(1);
+		expect(firstPassing([lost])).toBe(1);
+		expect(firstPassing([])).toBe(1);
+	});
+
+	test("tunePosition moves off a dropped tune to the first passing one (AC6)", () => {
+		const tunes = [lost, song, lost, song];
+		expect(tunePosition(tunes, 3)).toBe(2);
+		expect(tunePosition(tunes, 1)).toBe(2);
+		expect(tunePosition(tunes, 9)).toBe(2);
+		expect(tunePosition(tunes, 4)).toBe(4);
+		expect(tunePosition(tunes, 2)).toBe(2);
+		expect(tunePosition([song, lost], 9)).toBe(1);
+	});
+
+	test("applySongText saves the moved position (AC6)", () => {
+		const at = (songTune: number) =>
+			applySongText({ ...SETTINGS, songTune }, "text", withDropped).settings
+				.songTune;
+		expect(at(3)).toBe(2);
+		expect(at(9)).toBe(2);
+		expect(at(4)).toBe(4);
+	});
+
+	test("chosenTune never returns a dropped tune", () => {
+		const tunes = [lost, song, lost];
+		for (const position of [0, 1, 2, 3, 9]) {
+			expect(chosenTune(tunes, position)).toBe(song);
+		}
+		expect(chosenTune([lost], 1)).toBeNull();
+		expect(chosenTune([], 1)).toBeNull();
+	});
+});
+
+describe("file messages (F17-S02)", () => {
+	test("the cut and failure messages (AC6, AC8)", () => {
+		expect(fileCutMessage(12, 40)).toBe(
+			"The file was too long: tunes 1 to 12 of 40 were loaded.",
+		);
+		expect(NO_TUNE_IN_FILE).toBe("No tune in the file could be loaded.");
+		expect(FIRST_TUNE_TOO_LONG).toBe(
+			"The first tune is longer than 10,000 characters.",
+		);
+		expect(FILE_UNREADABLE).toBe("The file could not be read.");
 	});
 });

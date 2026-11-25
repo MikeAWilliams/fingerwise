@@ -66,7 +66,10 @@ declare module "abcjs/src/api/abc_tunebook.js" {
 		/** abcjs's split of a text into tunes; `header` holds the `%%` directive lines before the first `X:`. */
 		TuneBook: new (
 			book: string,
-		) => { header: string; tunes: { abc: string; startPos: number }[] };
+		) => {
+			header: string;
+			tunes: { abc: string; pure: string; startPos: number }[];
+		};
 	}
 
 	const tunebook: AbcTunebook & { default?: AbcTunebook };

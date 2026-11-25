@@ -28,6 +28,8 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 5. After the last story, verify each story's acceptance criteria. Stop for the user's acceptance.
 6. After acceptance, delete the progress file in the final commit before merge. Move anything durable into architecture docs or an ADR first.
 
+A `quick-fix/` branch runs the same steps on one branch: step 1 is not merged first, and steps 2 to 6 follow on that branch (see [Branches](#branches)).
+
 ## Branches
 
 `main` only receives merges. Every change happens on a branch, named `<type>/<name>` in lowercase kebab-case (feature branches keep the uppercase ID):
@@ -38,6 +40,7 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 | `feature/F<NN>-<slug>` | Building one feature's stories: code, tests, module docs, the progress file. One feature per branch. | `feature/F01-core-flashcards`                   | `fw-breakdown`, `fw-execute` |
 | `chore/<topic>`     | Tooling, scaffolding, CI, skills, `CLAUDE.md`.                                         | `chore/ci-pages`                                     | none                         |
 | `fix/<topic>`       | Bug fixes outside a story.                                                             | `fix/ledger-line-clip`                               | none                         |
+| `quick-fix/<slug>`  | A small feature planned and built on one branch: design, stories, then the progress file, code, tests, module docs. | `quick-fix/load-abc-song-file` | `fw-plan`, `fw-breakdown`, `fw-execute` |
 
 - The initial project scaffold (Bun, Vite, Preact, Vitest, Biome, Makefile) was committed straight to `main`, a one-time exception made by the user. Everything after follows these rules.
 - A feature's `<slug>` is the name in its folder, so `docs/features/01-core-flashcards/` gives `feature/F01-core-flashcards`.
@@ -45,7 +48,8 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 - Cut every branch from an up-to-date local `main`.
 - The usual flow: a `plan/` branch designs a feature and writes its stories, and that branch is **merged to `main` first**. The feature then gets its own `feature/` branch cut from the updated `main`.
 - Do not mix kinds. Planning changes found while building a story go on a separate `plan/` branch; stop and tell the user.
-- The progress file lives only on its `feature/` branch and is deleted before that branch merges.
+- `quick-fix/` is the one exception to "do not mix kinds": the user chooses it per feature. It only puts planning and building on one branch; the workflow is the normal one. `fw-plan` writes the design, stories and any ADR first, then `fw-breakdown` and `fw-execute` run on the same branch, with the progress file. The branch takes the feature's `<slug>` without its ID, so `docs/features/17-load-abc-song-file/` gives `quick-fix/load-abc-song-file`.
+- The progress file lives only on its `feature/` or `quick-fix/` branch and is deleted before that branch merges.
 - Never push, merge, or delete branches unless asked.
 
 ## Rules
@@ -59,7 +63,7 @@ fingerwise is a browser-based flashcard drill for 12-hole ocarina fingerings. Th
 - The stack is Bun, Vite, Preact, Vitest and Biome ([ADR 0001](docs/architecture/decisions/0001-toolchain-and-ui.md)). Do not add dependencies or tools without the user's agreement.
 - `make verify` (lint, type-check, tests, build) must pass before any commit. Biome does not touch Markdown or `.claude/`; do not run formatters over them.
 - `src/core/` imports no framework or browser APIs, and `src/` never uses Bun-specific APIs.
-- Do not commit unless asked. Running `fw-execute` counts as asking: it commits locally on a `feature/` branch, never on `main`, and never pushes.
+- Do not commit unless asked. Running `fw-execute` counts as asking: it commits locally on a `feature/` or `quick-fix/` branch, never on `main`, and never pushes.
 
 ## Conventions
 

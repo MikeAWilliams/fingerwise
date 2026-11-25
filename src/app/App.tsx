@@ -83,6 +83,7 @@ import {
 	NO_SONG,
 	type SongState,
 	songStateFrom,
+	tunePosition,
 } from "./song-form";
 import {
 	createTimedFlow,
@@ -245,8 +246,12 @@ export function App() {
 		parseAbc(saved.songAbc, instrument).then((result) => {
 			if (!current || songEdited.current) return;
 			setSongState(songStateFrom(result));
-			if (result.ok && settingsRef.current.songTune > result.tunes.length) {
-				changeSettings({ ...settingsRef.current, songTune: 1 });
+			if (result.ok) {
+				const state = songStateFrom(result);
+				const at = tunePosition(state.tunes, settingsRef.current.songTune);
+				if (at !== settingsRef.current.songTune) {
+					changeSettings({ ...settingsRef.current, songTune: at });
+				}
 			}
 		});
 		return () => {
@@ -507,7 +512,7 @@ export function App() {
 					>
 						{choice.labels.map((label, i) => (
 							// Position is the identity: titles can repeat.
-							<option key={i} value={String(i)}>
+							<option key={i} value={String(i)} disabled={choice.dropped[i]}>
 								{label}
 							</option>
 						))}

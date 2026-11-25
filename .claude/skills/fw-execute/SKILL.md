@@ -12,7 +12,7 @@ Invoking this skill is the user's authorization to edit code and make local comm
 ## Preconditions (check, then stop if not met)
 
 - `story-progress/<F>.md` exists with story sections. If not, tell the user to run `fw-breakdown` first.
-- You are on the feature's branch, `feature/<F>-<slug>` (see CLAUDE.md#branches), where `<F>` matches the argument. On `main` or any other branch, stop and tell the user to switch (or run `fw-breakdown`, which creates the feature branch). Never create branches here and never commit to `main`.
+- You are on the feature's branch, `feature/<F>-<slug>` or `quick-fix/<slug>` (see CLAUDE.md#branches), where `<F>` and `<slug>` match the argument's feature folder. On `main` or any other branch, stop and tell the user to switch (or run `fw-breakdown`, which creates the feature branch). Never create branches here and never commit to `main`.
 - The working tree is clean, except that `story-progress/<F>.md` may be new and uncommitted from `fw-breakdown`; commit it with the first story. Any other uncommitted change: stop and report.
 - `make verify` exists (lint, type-check, tests, build; see the README's Building section). If it does not, stop and report.
 
