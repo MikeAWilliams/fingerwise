@@ -2,6 +2,8 @@
 
 - **Status:** designed
 
+> The one-note song card with waiting, hint and skip is to be replaced by Single note practice in [F16](../16-setting-clarification/design.md) ([ADR 0012](../../architecture/decisions/0012-two-practice-modes.md)). The example song stays.
+
 ## Goal
 
 Two small follow-ups to [F05](../05-songs/design.md). With judging on, a song waits for the player to play each note correctly instead of moving on after a wrong note or a timeout, so working through a tune becomes "play it right to continue". And the app ships an example song, so use song can be tried at once without pasting a tune first.

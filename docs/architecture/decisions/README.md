@@ -22,6 +22,7 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 | [0009](0009-timed-songs-scored-by-coverage.md) | Timed songs scored by coverage, timing and separation; slurs in the song | accepted (grace at a released end superseded by 0011) |
 | [0010](0010-several-tunes-in-one-text.md) | A song text may hold several tunes; all must pass; chosen by position | accepted |
 | [0011](0011-release-allowance.md) | A note's end gets a release allowance that follows the tempo | accepted |
+| [0012](0012-two-practice-modes.md) | Two practice modes, flashcards and song; songs no longer set the card order | accepted |
 
 ## Likely next ADRs
 
