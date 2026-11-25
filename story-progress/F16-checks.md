@@ -4,26 +4,26 @@ Run with `make dev` (and an ocarina for the microphone checks). The pure parts a
 
 ## S01: Mode first in Settings
 
-- [ ] Open Settings: the first control is Mode (Flashcards, Song). Flashcards shows Cards (open), Sound and Microphone; Song shows Song (open), Practice and Microphone.
-- [ ] Flashcards: no song note, range and sharps are never greyed out for a song; smart sampling is greyed out only with judging off.
-- [ ] Song: no use song or keep tempo box. Practice offers Single note (fingering delay, advance delay) and Tempo (metronome, scoring). With Single note and judging on, the advance delay is greyed out with "Used with the microphone off".
-- [ ] Change values in a hidden mode or practice, switch away and back, reload: values are kept.
-- [ ] Header: Flashcards shows only the name and Settings. Song shows the title or tune list and the tempo, with Play song.
-- [ ] Old data: store settings with `useSong` off / on+`keepTempo` off / on+`keepTempo` on (and neither field) in `localStorage` key `fingerwise.settings`, reload: Flashcards / Song+Single note / Song+Tempo / Flashcards+Single note, other values kept.
-- [ ] A song text that fails keeps the mode and the last good song.
+- [x] Open Settings: the first control is Mode (Flashcards, Song). Flashcards shows Cards (open), Sound and Microphone; Song shows Song (open), Practice and Microphone.
+- [x] Flashcards: no song note, range and sharps are never greyed out for a song; smart sampling is greyed out only with judging off.
+- [x] Song: no use song or keep tempo box. Practice offers Single note (fingering delay, advance delay) and Tempo (metronome, scoring). With Single note and judging on, the advance delay is greyed out with "Used with the microphone off".
+- [x] Change values in a hidden mode or practice, switch away and back, reload: values are kept.
+- [x] Header: Flashcards shows only the name and Settings. Song shows the title or tune list and the tempo, with Play song.
+- [x] Old data: store settings with `useSong` off / on+`keepTempo` off / on+`keepTempo` on (and neither field) in `localStorage` key `fingerwise.settings`, reload: Flashcards / Song+Single note / Song+Tempo / Flashcards+Single note, other values kept.
+- [x] A song text that fails keeps the mode and the last good song.
 
 ### Tune these constants (S01)
 
-- [ ] None in this story.
+- [x] None in this story.
 
 ## S02: Single note view, microphone off
 
-- [ ] Song with Single note and judging off: the whole song is drawn with lanes and a strip under every lane, the head is on the first note, no start prompt or count-in.
-- [ ] After the fingering delay the letter and glyph show in the strip under the head; after the advance delay the head moves and the fingering hides. Nothing on the page moves when it shows or hides.
-- [ ] Taps (click, tap, key): first shows the fingering, second moves on. Rests are skipped; a tied note is one note.
-- [ ] 1 and 4 bars per line, and a song long enough to follow onto a new line: the page follows the head, and manual scrolling is never locked. Check a fingering at 4 bars per line for overhang.
-- [ ] The last note: "End of song" in the bar, no black note, no head; a tap starts again at the first note. No tone is ever played except by Play song.
-- [ ] Opening Settings, hiding the page, choosing a tune and Play song stop it; coming back starts at the first note. The tune list and Play song work at any time.
+- [x] Song with Single note and judging off: the whole song is drawn with lanes and a strip under every lane, the head is on the first note, no start prompt or count-in.
+- [x] After the fingering delay the letter and glyph show in the strip under the head; after the advance delay the head moves and the fingering hides. Nothing on the page moves when it shows or hides.
+- [x] Taps (click, tap, key): first shows the fingering, second moves on. Rests are skipped; a tied note is one note.
+- [x] 1 and 4 bars per line, and a song long enough to follow onto a new line: the page follows the head, and manual scrolling is never locked. Check a fingering at 4 bars per line for overhang.
+- [x] The last note: "End of song" in the bar, no black note, no head; a tap starts again at the first note. No tone is ever played except by Play song.
+- [x] Opening Settings, hiding the page, choosing a tune and Play song stop it; coming back starts at the first note. The tune list and Play song work at any time.
 
 ### Tune these constants (S02)
 
