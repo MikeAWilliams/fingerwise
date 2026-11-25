@@ -33,7 +33,7 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 14  | Tune choice                    | done          |
 | 15  | Release allowance              | done          |
 | 16  | Setting clarification          | designed      |
-| 17  | Load a song file               | designed      |
+| 17  | Load a song file               | done          |
 
 This index is the feature order. Folders are created when a feature is designed, not before.
 

@@ -1,6 +1,6 @@
 # F17: Load a song file
 
-- **Status:** designed
+- **Status:** done
 
 > A quick fix (`quick-fix/load-abc-song-file`), shaped in dialog on 2026-11-25. The user wanted to load a tune book from a file instead of pasting it, and found that real files are often too long or hold tunes the app cannot read.
 
