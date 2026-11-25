@@ -127,4 +127,8 @@ The audio, detector, abc, song core, coverage scoring of Tempo, analysis and pla
 
 ## Stories
 
-Not written yet.
+In build order (written 2026-11-25). Each story is visible or testable on its own.
+
+- [F16-S01: Mode first in Settings](stories/F16-S01-mode-first.md)
+- [F16-S02: Single note view, with the microphone off](stories/F16-S02-single-note-view.md)
+- [F16-S03: Single note with the microphone on](stories/F16-S03-single-note-listening.md)
