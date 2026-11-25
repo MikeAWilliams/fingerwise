@@ -12,6 +12,7 @@ Turn a feature's stories into the "how": one ordered checklist with a section pe
 
 The breakdown is written on the feature's own branch, `feature/<F>-<slug>`, where `<slug>` is the feature folder's name without its number (`docs/features/01-core-flashcards/` gives `feature/F01-core-flashcards`; see CLAUDE.md#branches).
 - On the matching `feature/` branch: proceed.
+- On the matching `quick-fix/<slug>` branch (planning and building on one branch; see CLAUDE.md#branches): proceed, once the design and stories exist on it.
 - On `main`: the feature's design and stories must already exist in `docs/features/` (its `plan/` branch merged). If not, stop and tell the user to merge the planning branch first. If they do, create `feature/<F>-<slug>` from the current `main` and switch to it.
 - On a `plan/`, `chore/`, `fix/` or different-feature branch: stop and tell the user. Do not mix work.
 - Leave the new progress file uncommitted; `fw-execute` commits it with the first story. Do not commit, push or merge.
