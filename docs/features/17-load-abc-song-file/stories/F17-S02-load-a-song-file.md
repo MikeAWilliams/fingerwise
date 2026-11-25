@@ -20,14 +20,18 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 - **AC7:** Given text before the first `X:` or between tunes, then it is kept as it is and counts towards the 10,000 characters.
 - **AC8:** Given a file where no tune passes, or whose first tune alone is over 10,000 characters after replacement, or that cannot be read as text, when it is loaded, then the box and the saved song do not change, and the Song section shows "No tune in the file could be loaded.", "The first tune is longer than 10,000 characters." or "The file could not be read." in turn.
 - **AC9:** Given a file is loaded and saved, then the chosen tune follows the same position rule as an edit of the text (ADR 0010, then F17-S01's step past dropped tunes), and the app is affected as by changing the song in Settings.
-- **AC10:** Given the change, then `make verify` passes, and the `abc` and `app` module docs describe loading a file, the kinds of problem, the replacement and the cut.
+- **AC10:** Given the file picker is opened and cancelled, then nothing changes and no message is shown.
+- **AC11:** Given a browser with `showOpenFilePicker` (Chrome or Edge on desktop), when the button is pressed, then the app opens that picker with a fixed `id` and the `.abc` and `.txt` types, so a second press starts in the folder the last file was loaded from.
+- **AC12:** Given a browser without `showOpenFilePicker` (Firefox, Safari, phones), when the button is pressed, then a plain file input for `.abc` and `.txt` files is opened instead, and loading works as in AC2 to AC9.
+- **AC13:** Given the change, then `make verify` passes, and the `abc` and `app` module docs describe loading a file, the two pickers, the kinds of problem, the replacement and the cut.
 
 ## Notes
 
 - [ADR 0013](../../../architecture/decisions/0013-dropped-tunes-from-a-file.md): failing tunes are replaced first, then the text is cut, so more tunes fit.
-- Reading a file uses the browser's file input and `File.text()`, in `src/app`; `src/abc` takes and returns strings.
+- Reading a file uses the browser's picker and `File.text()`, in `src/app`; `src/abc` takes and returns strings.
+- A web page is never told a file's path, so the starting folder is kept by the browser, not the app (see the design's [loading a file](../design.md#behavior)). `showOpenFilePicker` may be missing from TypeScript's DOM types; a small local declaration covers it, with no new dependency. Its cancel is an `AbortError`, which is not an error to show.
 - Read tune by tune and stop once the text is full, so a large tune book does not lock the page.
 
 ## Test approach
 
-Adapter tests (Node, no DOM) on loader input strings: every kind of problem and its label; several kinds in one tune, in order; more than 10 problems in one tune; an untitled failing tune; the cut at a tune boundary, with the count; a file header and prose between tunes; every tune failing; a first tune too long; CRLF. `song-form` tests for the messages. By hand with `make dev`: load a real tune book file, check the dropped titles in the box and the header list, and the too-long message.
+Adapter tests (Node, no DOM) on loader input strings: every kind of problem and its label; several kinds in one tune, in order; more than 10 problems in one tune; an untitled failing tune; the cut at a tune boundary, with the count; a file header and prose between tunes; every tune failing; a first tune too long; CRLF. `song-form` tests for the messages. By hand with `make dev`: load a real tune book file, check the dropped titles in the box and the header list, and the too-long message. In Firefox and in Chrome, load a file from a folder, press the button again and check that the picker starts in that folder; cancel once and check nothing changes.

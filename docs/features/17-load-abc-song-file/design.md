@@ -20,7 +20,8 @@ The Song section in Settings has a button that loads an ABC file into the song t
 
 **Loading a file**
 
-- The Song section has a "Load from file…" button (*default* wording) next to the text box. It opens the browser's file picker for `.abc` and `.txt` files (*default*). The file's text replaces the text in the box. It is then checked and saved as a typed text is, and the box shows the loaded text, dropped tunes included.
+- The Song section has a "Load from file…" button (*default* wording) next to the text box. It opens the browser's file picker for `.abc` and `.txt` files (*default*). The file's text replaces the text in the box. It is then checked and saved as a typed text is, and the box shows the loaded text, dropped tunes included. Cancelling the picker changes nothing.
+- **Starting in the last folder** (decided 2026-11-25). The picker opens in the folder the last file was loaded from. A web page is never told a file's path, so the browser keeps the folder, not the app. Where the browser has the File System Access picker (`showOpenFilePicker`: Chrome and Edge on desktop), the app uses it with a fixed `id`, so the browser remembers the folder for this app alone. Elsewhere (Firefox, Safari, phones) the app uses a plain file input, and the folder is whatever the browser remembers itself. Firefox remembers the last folder for each site.
 - **Failing tunes become dropped tunes.** Each tune that fails any check (chords, grace notes, a second voice, a slur left open or never opened, D.C. or D.S., an abcjs warning, no notes, too many notes, a note out of range, unreadable) is replaced by its `X:` line and a `T:` line. The title is the old title, or "Tune N" (N its position in the file) when it had none, followed by the kinds of problem found (decided 2026-11-25): "Foo (not loaded: chords, out of range)".
 - The kinds are short labels, one per kind, listed once each in the order of the list above (*default*): chords, grace notes, second voice, unmatched slur, D.C. or D.S., ABC errors, no notes, too many notes, out of range, unreadable.
 - **Too long.** After failing tunes are replaced, a text over 10,000 characters is cut at the end of the last whole tune that fits, so no tune is cut in half. The Song section then says so below the box (*default*: "The file was too long: tunes 1 to 23 of 40 were loaded."), until the text is next edited or Settings closes.
@@ -39,7 +40,7 @@ The Song section in Settings has a button that loads an ABC file into the song t
 ## Modules touched
 
 - **abc (`src/abc`):** recognises a dropped tune and returns it in its place with its title and no song. Gives each problem a kind, so the loader can name the kinds. A file-loading function that replaces failing tunes and cuts the text to the limit, returning the new text and what was cut, or the reason nothing loaded.
-- **app (`song-form.ts`, `Settings.tsx`, Song section):** the "Load from file…" button and file picker, the cut and nothing-to-load messages, the accepted line with dropped tunes, and skipping dropped tunes when choosing the position.
+- **app (`song-form.ts`, `Settings.tsx`, Song section):** the "Load from file…" button and the two file pickers, the cut and nothing-to-load messages, the accepted line with dropped tunes, and skipping dropped tunes when choosing the position.
 - **app (`App.tsx`, `header-text.ts`):** the song state holds the dropped tunes in their positions, and the header's list greys them out.
 
 The song core, settings, drill engine, judge, coverage, analysis and detector are unchanged: a dropped tune has no `Song`.
@@ -52,6 +53,7 @@ The song core, settings, drill engine, judge, coverage, analysis and detector ar
 
 - **Splitting a file into tunes.** The cut and the replacement work on each tune's text. The adapter already splits on `\nX:`; the loader must split the same way, so that its positions match the problems.
 - **Large files.** A tune book of many thousand lines is read tune by tune, and reading can stop once the text is full, so a big file does not lock the page.
+- **The browser's own memory.** With the plain file input, the starting folder is up to the browser and cannot be tested by the app. Firefox keeps one for each site; another browser may not.
 - **What abcjs warns about.** A tune that loads elsewhere may still give abcjs warnings here, and so be dropped as "ABC errors". That is the existing rule; the label just makes it visible.
 
 ## Stories
