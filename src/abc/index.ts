@@ -43,9 +43,32 @@ export interface ParsedTune {
 	converted: number;
 }
 
+/** A tune left out of a file: only its `X:` and `T:` lines are in the text. It has no song. */
+export interface DroppedTune {
+	dropped: true;
+	/** The `T:` text, possibly empty. */
+	title: string;
+}
+
+export function isDroppedTune(t: object): t is DroppedTune {
+	return "dropped" in t;
+}
+
 export type AbcResult =
-	/** `tunes` is never empty and follows the text. */
-	{ ok: true; tunes: ParsedTune[] } | { ok: false; problems: AbcProblem[] };
+	/** `tunes` follows the text, is never empty and has at least one tune that passed. */
+	| { ok: true; tunes: (ParsedTune | DroppedTune)[] }
+	| { ok: false; problems: AbcProblem[] };
+
+/**
+ * The title of a dropped tune, or null. Only the tune's own text counts (up to
+ * its first blank line, where abcjs ends a tune), and it must be exactly an
+ * `X:` line then a `T:` line.
+ */
+export function droppedTitle(tuneText: string): string | null {
+	const own = (tuneText.split(/\n[ \t]*\n/)[0] ?? "").trimEnd();
+	const match = /^X:[^\n]*\nT:([^\n]*)$/.exec(own);
+	return match ? (match[1] as string).trim() : null;
+}
 
 let loaded: Promise<AbcTunebook> | undefined;
 
@@ -505,7 +528,7 @@ export async function parseAbc(
 	const text = rawText.replace(/\r\n?/g, "\n");
 
 	let tunes: AbcTune[];
-	let book: { header: string; tunes: { startPos: number }[] };
+	let book: { header: string; tunes: { startPos: number; pure: string }[] };
 	try {
 		const abcjs = await loadAbcjs();
 		tunes = abcjs.parseOnly(text);
@@ -523,8 +546,15 @@ export async function parseAbc(
 	const directiveLines = book.header.split("\n").filter((l) => l !== "").length;
 	const aligned = book.tunes.length === tunes.length;
 	const problems: AbcProblem[] = [];
-	const parsed: ParsedTune[] = [];
+	const parsed: (ParsedTune | DroppedTune)[] = [];
 	tunes.forEach((tune, i) => {
+		const title = aligned
+			? droppedTitle((book.tunes[i] as { pure: string }).pure)
+			: null;
+		if (title !== null) {
+			parsed.push({ dropped: true, title });
+			return;
+		}
 		const startLine = aligned
 			? locate(text, (book.tunes[i] as { startPos: number }).startPos).line
 			: 1;
@@ -544,6 +574,9 @@ export async function parseAbc(
 		}
 	});
 	if (problems.length > 0) return { ok: false, problems: summed(problems) };
+	if (parsed.every(isDroppedTune)) {
+		return { ok: false, problems: [{ message: "No notes found", line: 1 }] };
+	}
 	return { ok: true, tunes: parsed };
 }
 

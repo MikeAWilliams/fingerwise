@@ -2,8 +2,11 @@ import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
 	type AbcResult,
+	type DroppedTune,
+	isDroppedTune,
 	MAX_ABC_CHARS,
 	MAX_ABC_NOTES,
+	type ParsedTune,
 	parseAbc,
 } from "../../src/abc";
 import { loadInstrument } from "../../src/core/instrument";
@@ -14,7 +17,7 @@ const instrument = loadInstrument(alto);
 async function parsedAll(text: string) {
 	const result: AbcResult = await parseAbc(text, instrument);
 	if (!result.ok) throw new Error(JSON.stringify(result.problems));
-	return result.tunes;
+	return result.tunes as ParsedTune[];
 }
 
 /** The first tune of a text that passes. */
@@ -356,7 +359,9 @@ describe("warnings and failures (AC9)", () => {
 		]) {
 			const result = await parseAbc(text, instrument);
 			if (result.ok)
-				expect(result.tunes[0]?.song.pitches.length).toBeGreaterThan(0);
+				expect(
+					(result.tunes[0] as ParsedTune).song.pitches.length,
+				).toBeGreaterThan(0);
 			else expect(result.problems.length).toBeGreaterThan(0);
 		}
 	});
@@ -782,5 +787,79 @@ describe("several tunes (F14-S01)", () => {
 			expect(found.length).toBeGreaterThan(0);
 			expect(found.every((p) => p.tune === undefined)).toBe(true);
 		}
+	});
+});
+
+describe("dropped tunes (F17-S01)", () => {
+	const good = (n: number) => `X:${n}\nT:Good ${n}\nK:C\nC D E|`;
+	const dropped = (n: number, title: string) => `X:${n}\nT:${title}`;
+	const all = async (text: string) => {
+		const result = await parseAbc(text, instrument);
+		if (!result.ok) throw new Error(JSON.stringify(result.problems));
+		return result.tunes;
+	};
+	const shape = (tunes: (ParsedTune | DroppedTune)[]) =>
+		tunes.map((t) => (isDroppedTune(t) ? t.title : t.song.title));
+
+	test("a dropped tune first, in the middle and last keeps text order and its title (AC1)", async () => {
+		for (const texts of [
+			[dropped(1, "Lost"), good(2), good(3)],
+			[good(1), dropped(2, "Lost"), good(3)],
+			[good(1), good(2), dropped(3, "Lost")],
+		]) {
+			const tunes = await all(texts.join("\n\n"));
+			expect(tunes).toHaveLength(3);
+			const at = texts.findIndex((t) => !t.includes("Good"));
+			expect(tunes[at]).toEqual({ dropped: true, title: "Lost" });
+			expect(shape(tunes)).toEqual(
+				texts.map((t, i) => (i === at ? "Lost" : `Good ${i + 1}`)),
+			);
+		}
+	});
+
+	test("a blank T: gives an empty title (AC1)", async () => {
+		const tunes = await all([good(1), "X:2\nT:"].join("\n\n"));
+		expect(tunes[1]).toEqual({ dropped: true, title: "" });
+	});
+
+	test("every tune dropped fails with No notes found (AC2)", async () => {
+		expect(
+			await problems([dropped(1, "A"), dropped(2, "B")].join("\n\n")),
+		).toEqual([{ message: "No notes found", line: 1 }]);
+		expect(await problems("X:1\nT:A")).toEqual([
+			{ message: "No notes found", line: 1 },
+		]);
+	});
+
+	test("near misses are not dropped tunes and fail as today (AC3)", async () => {
+		for (const bad of [
+			"X:2\nT:A\nM:4/4",
+			"X:2\nT:A\n%note",
+			"X:2\nT:A\nC [CE]",
+			"T:A\nX:2",
+			"X:2\nT:A\nT:B",
+		]) {
+			const result = await parseAbc([good(1), bad].join("\n\n"), instrument);
+			expect(result.ok, bad).toBe(false);
+		}
+	});
+
+	test("prose after a blank line does not stop a tune being dropped (AC1)", async () => {
+		const tunes = await all(
+			[good(1), `${dropped(2, "Lost")}\n\nSome notes about it.`].join("\n\n"),
+		);
+		expect(tunes[1]).toEqual({ dropped: true, title: "Lost" });
+	});
+
+	test("CRLF line endings (AC1)", async () => {
+		const text = [good(1), dropped(2, "Lost"), good(3)]
+			.join("\n\n")
+			.replace(/\n/g, "\r\n");
+		expect(shape(await all(text))).toEqual(["Good 1", "Lost", "Good 3"]);
+	});
+
+	test("a text with no dropped tune is as before (AC7)", async () => {
+		const tunes = await all([good(1), good(2)].join("\n\n"));
+		expect(tunes.some(isDroppedTune)).toBe(false);
 	});
 });

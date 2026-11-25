@@ -1,12 +1,17 @@
 import defaultsJson from "../../data/settings/defaults.json";
-import type { AbcProblem, AbcResult } from "../abc";
+import {
+	type AbcProblem,
+	type AbcResult,
+	type DroppedTune,
+	isDroppedTune,
+} from "../abc";
 import type { Settings } from "../core/settings";
 import { DEFAULT_TEMPO, type Song } from "../core/song";
 
 /** What the app holds of the player's song, apart from the saved text. */
 export interface SongState {
-	/** The tunes of the last good text, in text order; empty when none passes. */
-	tunes: Song[];
+	/** The tunes of the last good text, in text order (dropped tunes in their places); empty when none passes. */
+	tunes: (Song | DroppedTune)[];
 	/** The validator's summary of that text, such as "21 notes, 2 flats converted to sharps". */
 	summary: string | null;
 	/** Problems with the saved text, from the load-time parse. */
@@ -19,23 +24,49 @@ function plural(n: number, one: string, many: string): string {
 	return `${n} ${n === 1 ? one : many}`;
 }
 
-/** The chosen tune: the one at the 1-based position, else the first, else none. */
-export function chosenTune(tunes: Song[], position: number): Song | null {
-	return tunes[position - 1] ?? tunes[0] ?? null;
+/** The 1-based position of the first tune that passed, or 1 when none did. */
+export function firstPassing(tunes: (Song | DroppedTune)[]): number {
+	const i = tunes.findIndex((t) => !isDroppedTune(t));
+	return i < 0 ? 1 : i + 1;
+}
+
+/**
+ * The 1-based position that is chosen: the saved one when the text has that
+ * many tunes, else 1 (ADR 0010); a dropped tune cannot be chosen, so then the
+ * first tune that passed.
+ */
+export function tunePosition(
+	tunes: (Song | DroppedTune)[],
+	position: number,
+): number {
+	const at = position >= 1 && position <= tunes.length ? position : 1;
+	const tune = tunes[at - 1];
+	return tune !== undefined && isDroppedTune(tune) ? firstPassing(tunes) : at;
+}
+
+/** The chosen tune: the one at `tunePosition`, or none when there are no tunes. */
+export function chosenTune(
+	tunes: (Song | DroppedTune)[],
+	position: number,
+): Song | null {
+	const tune = tunes[tunePosition(tunes, position) - 1];
+	return tune === undefined || isDroppedTune(tune) ? null : tune;
 }
 
 /**
  * "21 notes, 2 flats converted to sharps"; "1 note, 1 flat converted to a sharp";
- * with several tunes, "3 tunes, 40 notes".
+ * with several tunes, "3 tunes, 40 notes"; with dropped ones, "3 tunes (1 not loaded), 40 notes".
  */
 export function songSummary(
 	notes: number,
 	converted: number,
 	tunes = 1,
+	dropped = 0,
 ): string {
 	const count =
-		(tunes > 1 ? `${plural(tunes, "tune", "tunes")}, ` : "") +
-		plural(notes, "note", "notes");
+		(tunes > 1
+			? `${plural(tunes, "tune", "tunes")}${dropped > 0 ? ` (${dropped} not loaded)` : ""}, `
+			: "") + plural(notes, "note", "notes");
 	if (converted === 0) return count;
 	const what =
 		converted === 1
@@ -62,11 +93,16 @@ export function problemLine(problem: AbcProblem): string {
 function summaryOf(result: Extract<AbcResult, { ok: true }>): string {
 	let notes = 0;
 	let converted = 0;
+	let dropped = 0;
 	for (const tune of result.tunes) {
+		if (isDroppedTune(tune)) {
+			dropped++;
+			continue;
+		}
 		notes += tune.notes;
 		converted += tune.converted;
 	}
-	return songSummary(notes, converted, result.tunes.length);
+	return songSummary(notes, converted, result.tunes.length, dropped);
 }
 
 /** The validator's words for a result: one summary line, or one line per problem. */
@@ -87,7 +123,7 @@ export const NO_TEMPO_NOTE = `No tempo in the tune, using ♩ = ${DEFAULT_TEMPO}
 export function songStateFrom(result: AbcResult): SongState {
 	if (!result.ok) return { ...NO_SONG, problems: result.problems };
 	return {
-		tunes: result.tunes.map((t) => t.song),
+		tunes: result.tunes.map((t) => (isDroppedTune(t) ? t : t.song)),
 		summary: summaryOf(result),
 		problems: [],
 	};
@@ -125,14 +161,14 @@ export function applySongText(
 		};
 	}
 	if (result?.ok) {
+		const state = songStateFrom(result);
 		return {
 			settings: {
 				...settings,
 				songAbc: text,
-				songTune:
-					result.tunes.length >= settings.songTune ? settings.songTune : 1,
+				songTune: tunePosition(state.tunes, settings.songTune),
 			},
-			state: songStateFrom(result),
+			state,
 			problems: [],
 		};
 	}

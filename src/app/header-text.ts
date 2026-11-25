@@ -1,3 +1,4 @@
+import { type DroppedTune, isDroppedTune } from "../abc";
 import type { Settings } from "../core/settings";
 import { DEFAULT_TEMPO, type Song } from "../core/song";
 import { chosenTune } from "./song-form";
@@ -63,15 +64,19 @@ export function playButton({
 }
 
 /** Each tune's title, or "Tune N" (its position) when it has none, in text order. */
-export function tuneLabels(tunes: Song[]): string[] {
-	return tunes.map((tune, i) => tune.title ?? `Tune ${i + 1}`);
+export function tuneLabels(tunes: (Song | DroppedTune)[]): string[] {
+	return tunes.map((tune, i) =>
+		isDroppedTune(tune)
+			? tune.title || `Tune ${i + 1}`
+			: (tune.title ?? `Tune ${i + 1}`),
+	);
 }
 
 /**
  * The header's tune list: null while Settings is open, outside Song mode or
  * with fewer than two tunes; greyed out while a timed run is counting in,
  * playing or listening past the end. `selected` is the chosen tune's 0-based
- * index.
+ * index; `dropped` flags the entries that cannot be chosen.
  */
 export function tuneChoice({
 	settings,
@@ -80,14 +85,20 @@ export function tuneChoice({
 	phase,
 }: {
 	settings: Settings;
-	tunes: Song[];
+	tunes: (Song | DroppedTune)[];
 	open: boolean;
 	phase: "ready" | "playing" | "summary" | undefined;
-}): { labels: string[]; selected: number; disabled: boolean } | null {
+}): {
+	labels: string[];
+	dropped: boolean[];
+	selected: number;
+	disabled: boolean;
+} | null {
 	if (open || settings.mode !== "song" || tunes.length < 2) return null;
 	const chosen = chosenTune(tunes, settings.songTune);
 	return {
 		labels: tuneLabels(tunes),
+		dropped: tunes.map(isDroppedTune),
 		selected: Math.max(0, chosen === null ? 0 : tunes.indexOf(chosen)),
 		disabled: phase === "playing",
 	};
