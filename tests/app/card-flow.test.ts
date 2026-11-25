@@ -7,8 +7,6 @@ import {
 	needSource,
 	type PitchSource,
 	randomSource,
-	songSource,
-	WRONG_VERDICT_MS,
 } from "../../src/app/card-flow";
 import type { ListenResult, PitchReading } from "../../src/audio/listener";
 import { createToneTracker, DEFAULT_THRESHOLDS } from "../../src/core/judge";
@@ -71,7 +69,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
-			hint: false,
 			listening: "off",
 		});
 		const count = states.length;
@@ -113,7 +110,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
-			hint: false,
 			listening: "off",
 		});
 	});
@@ -145,7 +141,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
-			hint: false,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(ADVANCE - 1);
@@ -153,7 +148,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
-			hint: false,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(1);
@@ -175,7 +169,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
-			hint: false,
 			listening: "off",
 		});
 		vi.advanceTimersByTime(1);
@@ -191,7 +184,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: false,
 			verdict: null,
-			hint: false,
 			listening: "off",
 		});
 		const count = states.length;
@@ -201,7 +193,6 @@ describe("createCardFlow", () => {
 			pitch: first,
 			revealed: true,
 			verdict: NONE,
-			hint: false,
 			listening: "off",
 		});
 	});
@@ -223,7 +214,6 @@ describe("createCardFlow", () => {
 				pitch: second,
 				revealed: true,
 				verdict: NONE,
-				hint: false,
 				listening: "off",
 			},
 		]);
@@ -444,7 +434,6 @@ describe("createCardFlow listen", () => {
 			tone?: CardTone | null;
 			grade?: CardListen["grade"];
 			next?: PitchSource;
-			wait?: boolean;
 		} = {},
 	) {
 		const listener = new FakeListener();
@@ -469,7 +458,6 @@ describe("createCardFlow listen", () => {
 				over.advanceDelayMs === undefined ? null : over.advanceDelayMs,
 			tone: over.tone ?? null,
 			listen,
-			wait: over.wait,
 			onChange: (s) => states.push(s),
 		});
 		return { flow, listener, graded };
@@ -785,17 +773,9 @@ describe("createCardFlow listen", () => {
 		await settle();
 		expect(last().listening).toBe("running");
 	});
-	test("a song source reports each note's position before it is dealt", () => {
-		const seen: number[] = [];
-		const next = songSource([69, 71] as Pitch[], (i) => seen.push(i));
-		expect([next(null), next(69 as Pitch), next(71 as Pitch)]).toEqual([
-			69, 71, 69,
-		]);
-		expect(seen).toEqual([0, 1, 0]);
-	});
-	test("F05-S04 AC6: a song card is judged against its own pitch", async () => {
+	test("a card is judged against its own pitch", async () => {
 		const { flow, listener, graded } = listenSetup({
-			next: songSource([69, 71] as Pitch[]),
+			next: () => 69 as Pitch,
 		});
 		flow.start();
 		await settle();
@@ -803,496 +783,6 @@ describe("createCardFlow listen", () => {
 		play(listener, 440, 900);
 		expect(graded).toEqual([{ pitch: 69, hz: 440 }]);
 		expect(last().verdict).toMatchObject({ grade: "correct" });
-		flow.step();
-		expect(last().pitch).toBe(71);
-	});
-
-	describe("waiting for the correct note (F07-S01)", () => {
-		const SONG = [69, 71, 72] as Pitch[];
-		const WRONG = 880;
-		const OK = 440;
-
-		function waitSetup(
-			over: { advanceDelayMs?: number | null; wait?: boolean } = {},
-		) {
-			const calls: string[] = [];
-			const tone: CardTone = {
-				delayMs: 500,
-				play: (p) => calls.push(`play${p}`),
-				stop: () => calls.push("stop"),
-			};
-			const setupResult = listenSetup({
-				next: songSource(SONG),
-				tone,
-				wait: over.wait ?? true,
-				advanceDelayMs: over.advanceDelayMs ?? null,
-			});
-			return { ...setupResult, calls };
-		}
-
-		/** Plays `hz` until the verdict state changes, within `ms`. */
-		function playUntilChange(listener: FakeListener, hz: number, ms: number) {
-			const count = states.length;
-			for (let t = 0; t < ms; t += 16) {
-				listener.read(hz);
-				if (states.length !== count) return;
-				vi.advanceTimersByTime(16);
-			}
-		}
-
-		test("AC1: an incorrect tone keeps the card, shows its verdict, plays nothing and advances nothing", async () => {
-			const { flow, listener, calls } = waitSetup({ advanceDelayMs: ADVANCE });
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			expect(last()).toMatchObject({
-				pitch: 69,
-				revealed: false,
-				listening: "running",
-				verdict: { grade: "incorrect", frequency: WRONG },
-			});
-			vi.advanceTimersByTime(900);
-			expect(calls.filter((c) => c.startsWith("play"))).toEqual([]);
-			expect(last().pitch).toBe(69);
-		});
-
-		test("AC2: the verdict clears after WRONG_VERDICT_MS with the card as before", async () => {
-			const { flow, listener } = waitSetup();
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			expect(last().verdict).not.toBeNull();
-			vi.advanceTimersByTime(WRONG_VERDICT_MS - 1);
-			expect(last().verdict).not.toBeNull();
-			vi.advanceTimersByTime(1);
-			expect(last()).toMatchObject({
-				pitch: 69,
-				revealed: false,
-				verdict: null,
-				listening: "running",
-			});
-		});
-
-		test("AC3: the tracker is reset on a wrong verdict, and a new verdict replaces the first and restarts its clear time", async () => {
-			const { flow, listener } = waitSetup();
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			const first = Date.now();
-			const count = states.length;
-			// Hold-off plus settle must pass before the next verdict.
-			while (Date.now() - first < 690) {
-				listener.read(WRONG);
-				vi.advanceTimersByTime(16);
-			}
-			expect(states).toHaveLength(count);
-			playUntilChange(listener, WRONG, 400);
-			expect(Date.now() - first).toBeGreaterThanOrEqual(700);
-			expect(last().verdict).toMatchObject({ grade: "incorrect" });
-			// The first clear time (1000 ms after the first verdict) passes with the verdict kept.
-			const second = Date.now();
-			vi.advanceTimersByTime(WRONG_VERDICT_MS - 1);
-			expect(last().verdict).not.toBeNull();
-			vi.advanceTimersByTime(1);
-			expect(last().verdict).toBeNull();
-			expect(Date.now() - second).toBe(WRONG_VERDICT_MS);
-		});
-
-		test("AC4: a correct tone after misses reveals, closes the window, plays after the sound delay and advances", async () => {
-			const { flow, listener, calls, graded } = waitSetup({
-				advanceDelayMs: ADVANCE,
-			});
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			vi.advanceTimersByTime(WRONG_VERDICT_MS);
-			playUntilChange(listener, OK, 1500);
-			const revealedAt = Date.now();
-			expect(last()).toMatchObject({
-				pitch: 69,
-				revealed: true,
-				verdict: { grade: "correct", frequency: OK },
-			});
-			const count = states.length;
-			play(listener, OK, 1000);
-			expect(graded.filter((g) => g.hz === OK)).toHaveLength(1);
-			expect(calls.filter((c) => c.startsWith("play"))).toEqual(["play69"]);
-			vi.advanceTimersByTime(ADVANCE - (Date.now() - revealedAt));
-			expect(last()).toMatchObject({ pitch: 71, revealed: false });
-			expect(states.length).toBeGreaterThan(count);
-		});
-
-		test("AC4: with auto-advance off the revealed card stays until a step", async () => {
-			const { flow, listener } = waitSetup();
-			flow.start();
-			await settle();
-			playUntilChange(listener, OK, 1500);
-			vi.advanceTimersByTime(60000);
-			expect(last()).toMatchObject({ pitch: 69, revealed: true });
-			flow.step();
-			expect(last()).toMatchObject({ pitch: 71, revealed: false });
-		});
-
-		test("AC5: the reveal delay and a step never reveal a waiting card; a revealed card deals the next note", async () => {
-			const { flow, listener } = waitSetup();
-			flow.start();
-			await settle();
-			vi.advanceTimersByTime(DELAY * 2);
-			flow.step();
-			flow.step();
-			expect(last()).toMatchObject({ pitch: 71, revealed: false });
-			playUntilChange(listener, OK, 1500);
-			expect(last()).toMatchObject({ pitch: 71, revealed: true });
-			flow.step();
-			expect(last()).toMatchObject({ pitch: 72, revealed: false });
-		});
-
-		test("AC6: without wait an incorrect tone still reveals", async () => {
-			const { flow, listener } = waitSetup({ wait: false });
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			expect(last()).toMatchObject({
-				revealed: true,
-				verdict: { grade: "incorrect" },
-			});
-		});
-
-		test("AC6: without listen wait changes nothing", () => {
-			const flow = createCardFlow({
-				next: songSource(SONG),
-				delayMs: DELAY,
-				advanceDelayMs: null,
-				wait: true,
-				onChange: (s) => states.push(s),
-			});
-			flow.start();
-			vi.advanceTimersByTime(DELAY);
-			expect(last().revealed).toBe(true);
-		});
-
-		test("AC6: while opening, locked and unavailable the card reveals at its timer or on a step", async () => {
-			const opening = waitSetup();
-			opening.listener.auto = null;
-			opening.flow.start();
-			await settle();
-			expect(last().listening).toBe("opening");
-			opening.flow.step();
-			expect(last().revealed).toBe(true);
-			opening.flow.stop();
-
-			for (const result of [LOCKED, DENIED]) {
-				const { flow, listener } = waitSetup();
-				listener.auto = result;
-				flow.start();
-				await settle();
-				expect(last().listening).toBe(result.status);
-				vi.advanceTimersByTime(DELAY);
-				expect(last().revealed).toBe(true);
-				flow.stop();
-			}
-		});
-
-		test("AC6: a card dealt while opening waits once the stream runs", async () => {
-			const { flow, listener } = waitSetup();
-			listener.auto = null;
-			flow.start();
-			await settle();
-			listener.results[0]?.(RUNNING);
-			await settle();
-			expect(last().listening).toBe("running");
-			vi.advanceTimersByTime(DELAY * 2);
-			expect(last().revealed).toBe(false);
-		});
-
-		test("AC6: a throwing tracker while waiting falls back to the reveal timer", async () => {
-			const real = createToneTracker(DEFAULT_THRESHOLDS);
-			let push = 0;
-			const listener = new FakeListener();
-			const flow = createCardFlow({
-				next: songSource(SONG),
-				delayMs: DELAY,
-				advanceDelayMs: null,
-				wait: true,
-				listen: {
-					listener,
-					tracker: {
-						reset: (ms) => real.reset(ms),
-						push: (r) => {
-							if (++push === 3) throw new Error("tracker");
-							return real.push(r);
-						},
-					},
-					grade: () => "incorrect",
-					now: () => Date.now(),
-				},
-				onChange: (st) => states.push(st),
-			});
-			flow.start();
-			await settle();
-			play(listener, WRONG, 100);
-			expect(last().revealed).toBe(false);
-			vi.advanceTimersByTime(DELAY);
-			expect(last().revealed).toBe(true);
-		});
-
-		test("AC7: stop while a wrong verdict shows cancels the clear timer and stops the listener; a new flow starts at the first note", async () => {
-			const { flow, listener } = waitSetup();
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			const shown = last();
-			flow.stop();
-			expect(listener.stops).toBe(1);
-			vi.advanceTimersByTime(WRONG_VERDICT_MS * 2);
-			expect(last()).toBe(shown);
-
-			const again = waitSetup();
-			again.flow.start();
-			await settle();
-			expect(last().pitch).toBe(69);
-		});
-	});
-
-	describe("hint while waiting (F07-S02)", () => {
-		const SONG = [69, 71, 72] as Pitch[];
-		const WRONG = 880;
-		const OK = 440;
-
-		function hintSetup(advanceDelayMs: number | null = null) {
-			const calls: string[] = [];
-			const tone: CardTone = {
-				delayMs: 500,
-				play: (p) => calls.push(`play${p}`),
-				stop: () => calls.push("stop"),
-			};
-			const result = listenSetup({
-				next: songSource(SONG),
-				tone,
-				wait: true,
-				advanceDelayMs,
-			});
-			const plays = () => calls.filter((c) => c.startsWith("play"));
-			return { ...result, plays };
-		}
-
-		function playUntilChange(listener: FakeListener, hz: number, ms: number) {
-			const count = states.length;
-			for (let t = 0; t < ms; t += 16) {
-				listener.read(hz);
-				if (states.length !== count) return;
-				vi.advanceTimersByTime(16);
-			}
-		}
-
-		test("AC1: the reveal delay shows the hint, keeps listening, plays nothing and starts no advance", async () => {
-			const { flow, listener, plays } = hintSetup(ADVANCE);
-			flow.start();
-			await settle();
-			expect(last().hint).toBe(false);
-			vi.advanceTimersByTime(DELAY);
-			expect(last()).toMatchObject({
-				pitch: 69,
-				revealed: false,
-				hint: true,
-				listening: "running",
-			});
-			vi.advanceTimersByTime(ADVANCE * 3);
-			expect(plays()).toEqual([]);
-			expect(last()).toMatchObject({ pitch: 69, revealed: false, hint: true });
-			// Still listening: the right note is judged.
-			playUntilChange(listener, OK, 1500);
-			expect(last()).toMatchObject({ revealed: true, hint: true });
-		});
-
-		test("AC2: a step shows the hint at once, and the reveal delay does not fire again", async () => {
-			const { flow } = hintSetup();
-			flow.start();
-			await settle();
-			vi.advanceTimersByTime(1000);
-			flow.step();
-			expect(last()).toMatchObject({ pitch: 69, revealed: false, hint: true });
-			const count = states.length;
-			vi.advanceTimersByTime(DELAY * 2);
-			expect(states).toHaveLength(count);
-		});
-
-		test("AC3: a wrong verdict shows and clears under the hint, which stays", async () => {
-			const { flow, listener } = hintSetup();
-			flow.start();
-			await settle();
-			vi.advanceTimersByTime(DELAY);
-			expect(last().hint).toBe(true);
-			playUntilChange(listener, WRONG, 1500);
-			expect(last()).toMatchObject({
-				revealed: false,
-				hint: true,
-				verdict: { grade: "incorrect" },
-			});
-			vi.advanceTimersByTime(WRONG_VERDICT_MS);
-			expect(last()).toMatchObject({ hint: true, verdict: null });
-		});
-
-		test("a wrong verdict showing when the hint arrives keeps both, and the clear keeps the hint", async () => {
-			const { flow, listener } = hintSetup();
-			flow.start();
-			await settle();
-			playUntilChange(listener, WRONG, 1500);
-			flow.step();
-			expect(last()).toMatchObject({
-				hint: true,
-				verdict: { grade: "incorrect" },
-			});
-			vi.advanceTimersByTime(WRONG_VERDICT_MS);
-			expect(last()).toMatchObject({ hint: true, verdict: null });
-		});
-
-		test("AC4: a correct tone after the hint reveals, plays and advances", async () => {
-			const { flow, listener, plays } = hintSetup(ADVANCE);
-			flow.start();
-			await settle();
-			vi.advanceTimersByTime(DELAY);
-			playUntilChange(listener, OK, 1500);
-			const revealedAt = Date.now();
-			expect(last()).toMatchObject({
-				revealed: true,
-				verdict: { grade: "correct" },
-			});
-			vi.advanceTimersByTime(600);
-			expect(plays()).toEqual(["play69"]);
-			vi.advanceTimersByTime(ADVANCE - (Date.now() - revealedAt));
-			expect(last()).toMatchObject({ pitch: 71, revealed: false, hint: false });
-		});
-
-		test("AC5: a step on the hint deals the next note with no tone and no extra advance", async () => {
-			const { flow, plays } = hintSetup(ADVANCE);
-			flow.start();
-			await settle();
-			vi.advanceTimersByTime(DELAY);
-			expect(last().hint).toBe(true);
-			flow.step();
-			expect(last()).toMatchObject({ pitch: 71, revealed: false, hint: false });
-			const count = states.length;
-			vi.advanceTimersByTime(ADVANCE * 2);
-			expect(plays()).toEqual([]);
-			expect(last().pitch).toBe(71);
-			// Only the new card's own hint arrives.
-			expect(states.slice(count).every((s) => s.pitch === 71)).toBe(true);
-		});
-
-		test("one step does one thing: hint, then skip, never both", async () => {
-			const { flow } = hintSetup();
-			flow.start();
-			await settle();
-			const count = states.length;
-			flow.step();
-			expect(states).toHaveLength(count + 1);
-			expect(last()).toMatchObject({ pitch: 69, hint: true });
-			flow.step();
-			expect(states).toHaveLength(count + 2);
-			expect(last()).toMatchObject({ pitch: 71, hint: false });
-		});
-	});
-});
-
-describe("song cards (F05-S04)", () => {
-	const SONG = [60, 62, 64] as Pitch[];
-
-	function songFlow(
-		pitches: Pitch[] = SONG,
-		over: { advanceDelayMs?: number | null; tone?: CardTone | null } = {},
-	) {
-		const flow = createCardFlow({
-			next: songSource(pitches),
-			delayMs: DELAY,
-			advanceDelayMs: over.advanceDelayMs ?? null,
-			tone: over.tone ?? null,
-			onChange: (s) => states.push(s),
-		});
-		flow.start();
-		return flow;
-	}
-
-	const shown = () => states.filter((s) => !s.revealed).map((s) => s.pitch);
-
-	test("AC2: the first card is the first note and each next card the following one", () => {
-		const flow = songFlow();
-		expect(last()).toMatchObject({ pitch: 60, revealed: false });
-		flow.step();
-		flow.step();
-		expect(last()).toMatchObject({ pitch: 62, revealed: false });
-		flow.step();
-		flow.step();
-		expect(shown()).toEqual([60, 62, 64]);
-	});
-
-	test("AC3: after the last note is revealed and advanced from, the song starts over", () => {
-		songFlow(SONG, { advanceDelayMs: ADVANCE });
-		for (let n = 0; n < 4; n++) vi.advanceTimersByTime(DELAY + ADVANCE);
-		expect(shown()).toEqual([60, 62, 64, 60, 62]);
-	});
-
-	test("AC4: the same note twice in a row is shown twice", () => {
-		const flow = songFlow([60, 60, 62] as Pitch[]);
-		flow.step();
-		flow.step();
-		expect(last()).toMatchObject({ pitch: 60, revealed: false });
-		flow.step();
-		flow.step();
-		expect(shown()).toEqual([60, 60, 62]);
-	});
-
-	test("a one-note song shows that note every time", () => {
-		const flow = songFlow([67] as Pitch[]);
-		for (let n = 0; n < 4; n++) flow.step();
-		expect(shown()).toEqual([67, 67, 67]);
-	});
-
-	test("AC5: a new flow starts at the first note again", () => {
-		const first = songFlow();
-		first.step();
-		first.step();
-		expect(last().pitch).toBe(62);
-		first.stop();
-		states = [];
-		songFlow();
-		expect(last()).toMatchObject({ pitch: 60, revealed: false });
-	});
-
-	test("AC7: nothing is drawn at random", () => {
-		const spy = vi.spyOn(Math, "random").mockImplementation(() => {
-			throw new Error("random was called");
-		});
-		try {
-			const flow = songFlow(SONG, { advanceDelayMs: ADVANCE });
-			vi.advanceTimersByTime((DELAY + ADVANCE) * 4);
-			flow.step();
-			expect(spy).not.toHaveBeenCalled();
-		} finally {
-			spy.mockRestore();
-		}
-	});
-
-	test("AC6: the reveal delay, the early reveal and the tone are as for random cards", () => {
-		const calls: { pitch: Pitch; at: number }[] = [];
-		const start = Date.now();
-		const flow = songFlow(SONG, {
-			tone: {
-				delayMs: 500,
-				play: (pitch) => calls.push({ pitch, at: Date.now() - start }),
-				stop: () => {},
-			},
-		});
-		vi.advanceTimersByTime(DELAY - 1);
-		expect(last().revealed).toBe(false);
-		vi.advanceTimersByTime(1);
-		expect(last()).toMatchObject({ pitch: 60, revealed: true });
-		vi.advanceTimersByTime(500);
-		expect(calls).toEqual([{ pitch: 60, at: DELAY + 500 }]);
-		flow.step();
-		expect(last()).toMatchObject({ pitch: 62, revealed: false });
-		flow.step();
-		expect(last()).toMatchObject({ pitch: 62, revealed: true });
 	});
 });
 
@@ -1514,20 +1004,6 @@ describe("cards drawn by need (F06-S04)", () => {
 		vi.advanceTimersByTime(DELAY);
 		expect(last().revealed).toBe(true);
 		expect(grades).toEqual([]);
-	});
-
-	test("song cards without onGraded are unchanged", () => {
-		const flow = createCardFlow({
-			next: songSource(POOL),
-			delayMs: DELAY,
-			advanceDelayMs: null,
-			onChange: (st) => states.push(st),
-		});
-		flow.start();
-		expect(last().pitch).toBe(POOL[0]);
-		flow.step();
-		flow.step();
-		expect(last().pitch).toBe(POOL[1]);
 	});
 
 	test("a throwing onGraded is swallowed", async () => {

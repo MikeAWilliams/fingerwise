@@ -10,10 +10,19 @@ import {
 	settledPaths,
 	TRACE_COLOURS,
 	TRACE_THICKNESS,
+	tonePassLengthMs,
+	toneSegment,
 	traceColour,
 	traceY,
 } from "../../src/app/trace";
-import type { JoinFault, Segment, TimingFault } from "../../src/core/coverage";
+import type {
+	JoinFault,
+	Segment,
+	TimelineNote,
+	TimingFault,
+} from "../../src/core/coverage";
+import { DEFAULT_THRESHOLDS, type Reading } from "../../src/core/judge";
+import { toFrequency } from "../../src/core/pitch";
 import { rowMap } from "../../src/render/staff";
 
 describe("traceY (F09-S06 AC1, AC3)", () => {
@@ -400,5 +409,141 @@ describe("settledPaths (F12-S02 AC5, AC6)", () => {
 		);
 		expect(settled.fill).toEqual(rows.map(emptyPaths));
 		expect(settled.marks).toEqual(["", ""]);
+	});
+});
+
+describe("tonePassLengthMs (F16-S03 AC4)", () => {
+	const note = (releaseMs: number): TimelineNote => ({
+		index: 0,
+		written: 69 as never,
+		startMs: 1000,
+		endMs: 1857,
+		releaseMs,
+		graded: true,
+	});
+
+	test("the lane segment: the written length less the release", () => {
+		// A quarter at 70: 857 ms written, a 214 ms release, a 643 ms box.
+		expect(tonePassLengthMs(note(214))).toBe(643);
+	});
+
+	test("a note slurred into the next has no release, so its whole written length", () => {
+		expect(tonePassLengthMs(note(0))).toBe(857);
+	});
+});
+
+describe("toneSegment (F16-S03 AC2)", () => {
+	const note: TimelineNote = {
+		index: 2,
+		written: 69 as never,
+		startMs: 2000,
+		endMs: 3000,
+		releaseMs: 0,
+		graded: true,
+	};
+	const A4 = 69 as never;
+	const hz = toFrequency(A4);
+	const reading = (time: number, frequency: number | null): Reading => ({
+		time,
+		frequency,
+		clarity: 0.98,
+		level: -30,
+	});
+	const off = (cents: number) => hz * 2 ** (cents / 1200);
+
+	test("null without a tone", () => {
+		expect(toneSegment(null, note, A4, DEFAULT_THRESHOLDS)).toBeNull();
+		expect(
+			toneSegment({ startMs: 0, readings: [] }, note, A4, DEFAULT_THRESHOLDS),
+		).toBeNull();
+	});
+
+	test("places readings from the note's start by the tone's own time", () => {
+		const seg = toneSegment(
+			{
+				startMs: 10000,
+				readings: [
+					reading(10000, hz),
+					reading(10100, off(20)),
+					reading(10200, off(-30)),
+				],
+			},
+			note,
+			A4,
+			DEFAULT_THRESHOLDS,
+		);
+		expect(seg).toMatchObject({
+			startMs: 2000,
+			endMs: 2200,
+			on: "note",
+			graded: true,
+		});
+		expect(seg?.points.map((p) => p.timeMs)).toEqual([2000, 2100, 2200]);
+		expect(seg?.points[0]?.cents).toBeCloseTo(0, 6);
+		expect(seg?.points[1]?.cents).toBeCloseTo(20, 6);
+		expect(seg?.points[2]?.cents).toBeCloseTo(-30, 6);
+	});
+
+	test("only sounding readings become points", () => {
+		const seg = toneSegment(
+			{
+				startMs: 0,
+				readings: [reading(0, hz), reading(100, null), reading(200, hz)],
+			},
+			note,
+			A4,
+			DEFAULT_THRESHOLDS,
+		);
+		expect(seg?.points.map((p) => p.timeMs)).toEqual([2000, 2200]);
+	});
+
+	test("is clamped at the note's written end, so a longer tone draws nothing more", () => {
+		const readings = Array.from({ length: 30 }, (_, i) => reading(i * 100, hz));
+		const seg = toneSegment(
+			{ startMs: 0, readings },
+			note,
+			A4,
+			DEFAULT_THRESHOLDS,
+		);
+		expect(seg?.endMs).toBe(3000);
+		expect(Math.max(...(seg?.points.map((p) => p.timeMs) ?? []))).toBeLessThan(
+			3000,
+		);
+		expect(seg?.points).toHaveLength(10);
+	});
+
+	test("the colours follow Tempo's through segmentPaths", () => {
+		const row: LaneRow = {
+			from: 0,
+			to: 4,
+			map: rowMap([
+				{ x: 100, beat: 0 },
+				{ x: 300, beat: 4 },
+			]),
+			laneTop: 100,
+			laneBottom: 124,
+		};
+		const seg = toneSegment(
+			{
+				startMs: 0,
+				readings: [
+					reading(0, hz),
+					reading(100, off(35)),
+					reading(200, off(80)),
+					reading(300, null),
+				],
+			},
+			note,
+			A4,
+			DEFAULT_THRESHOLDS,
+		) as Segment;
+		// ♩ = 60: the note starts at beat 2.
+		const paths = segmentPaths([seg], [row], 60, 25)[0] as Record<
+			string,
+			string
+		>;
+		expect(paths.green).not.toBe("");
+		expect(paths.amber).not.toBe("");
+		expect(paths.red).not.toBe("");
 	});
 });

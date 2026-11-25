@@ -1,10 +1,16 @@
 import type { RefObject } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { Spot } from "../core/analysis";
-import { type Progress, RIGHT_NOTE_BAND_CENTS } from "../core/coverage";
+import {
+	type Progress,
+	RIGHT_NOTE_BAND_CENTS,
+	type Segment,
+	type Timeline,
+} from "../core/coverage";
 import type { Instrument } from "../core/instrument";
 import type { Reading } from "../core/judge";
 import { beatRangeOnRows, type SongLayout } from "../render/staff";
+import type { TabView } from "../render/tab";
 import { spotLabel } from "./analysis-text";
 import {
 	createReadoutThrottle,
@@ -16,7 +22,7 @@ import {
 import type { LaneSegment, NoteEnd } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
 import { OVERRUN_LABEL_SIZE, type OverrunLane } from "./overrun";
-import { playheadBeat, playheadPlace } from "./playhead";
+import { headPlace, playheadBeat, playheadPlace } from "./playhead";
 import {
 	emptyPaths,
 	type LaneRow,
@@ -42,6 +48,11 @@ export interface PlayheadSource {
 
 /** The height of a practice spot's label, in view-box units. */
 const SPOT_LABEL_SIZE = 11;
+
+/** Single note's fingering: the letter, then the glyph, in the strip under the head (view-box units). */
+const FINGERING_NAME_SIZE = 13;
+const FINGERING_GLYPH_SIZE = 38;
+const FINGERING_MESSAGE_SIZE = 10;
 
 /** The gap between neighbouring segments, so each shows as its own, in view-box units. */
 const SEGMENT_GAP = 1;
@@ -126,6 +137,10 @@ export function SongOverlay({
 	readout,
 	onRow,
 	spots = [],
+	timeline,
+	head,
+	fingering = null,
+	tone = null,
 }: {
 	layout: SongLayout;
 	segments: readonly LaneSegment[];
@@ -151,10 +166,21 @@ export function SongOverlay({
 	onRow?: (row: number) => void;
 	/** Practice spots to shade, behind the lane; none outside the summary. */
 	spots?: readonly Spot[];
+	/** The song's timeline, for placing Single note's head. */
+	timeline?: Timeline;
+	/** Single note: the index of the note the fixed head is on; null or absent for none. */
+	head?: number | null;
+	/** Single note: the strip is present. */
+	strip?: boolean;
+	/** Single note: the fingering drawn under the head. */
+	fingering?: { name: string; tab: TabView | null } | null;
+	/** Single note listening: the live trace of the tone sounding, read each frame. */
+	tone?: { trace(): Segment | null; tolerance: number } | null;
 }) {
 	const onRowRef = useRef(onRow);
 	onRowRef.current = onRow;
 	const line = useRef<SVGLineElement>(null);
+	const headLine = useRef<SVGLineElement>(null);
 	const paths = useRef<(SVGPathElement | null)[]>([]);
 	const markPaths = useRef<(SVGPathElement | null)[]>([]);
 	const { running, origin, now, outputLatency } = playhead;
@@ -162,7 +188,8 @@ export function SongOverlay({
 	const show = lanes && (!after || scored !== null);
 	const progress = fill?.progress;
 	const reading = fill?.reading;
-	const tolerance = fill?.tolerance;
+	const tolerance = fill?.tolerance ?? tone?.tolerance;
+	const toneTrace = tone?.trace;
 	const instrument = fill?.instrument;
 	useEffect(() => {
 		const el = line.current;
@@ -320,6 +347,83 @@ export function SongOverlay({
 		readout,
 		after,
 	]);
+	// Single note's fixed head: placed when the head, the layout or the tempo changes, not each frame.
+	const headAt = useMemo(
+		() =>
+			head === undefined || head === null || !timeline
+				? null
+				: headPlace(head, timeline, tempo, layout.rows),
+		[head, timeline, tempo, layout],
+	);
+	// The row last reported to `onRow` for the head; none once the head goes, so a restart follows back to row 0.
+	const headReported = useRef<{ layout: SongLayout; row: number } | null>(null);
+	useEffect(() => {
+		const el = headLine.current;
+		if (!el) return;
+		const row = headAt && layout.rows[headAt.row];
+		if (!headAt || !row) {
+			el.setAttribute("visibility", "hidden");
+			headReported.current = null;
+			return;
+		}
+		const x = String(headAt.x);
+		el.setAttribute("x1", x);
+		el.setAttribute("x2", x);
+		el.setAttribute("y1", String(row.top));
+		el.setAttribute("y2", String(row.laneBottom));
+		el.removeAttribute("visibility");
+		const seen = headReported.current;
+		if (!seen || seen.layout !== layout || seen.row !== headAt.row) {
+			headReported.current = { layout, row: headAt.row };
+			onRowRef.current?.(headAt.row);
+		}
+	}, [headAt, layout]);
+	// Single note's tone trace: one frame loop while a tone source is set, writing the open fill of the rows it reaches.
+	useEffect(() => {
+		if (!toneTrace || tolerance === undefined) return;
+		const set = (row: number, colour: number, d: string) =>
+			paths.current[fillIndex(row, colour, 1)]?.setAttribute("d", d);
+		let frame = 0;
+		let openRows: number[] = [];
+		const written = new Map<number, string>();
+		const write = (row: number, colour: number, d: string) => {
+			const key = row * TRACE_COLOURS.length + colour;
+			if ((written.get(key) ?? "") === d) return;
+			written.set(key, d);
+			set(row, colour, d);
+		};
+		const move = () => {
+			const segment = toneTrace();
+			const touched = segment ? rowsToUpdate(rows, null, [segment], tempo) : [];
+			// A row the trace left, or a cleared trace, is emptied once.
+			for (const r of openRows) {
+				if (touched.includes(r)) continue;
+				TRACE_COLOURS.forEach((_, c) => {
+					write(r, c, "");
+				});
+			}
+			openRows = touched;
+			if (segment) {
+				const subset = touched.map((r) => rows[r] as LaneRow);
+				segmentPaths([segment], subset, tempo, tolerance).forEach((now, i) => {
+					const r = touched[i] as number;
+					TRACE_COLOURS.forEach((colour, c) => {
+						write(r, c, now[colour]);
+					});
+				});
+			}
+			frame = requestAnimationFrame(move);
+		};
+		frame = requestAnimationFrame(move);
+		return () => {
+			cancelAnimationFrame(frame);
+			for (const r of openRows) {
+				TRACE_COLOURS.forEach((_, c) => {
+					set(r, c, "");
+				});
+			}
+		};
+	}, [toneTrace, tolerance, rows, tempo]);
 	// Scoring after the song: every row's fill and marks, written once with the summary.
 	useEffect(() => {
 		if (!after) return;
@@ -453,6 +557,65 @@ export function SongOverlay({
 				</>
 			)}
 			<line class="playhead" ref={line} visibility="hidden" />
+			<line class="playhead" ref={headLine} visibility="hidden" />
+			{headAt && fingering && layout.rows[headAt.row] && (
+				<FingeringText
+					x={headAt.x}
+					top={(layout.rows[headAt.row] as SongLayout["rows"][number]).stripTop}
+					bottom={
+						(layout.rows[headAt.row] as SongLayout["rows"][number]).stripBottom
+					}
+					fingering={fingering}
+				/>
+			)}
 		</svg>
+	);
+}
+
+/** The note letter and tablature, centred under the head in its row's strip. */
+function FingeringText({
+	x,
+	top,
+	bottom,
+	fingering,
+}: {
+	x: number;
+	top: number;
+	bottom: number;
+	fingering: { name: string; tab: TabView | null };
+}) {
+	const { tab } = fingering;
+	return (
+		<g class="fingering" text-anchor="middle">
+			<text
+				class="fingering-name"
+				x={x}
+				y={top + FINGERING_NAME_SIZE}
+				font-size={FINGERING_NAME_SIZE}
+			>
+				{fingering.name}
+			</text>
+			{tab?.kind === "glyph" && (
+				<text
+					class="fingering-glyph"
+					x={x}
+					y={bottom - 4}
+					font-size={FINGERING_GLYPH_SIZE}
+					style={{ fontFamily: `"${tab.fontFamily}"` }}
+				>
+					{tab.text}
+				</text>
+			)}
+			{tab?.kind === "placeholder" && (
+				<text
+					class="fingering-glyph fingering-placeholder"
+					x={x}
+					y={bottom - 12}
+					font-size={FINGERING_MESSAGE_SIZE}
+				>
+					{tab.message}
+				</text>
+			)}
+		</g>
 	);
 }

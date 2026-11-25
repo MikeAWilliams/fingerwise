@@ -29,6 +29,8 @@ function row(line: number, stops: Stop[]): RowLayout {
 		bottom: 0,
 		laneTop: 0,
 		laneBottom: 0,
+		stripTop: 0,
+		stripBottom: 0,
 		stops,
 		notes: new Map(),
 	};

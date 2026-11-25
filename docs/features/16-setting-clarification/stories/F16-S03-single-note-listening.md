@@ -11,11 +11,11 @@ As a player, I want Single note to listen as I play, move on when I play the not
 ## Acceptance criteria
 
 Each item must be checkable and numbered so progress checklists can refer to it. Do not edit these once work starts; raise a change instead.
-- **AC1:** Given Single note with judging on and the microphone stream running, then the current note listens from the moment it becomes current, with the hold-off as for flashcards.
+- **AC1:** Given Single note with judging on and the microphone stream running, then the current note listens from the moment it becomes current, with no hold-off (changed 2026-11-25 at acceptance: the flashcard hold-off threw away the start of a tone played straight after the last note, so a full-length tone failed; no reference tone plays here, and a tone still needs a silence since the note became current).
 - **AC2:** Given a tone starts, then a pitch trace starts at the left of the current note's segment and grows while it sounds, with the colours and heights of Tempo's lane: green in tune, amber the right note out of tune, red beyond ±50 cents. Its full width is the note's written length at the tune's tempo, and a tone held past it draws nothing more.
 - **AC3:** Given a tone, then it ends on silence, not on a change of pitch. A sound shorter than the settle time is not a tone and draws nothing that stays.
-- **AC4:** Given a tone ends and its time within the tolerance adds up to at least 75% of the note's written length at the tempo, then the head moves to the next note.
-- **AC5:** Given a tone ends where most of its sounding time was within the tolerance but less than 75% of the written length, then the segment clears and the pinned bar says "Play the note's whole value". No fingering shows and nothing is marked. The note keeps listening, and the message stays until the next tone starts.
+- **AC4:** Given a tone ends and its time within the tolerance adds up to at least 75% of the note's segment, its written length at the tempo less the release (changed 2026-11-25 at acceptance: 75% of the written length was the whole grey box, since the release is 25%, so filling the box only just passed and any reading lost at the start or a dip failed), then the head moves to the next note.
+- **AC5:** Given a tone ends where most of its sounding time was within the tolerance but less than 75% of the segment, then the segment clears and the pinned bar says "Play the note's whole value". No fingering shows and nothing is marked. The note keeps listening, and the message stays until the next tone starts.
 - **AC6:** Given a tone ends where most of its sounding time was outside the tolerance, then the fingering shows in the strip, the segment clears and the note keeps listening. The fingering stays until the head moves on.
 - **AC7:** Given the note has not passed when the fingering delay runs out, then the fingering shows and the note keeps listening. The advance delay plays no part while listening.
 - **AC8:** Given judging on, when the player taps while no fingering shows, then it shows at once. When they tap while it shows, then the head moves to the next note.
@@ -29,7 +29,7 @@ Each item must be checkable and numbered so progress checklists can refer to it.
 ## Notes
 
 - How long a silence must last to end a tone is a code constant, tuned in the live check, so that a dropout of a reading or two inside a held note does not end it.
-- The 75% share is a code constant too. A whole note at ♩ = 60 needs 3 s within tolerance; tune it if that proves too long.
+- The 75% share is a code constant too. A whole note at ♩ = 60 (a 3.5 s segment) needs about 2.6 s within tolerance; tune it if that proves too long.
 - "Within the tolerance" is the flashcard judge's tolerance against the expected written pitch, as the flashcard grade uses. Coverage's nearest-note test is not used for the pass.
 - The trace is drawn as Tempo's lane draws it, but its time axis starts at the tone's start, not at a clock.
 

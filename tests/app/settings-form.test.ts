@@ -4,16 +4,26 @@ import {
 	applyAdvanceDelayInput,
 	applyBarsPerLineInput,
 	applyDelayInput,
+	applyFingeringDelayInput,
+	applyModeInput,
+	applyPracticeInput,
 	applyScoringInput,
+	applySingleAdvanceDelayInput,
 	applyToleranceInput,
 	cardsSummary,
 	editTiming,
 	highestOptions,
 	lowestOptions,
+	MODE_LABELS,
 	micSummary,
+	PRACTICE_LABELS,
+	practiceControls,
+	practiceSummary,
 	SCORING_LABELS,
-	SONG_IN_USE,
+	SINGLE_ADVANCE_NOTE,
 	scoringEnabled,
+	settingsSections,
+	singleAdvanceDisabled,
 	smartSamplingDisabled,
 	smartSamplingNote,
 	soundSummary,
@@ -47,8 +57,10 @@ function settings(
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -268,11 +280,11 @@ describe("editTiming", () => {
 describe("smart sampling control (F06-S02 AC4, AC5)", () => {
 	const base = settings("A3", "F5");
 
-	test("disabled while judging is off or a song is in use, enabled otherwise", () => {
+	test("disabled only while judging is off, whatever the mode", () => {
 		for (const judgeEnabled of [false, true]) {
-			for (const useSong of [false, true]) {
-				expect(smartSamplingDisabled({ ...base, judgeEnabled, useSong })).toBe(
-					!judgeEnabled || useSong,
+			for (const mode of ["flashcards", "song"] as const) {
+				expect(smartSamplingDisabled({ ...base, judgeEnabled, mode })).toBe(
+					!judgeEnabled,
 				);
 			}
 		}
@@ -284,7 +296,7 @@ describe("smart sampling control (F06-S02 AC4, AC5)", () => {
 		);
 		expect(smartSamplingNote({ ...base, judgeEnabled: true })).toBeNull();
 		expect(
-			smartSamplingNote({ ...base, judgeEnabled: true, useSong: true }),
+			smartSamplingNote({ ...base, judgeEnabled: true, mode: "song" }),
 		).toBeNull();
 	});
 
@@ -293,17 +305,16 @@ describe("smart sampling control (F06-S02 AC4, AC5)", () => {
 		expect(smartSamplingDisabled(s)).toBe(true);
 		expect(s.smartSampling).toBe(true);
 	});
-
-	test("the song line names the three controls", () => {
-		expect(SONG_IN_USE).toBe(
-			"A song is in use, so the note range, sharps and smart sampling do not apply.",
-		);
-	});
 });
 
 describe("scoring list (F12-S01)", () => {
 	const base = settings("A3", "F5");
-	const all = { ...base, useSong: true, keepTempo: true, judgeEnabled: true };
+	const all: Settings = {
+		...base,
+		mode: "song",
+		practice: "tempo",
+		judgeEnabled: true,
+	};
 
 	test("the labels", () => {
 		expect(SCORING_LABELS).toEqual({
@@ -312,13 +323,11 @@ describe("scoring list (F12-S01)", () => {
 		});
 	});
 
-	test("enabled only with use song, keep tempo and judging on", () => {
+	test("enabled only with judging on (it shows only under Tempo)", () => {
 		expect(scoringEnabled(all)).toBe(true);
-		for (const off of ["useSong", "keepTempo", "judgeEnabled"] as const) {
-			const s = { ...all, scoring: "after" as const, [off]: false };
-			expect(scoringEnabled(s)).toBe(false);
-			expect(s.scoring).toBe("after");
-		}
+		const s = { ...all, scoring: "after" as const, judgeEnabled: false };
+		expect(scoringEnabled(s)).toBe(false);
+		expect(s.scoring).toBe("after");
 	});
 
 	test("a choice is applied, anything else ignored", () => {
@@ -332,5 +341,93 @@ describe("scoring list (F12-S01)", () => {
 		for (const v of ["", "Live", "both"]) {
 			expect(applyScoringInput(all, v)).toBe(all);
 		}
+	});
+});
+
+describe("mode and practice (F16-S01)", () => {
+	const base = settings("A3", "F5");
+
+	test("the labels", () => {
+		expect(MODE_LABELS).toEqual({ flashcards: "Flashcards", song: "Song" });
+		expect(PRACTICE_LABELS).toEqual({ single: "Single note", tempo: "Tempo" });
+	});
+
+	test("sections by mode, the first one opens (AC2, AC3, AC6, AC8)", () => {
+		expect(settingsSections({ ...base, mode: "flashcards" })).toEqual([
+			"cards",
+			"sound",
+			"microphone",
+		]);
+		expect(settingsSections({ ...base, mode: "song" })).toEqual([
+			"song",
+			"practice",
+			"microphone",
+		]);
+	});
+
+	test("practice controls by practice (AC4)", () => {
+		expect(practiceControls({ ...base, practice: "single" })).toEqual([
+			"fingeringDelay",
+			"singleAdvanceDelay",
+		]);
+		expect(practiceControls({ ...base, practice: "tempo" })).toEqual([
+			"metronome",
+			"scoring",
+		]);
+	});
+
+	test("the mode and practice inputs apply a choice and ignore anything else", () => {
+		expect(applyModeInput(base, "song")).toEqual({ ...base, mode: "song" });
+		expect(applyPracticeInput(base, "tempo")).toEqual({
+			...base,
+			practice: "tempo",
+		});
+		for (const v of ["", "Song", "both"]) {
+			expect(applyModeInput(base, v)).toBe(base);
+			expect(applyPracticeInput(base, v)).toBe(base);
+		}
+	});
+
+	test("switching and back keeps the hidden values (AC7)", () => {
+		const s = { ...base, delaySeconds: 7, fingeringDelaySeconds: 5 };
+		const back = applyModeInput(applyModeInput(s, "song"), "flashcards");
+		expect(back).toEqual(s);
+		expect(
+			applyPracticeInput(applyPracticeInput(s, "tempo"), "single"),
+		).toEqual(s);
+	});
+
+	test("the two delay inputs take 0.5 to 30 and ignore the rest (AC4)", () => {
+		for (const [apply, field] of [
+			[applyFingeringDelayInput, "fingeringDelaySeconds"],
+			[applySingleAdvanceDelayInput, "singleAdvanceDelaySeconds"],
+		] as const) {
+			expect(apply(base, 0.5)).toMatchObject({ [field]: 0.5 });
+			expect(apply(base, 30)).toMatchObject({ [field]: 30 });
+			for (const v of [0.4, 30.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+				expect(apply(base, v)).toBe(base);
+			}
+		}
+	});
+
+	test("the advance delay is greyed out while judging, with its note (AC5)", () => {
+		expect(singleAdvanceDisabled({ ...base, judgeEnabled: true })).toBe(true);
+		expect(singleAdvanceDisabled({ ...base, judgeEnabled: false })).toBe(false);
+		expect(SINGLE_ADVANCE_NOTE).toBe("Used with the microphone off");
+	});
+
+	test("the practice summary", () => {
+		expect(practiceSummary({ ...base, practice: "single" })).toBe(
+			"single note, fingering 3 s",
+		);
+		expect(practiceSummary({ ...base, practice: "tempo" })).toBe("tempo");
+		expect(
+			practiceSummary({
+				...base,
+				practice: "tempo",
+				judgeEnabled: true,
+				scoring: "after",
+			}),
+		).toBe("tempo, scored after the song");
 	});
 });

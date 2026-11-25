@@ -23,6 +23,9 @@ export const START_PROMPT = "Tap or press a key to start";
 
 export const END_OF_SONG = "End of song";
 
+/** Single note, a right tone that ended before it passed: shown in the bar until the next tone starts. */
+export const PLAY_WHOLE_VALUE = "Play the note's whole value";
+
 /** The quiet line in the song's bar while it plays with scoring after the song. */
 export const SCORING_AFTER = "Scoring after the song";
 

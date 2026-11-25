@@ -263,6 +263,22 @@ main {
 	vector-effect: non-scaling-stroke;
 }
 
+/* Single note's fingering, in the strip under the head: drawn in the staff's view box. */
+.fingering-name {
+	fill: CanvasText;
+	font-family: sans-serif;
+	font-weight: 600;
+}
+
+.fingering-glyph {
+	fill: CanvasText;
+}
+
+.fingering-placeholder {
+	opacity: 0.6;
+	font-family: sans-serif;
+}
+
 .lane-guides {
 	fill: none;
 	stroke: #888;
@@ -373,12 +389,6 @@ main {
 .card-reveal.judging .card-glyph {
 	height: 7rem;
 	font-size: 5.5rem;
-}
-
-/* The hint is the answer shown early, so it is a little muted. Heights stay put. */
-.card-hint .card-name,
-.card-hint .card-glyph {
-	opacity: 0.75;
 }
 
 .card-verdict {

@@ -1,7 +1,7 @@
 import type { RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Spot } from "../core/analysis";
-import type { Progress, Timeline } from "../core/coverage";
+import type { Progress, Segment, Timeline } from "../core/coverage";
 import type { Pitch } from "../core/pitch";
 import type { Bar, Meter } from "../core/song";
 import {
@@ -9,10 +9,11 @@ import {
 	colourSong,
 	drawSongLines,
 	drawStaff,
-	ROW_HEIGHT,
+	rowHeight,
 	type SongLayout,
 	type StaffOptions,
 } from "../render/staff";
+import type { TabView } from "../render/tab";
 import { spotAnchorId } from "./analysis-text";
 import { createScroller, followTop, type Scroller } from "./follow";
 import { laneNoteEnds, laneRows, laneSegments } from "./lane";
@@ -67,6 +68,20 @@ export interface SongView {
 	scored: Progress | null;
 	/** The practice spots to shade, in the summary only; none when absent. */
 	spots?: readonly Spot[];
+	/**
+	 * Single note (F16-S02): the index of the note the fixed play head is on, with no clock;
+	 * null for none (the end of the song), absent in Tempo and playback.
+	 */
+	head?: number | null;
+	/** A fingering strip under every row's lane; Single note only. */
+	strip?: boolean;
+	/** The note letter and tablature drawn in the strip under the head; null for none. */
+	fingering?: { name: string; tab: TabView | null } | null;
+	/**
+	 * Single note with the microphone running: the tone sounding now as a trace in the
+	 * current note's lane segment, read each frame; null for none.
+	 */
+	tone?: { trace(): Segment | null; tolerance: number } | null;
 }
 
 /**
@@ -111,6 +126,10 @@ export function SongStaff({
 		scored,
 		overrun = null,
 		spots = NO_SPOTS,
+		head = undefined,
+		strip = false,
+		fingering = null,
+		tone = null,
 	} = view;
 	// What the effects read when they run, without making them redraw.
 	const now = useRef({ current, countBeat });
@@ -123,6 +142,7 @@ export function SongStaff({
 			options,
 			meter,
 			barsPerLine,
+			{ strip },
 		);
 		// The card grows with the song: the box takes the whole drawing's proportions.
 		if (box.current) {
@@ -130,12 +150,12 @@ export function SongStaff({
 			// One row's proportions, for the CSS cap on the staff's width.
 			box.current.style.setProperty(
 				"--row-aspect",
-				String(drawn.width / ROW_HEIGHT),
+				String(drawn.width / rowHeight(strip)),
 			);
 		}
 		colourSong(drawn, now.current.current, now.current.countBeat);
 		setLayout(drawn);
-	}, [lines, options, meter, barsPerLine]);
+	}, [lines, options, meter, barsPerLine, strip]);
 	useEffect(() => {
 		if (layout) colourSong(layout, current, countBeat);
 	}, [layout, current, countBeat]);
@@ -144,8 +164,11 @@ export function SongStaff({
 	const lastRow = useRef<number | null>(null);
 	const layoutRef = useRef(layout);
 	layoutRef.current = layout;
-	const running = useRef(playhead.running);
-	running.current = playhead.running;
+	// The page follows a moving playhead, and a fixed head too.
+	const running = useRef(
+		playhead.running || (head !== undefined && head !== null),
+	);
+	running.current = playhead.running || (head !== undefined && head !== null);
 	useEffect(() => {
 		const made = createScroller({
 			scrollY: () => window.scrollY,
@@ -245,6 +268,11 @@ export function SongStaff({
 					overrun={lane}
 					onRow={onRow}
 					spots={spots}
+					timeline={timeline}
+					head={head}
+					strip={strip}
+					fingering={fingering}
+					tone={tone}
 				/>
 			)}
 			{layout &&

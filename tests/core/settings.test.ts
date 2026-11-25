@@ -9,7 +9,6 @@ import {
 	canTurnSoundOn,
 	isValidSongTune,
 	isValidTolerance,
-	keepTempoApplies,
 	MAX_SONG_CHARS,
 	MAX_TOLERANCE_CENTS,
 	MIN_TOLERANCE_CENTS,
@@ -22,10 +21,12 @@ import {
 	setIncludeSharps,
 	setSoundEnabled,
 	setTimings,
+	singleNoteApplies,
 	smartSamplingApplies,
 	snapToNaturals,
 	soundFits,
 	soundTooLongReason,
+	tempoApplies,
 	toSettingsJson,
 	validateSettings,
 } from "../../src/core/settings";
@@ -60,8 +61,10 @@ function settings(
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -86,8 +89,10 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		judgeEnabled: false,
 		smartSampling: false,
 		toleranceCents: 40,
-		useSong: false,
-		keepTempo: false,
+		mode: "flashcards",
+		practice: "single",
+		fingeringDelaySeconds: 3,
+		singleAdvanceDelaySeconds: 3,
 		metronome: false,
 		scoring: "live",
 		barsPerLine: 2,
@@ -602,8 +607,10 @@ describe("judge fields", () => {
 				...DEFAULTS,
 				delaySeconds: 5,
 				toleranceCents: 20,
-				useSong: false,
-				keepTempo: false,
+				mode: "flashcards",
+				practice: "single",
+				fingeringDelaySeconds: 3,
+				singleAdvanceDelaySeconds: 3,
 				metronome: false,
 				scoring: "live",
 				songAbc: "",
@@ -678,10 +685,12 @@ describe("song fields", () => {
 	});
 
 	test("valid values are kept and round trip through the JSON form", () => {
-		const input = { ...DEFAULTS, useSong: true, songAbc: tune };
+		const input: Settings = { ...DEFAULTS, mode: "song", songAbc: tune };
 		expect(toSettingsJson(input)).toMatchObject({
-			useSong: true,
-			keepTempo: false,
+			mode: "song",
+			practice: "single",
+			fingeringDelaySeconds: 3,
+			singleAdvanceDelaySeconds: 3,
 			metronome: false,
 			scoring: "live",
 			songAbc: tune,
@@ -703,18 +712,20 @@ describe("song fields", () => {
 		).toBe("");
 	});
 
-	test("a bad use song flag resets alone", () => {
-		for (const useSong of [undefined, "true", 1, null]) {
+	test("a bad mode resets alone", () => {
+		for (const mode of [undefined, "true", 1, null, "Song"]) {
 			const result = validateSettings(
-				json({ useSong, songAbc: tune, delaySeconds: 5 }),
+				json({ mode, songAbc: tune, delaySeconds: 5 }),
 				instrument,
 				DEFAULTS,
 			);
 			expect(result).toEqual({
 				...DEFAULTS,
 				delaySeconds: 5,
-				useSong: false,
-				keepTempo: false,
+				mode: "flashcards",
+				practice: "single",
+				fingeringDelaySeconds: 3,
+				singleAdvanceDelaySeconds: 3,
 				metronome: false,
 				scoring: "live",
 				songAbc: tune,
@@ -725,15 +736,17 @@ describe("song fields", () => {
 	test("a bad song text resets alone", () => {
 		for (const songAbc of [undefined, 5, null, ["C"], "x".repeat(10001)]) {
 			const result = validateSettings(
-				json({ useSong: true, songAbc, delaySeconds: 5 }),
+				json({ mode: "song", songAbc, delaySeconds: 5 }),
 				instrument,
 				DEFAULTS,
 			);
 			expect(result).toEqual({
 				...DEFAULTS,
 				delaySeconds: 5,
-				useSong: true,
-				keepTempo: false,
+				mode: "song",
+				practice: "single",
+				fingeringDelaySeconds: 3,
+				singleAdvanceDelaySeconds: 3,
 				metronome: false,
 				scoring: "live",
 				songAbc: "",
@@ -742,12 +755,14 @@ describe("song fields", () => {
 	});
 
 	test("old data without the fields keeps everything else", () => {
-		const { useSong, songAbc, ...old } = json({ delaySeconds: 7 });
+		const { songAbc, ...old } = json({ delaySeconds: 7 });
 		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
 			...DEFAULTS,
 			delaySeconds: 7,
-			useSong: false,
-			keepTempo: false,
+			mode: "flashcards",
+			practice: "single",
+			fingeringDelaySeconds: 3,
+			singleAdvanceDelaySeconds: 3,
 			metronome: false,
 			scoring: "live",
 			songAbc: "",
@@ -759,21 +774,23 @@ describe("song fields", () => {
 		for (const songAbc of ["", undefined]) {
 			expect(
 				validateSettings(
-					json({ useSong: true, songAbc, delaySeconds: 5 }),
+					json({ mode: "song", songAbc, delaySeconds: 5 }),
 					instrument,
 					withTune,
 				),
 			).toEqual({
 				...withTune,
 				delaySeconds: 5,
-				useSong: true,
-				keepTempo: false,
+				mode: "song",
+				practice: "single",
+				fingeringDelaySeconds: 3,
+				singleAdvanceDelaySeconds: 3,
 				metronome: false,
 				scoring: "live",
 				songAbc: tune,
 			});
 		}
-		const { useSong, songAbc, ...old } = json({ delaySeconds: 7 });
+		const { songAbc, ...old } = json({ delaySeconds: 7 });
 		expect(validateSettings(old, instrument, withTune)).toEqual({
 			...withTune,
 			delaySeconds: 7,
@@ -788,19 +805,18 @@ describe("song fields", () => {
 		).toBe("X:2\nK:C\nG|");
 	});
 
-	test("the strict parse accepts a song text and rejects use song on or a bad text", () => {
+	test("the strict parse accepts a song text and rejects a bad text", () => {
 		expect(parseDefaults(json({ songAbc: tune }), instrument)).toMatchObject({
-			useSong: false,
-			keepTempo: false,
+			mode: "flashcards",
+			practice: "single",
+			fingeringDelaySeconds: 3,
+			singleAdvanceDelaySeconds: 3,
 			metronome: false,
 			scoring: "live",
 			songAbc: tune,
 		});
 		expect(parseDefaults(json(), instrument)).toMatchObject({ songAbc: "" });
 		const bad: [Record<string, unknown>, string][] = [
-			[{ useSong: undefined }, "useSong"],
-			[{ useSong: "no" }, "useSong"],
-			[{ useSong: true }, "useSong"],
 			[{ songAbc: undefined }, "songAbc"],
 			[{ songAbc: 3 }, "songAbc"],
 			[{ songAbc: "x".repeat(MAX_SONG_CHARS + 1) }, "songAbc"],
@@ -857,84 +873,171 @@ describe("smart sampling field (F06-S02)", () => {
 		}
 	});
 
-	test("smartSamplingApplies needs the setting, judging and no song", () => {
+	test("smartSamplingApplies needs the setting, judging and Flashcards; a song turns it off", () => {
 		for (const smartSampling of [false, true]) {
 			for (const judgeEnabled of [false, true]) {
-				for (const useSong of [false, true]) {
+				for (const mode of ["flashcards", "song"] as const) {
 					expect(
 						smartSamplingApplies({
 							...DEFAULTS,
 							smartSampling,
 							judgeEnabled,
-							useSong,
+							mode,
 						}),
-					).toBe(smartSampling && judgeEnabled && !useSong);
+					).toBe(smartSampling && judgeEnabled && mode === "flashcards");
 				}
 			}
 		}
 	});
 });
 
-describe("keep tempo (F08-S02 AC1)", () => {
-	test("is off in the test defaults and round trips", () => {
-		expect(DEFAULTS.keepTempo).toBe(false);
-		const input = { ...DEFAULTS, useSong: true, keepTempo: true };
-		expect(toSettingsJson(input)).toMatchObject({ keepTempo: true });
-		expect(
-			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
-		).toEqual(input);
+describe("mode and practice (F16-S01)", () => {
+	test("are Flashcards and Single note in the test defaults and round trip", () => {
+		expect(DEFAULTS.mode).toBe("flashcards");
+		expect(DEFAULTS.practice).toBe("single");
+		const input: Settings = {
+			...DEFAULTS,
+			mode: "song",
+			practice: "tempo",
+			fingeringDelaySeconds: 5,
+			singleAdvanceDelaySeconds: 7,
+		};
+		const out = toSettingsJson(input);
+		expect(out).toMatchObject({
+			mode: "song",
+			practice: "tempo",
+			fingeringDelaySeconds: 5,
+			singleAdvanceDelaySeconds: 7,
+		});
+		expect(out).not.toHaveProperty("useSong");
+		expect(out).not.toHaveProperty("keepTempo");
+		expect(validateSettings(out, instrument, DEFAULTS)).toEqual(input);
 	});
 
-	test("old data without it loads false and keeps every other field", () => {
-		const { keepTempo, ...old } = json({ delaySeconds: 7, useSong: true });
-		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+	test("each new field resets alone when bad", () => {
+		const cases: [string, unknown[]][] = [
+			["mode", [undefined, "Song", 1, null, true]],
+			["practice", [undefined, "Tempo", 1, null, false]],
+			["fingeringDelaySeconds", [undefined, 0.4, 31, "3", null, Number.NaN]],
+			["singleAdvanceDelaySeconds", [undefined, 0.4, 31, "3", null]],
+		];
+		const other = {
 			...DEFAULTS,
-			delaySeconds: 7,
-			useSong: true,
-			keepTempo: false,
-			metronome: false,
-			scoring: "live",
+			mode: "song" as const,
+			practice: "tempo" as const,
+			fingeringDelaySeconds: 6,
+			singleAdvanceDelaySeconds: 7,
+		};
+		for (const [field, bads] of cases) {
+			for (const bad of bads) {
+				const raw = { ...toSettingsJson(other), [field]: bad };
+				expect(validateSettings(raw, instrument, DEFAULTS)).toEqual({
+					...other,
+					[field]: (DEFAULTS as unknown as Record<string, unknown>)[field],
+				});
+			}
+		}
+	});
+
+	test("the delays keep their bounds", () => {
+		for (const field of [
+			"fingeringDelaySeconds",
+			"singleAdvanceDelaySeconds",
+		] as const) {
+			for (const v of [0.5, 30]) {
+				expect(
+					validateSettings(json({ [field]: v }), instrument, DEFAULTS)[field],
+				).toBe(v);
+			}
+		}
+	});
+
+	test("old data maps useSong and keepTempo (AC13)", () => {
+		const old = (useSong: unknown, keepTempo: unknown) => {
+			const {
+				mode: _m,
+				practice: _p,
+				...rest
+			} = json({ delaySeconds: 7, songAbc: "X:1\nK:C\nC|" });
+			return validateSettings(
+				{ ...rest, useSong, keepTempo },
+				instrument,
+				DEFAULTS,
+			);
+		};
+		const keep = { delaySeconds: 7, songAbc: "X:1\nK:C\nC|" };
+		expect(old(false, false)).toEqual({ ...DEFAULTS, ...keep });
+		expect(old(true, false)).toEqual({ ...DEFAULTS, ...keep, mode: "song" });
+		expect(old(true, true)).toEqual({
+			...DEFAULTS,
+			...keep,
+			mode: "song",
+			practice: "tempo",
+		});
+		// A hidden keep tempo carries over as a hidden Tempo practice.
+		expect(old(false, true)).toEqual({
+			...DEFAULTS,
+			...keep,
+			practice: "tempo",
 		});
 	});
 
-	test("a non-boolean resets alone", () => {
-		for (const keepTempo of ["true", 1, null]) {
-			expect(
-				validateSettings(
-					json({ keepTempo, useSong: true, delaySeconds: 5 }),
-					instrument,
-					DEFAULTS,
-				),
-			).toEqual({
-				...DEFAULTS,
-				useSong: true,
-				delaySeconds: 5,
-				keepTempo: false,
-				metronome: false,
-				scoring: "live",
-			});
-		}
+	test("stored data with neither field loads Flashcards with Single note", () => {
+		const { mode, practice, ...old } = json({ delaySeconds: 7 });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+		});
 	});
 
-	test("the strict parse requires a boolean", () => {
-		expect(parseDefaults(json({ keepTempo: false }), instrument)).toMatchObject(
-			{ keepTempo: false },
-		);
-		for (const keepTempo of [undefined, "no", 1, null]) {
-			expect(() => parseDefaults(json({ keepTempo }), instrument)).toThrow(
-				SettingsError,
-			);
-			expect(() => parseDefaults(json({ keepTempo }), instrument)).toThrow(
-				"keepTempo",
-			);
-		}
+	test("the new fields win over old ones, and non-boolean old fields are ignored", () => {
+		const raw = json({ mode: "flashcards", practice: "single" });
+		expect(
+			validateSettings(
+				{ ...raw, useSong: true, keepTempo: true },
+				instrument,
+				DEFAULTS,
+			),
+		).toEqual(DEFAULTS);
+		const { mode, practice, ...rest } = raw;
+		expect(
+			validateSettings(
+				{ ...rest, useSong: "yes", keepTempo: 1 },
+				instrument,
+				DEFAULTS,
+			),
+		).toEqual(DEFAULTS);
 	});
 
-	test("keepTempoApplies needs use song and keep tempo", () => {
-		for (const useSong of [false, true]) {
-			for (const keepTempo of [false, true]) {
-				expect(keepTempoApplies({ ...DEFAULTS, useSong, keepTempo })).toBe(
-					useSong && keepTempo,
+	test("the strict parse requires each new field", () => {
+		const bad: [string, unknown[]][] = [
+			["mode", [undefined, "Song", 1, null]],
+			["practice", [undefined, "Tempo", 1, null]],
+			["fingeringDelaySeconds", [undefined, 0.4, 31, "3", null]],
+			["singleAdvanceDelaySeconds", [undefined, 0.4, 31, "3", null]],
+		];
+		for (const [field, values] of bad) {
+			for (const v of values) {
+				expect(() => parseDefaults(json({ [field]: v }), instrument)).toThrow(
+					SettingsError,
+				);
+				expect(() => parseDefaults(json({ [field]: v }), instrument)).toThrow(
+					field,
+				);
+			}
+		}
+		expect(
+			parseDefaults(json({ mode: "song", practice: "tempo" }), instrument),
+		).toMatchObject({ mode: "song", practice: "tempo" });
+	});
+
+	test("tempoApplies and singleNoteApplies follow the mode and practice", () => {
+		for (const mode of ["flashcards", "song"] as const) {
+			for (const practice of ["single", "tempo"] as const) {
+				const s = { ...DEFAULTS, mode, practice };
+				expect(tempoApplies(s)).toBe(mode === "song" && practice === "tempo");
+				expect(singleNoteApplies(s)).toBe(
+					mode === "song" && practice === "single",
 				);
 			}
 		}
@@ -978,10 +1081,10 @@ describe("bars per line", () => {
 describe("metronome (F08-S04 AC1)", () => {
 	test("is off in the test defaults and round trips", () => {
 		expect(DEFAULTS.metronome).toBe(false);
-		const input = {
+		const input: Settings = {
 			...DEFAULTS,
-			useSong: true,
-			keepTempo: true,
+			mode: "song",
+			practice: "tempo",
 			metronome: true,
 		};
 		expect(toSettingsJson(input)).toMatchObject({ metronome: true });
@@ -991,11 +1094,16 @@ describe("metronome (F08-S04 AC1)", () => {
 	});
 
 	test("old data without it loads false and keeps every other field", () => {
-		const { metronome, ...old } = json({ delaySeconds: 7, keepTempo: true });
+		const { metronome, ...old } = json({
+			delaySeconds: 7,
+			mode: "song",
+			practice: "tempo",
+		});
 		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
 			...DEFAULTS,
 			delaySeconds: 7,
-			keepTempo: true,
+			mode: "song",
+			practice: "tempo",
 			metronome: false,
 			scoring: "live",
 		});
@@ -1005,13 +1113,13 @@ describe("metronome (F08-S04 AC1)", () => {
 		for (const metronome of ["true", 1, null]) {
 			expect(
 				validateSettings(
-					json({ metronome, keepTempo: true, delaySeconds: 5 }),
+					json({ metronome, practice: "tempo", delaySeconds: 5 }),
 					instrument,
 					DEFAULTS,
 				),
 			).toEqual({
 				...DEFAULTS,
-				keepTempo: true,
+				practice: "tempo",
 				delaySeconds: 5,
 				metronome: false,
 				scoring: "live",
@@ -1033,13 +1141,13 @@ describe("metronome (F08-S04 AC1)", () => {
 		}
 	});
 
-	test("metronomeApplies needs use song, keep tempo and metronome", () => {
-		for (const useSong of [false, true]) {
-			for (const keepTempo of [false, true]) {
+	test("metronomeApplies needs Song mode, Tempo and the metronome", () => {
+		for (const mode of ["flashcards", "song"] as const) {
+			for (const practice of ["single", "tempo"] as const) {
 				for (const metronome of [false, true]) {
 					expect(
-						metronomeApplies({ ...DEFAULTS, useSong, keepTempo, metronome }),
-					).toBe(useSong && keepTempo && metronome);
+						metronomeApplies({ ...DEFAULTS, mode, practice, metronome }),
+					).toBe(mode === "song" && practice === "tempo" && metronome);
 				}
 			}
 		}
@@ -1071,11 +1179,16 @@ describe("scoring (F12-S01)", () => {
 	});
 
 	test("old data without it loads live and keeps every other field", () => {
-		const { scoring, ...old } = json({ delaySeconds: 7, keepTempo: true });
+		const { scoring, ...old } = json({
+			delaySeconds: 7,
+			mode: "song",
+			practice: "tempo",
+		});
 		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
 			...DEFAULTS,
 			delaySeconds: 7,
-			keepTempo: true,
+			mode: "song",
+			practice: "tempo",
 			scoring: "live",
 		});
 	});
@@ -1084,33 +1197,38 @@ describe("scoring (F12-S01)", () => {
 		for (const scoring of ["Live", "both", 1, null, true]) {
 			expect(
 				validateSettings(
-					json({ scoring, keepTempo: true, delaySeconds: 5 }),
+					json({ scoring, practice: "tempo", delaySeconds: 5 }),
 					instrument,
 					DEFAULTS,
 				),
 			).toEqual({
 				...DEFAULTS,
-				keepTempo: true,
+				practice: "tempo",
 				delaySeconds: 5,
 				scoring: "live",
 			});
 		}
 	});
 
-	test("scoringAfterApplies needs use song, keep tempo, judging and after", () => {
-		for (const useSong of [false, true]) {
-			for (const keepTempo of [false, true]) {
+	test("scoringAfterApplies needs Song mode, Tempo, judging and after", () => {
+		for (const mode of ["flashcards", "song"] as const) {
+			for (const practice of ["single", "tempo"] as const) {
 				for (const judgeEnabled of [false, true]) {
 					for (const scoring of ["live", "after"] as const) {
 						expect(
 							scoringAfterApplies({
 								...DEFAULTS,
-								useSong,
-								keepTempo,
+								mode,
+								practice,
 								judgeEnabled,
 								scoring,
 							}),
-						).toBe(useSong && keepTempo && judgeEnabled && scoring === "after");
+						).toBe(
+							mode === "song" &&
+								practice === "tempo" &&
+								judgeEnabled &&
+								scoring === "after",
+						);
 					}
 				}
 			}

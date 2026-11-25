@@ -11,13 +11,15 @@ import {
 } from "../audio/context";
 import { browserListenerEnv, createListener } from "../audio/listener";
 import { createTonePlayer, createToneScheduler } from "../audio/tone";
-import { buildTimeline } from "../core/coverage";
+import { buildTimeline, type Segment, type Timeline } from "../core/coverage";
 import { buildPool } from "../core/drill";
 import { loadInstrument, soundingPitch } from "../core/instrument";
 import {
 	createToneTracker,
+	createToneWatch,
 	DEFAULT_THRESHOLDS,
 	frequencyBand,
+	gradeTone,
 	judge,
 } from "../core/judge";
 import type { Pitch } from "../core/pitch";
@@ -28,14 +30,20 @@ import {
 	type Scores,
 } from "../core/progress";
 import {
-	keepTempoApplies,
 	metronomeApplies,
 	parseDefaults,
 	type Settings,
 	scoringAfterApplies,
+	singleNoteApplies,
 	smartSamplingApplies,
+	tempoApplies,
 } from "../core/settings";
-import { DEFAULT_TEMPO, type SongNote, songLines } from "../core/song";
+import {
+	DEFAULT_TEMPO,
+	type Song,
+	type SongNote,
+	songLines,
+} from "../core/song";
 import type { StaffOptions } from "../render/staff";
 import { type FontStatus, fontFamilyFor } from "../render/tab";
 import { lanesShown } from "./after-song";
@@ -45,9 +53,7 @@ import {
 	type CardState,
 	createCardFlow,
 	needSource,
-	type PitchSource,
 	randomSource,
-	songSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
 import { headerSong, playButton, tuneChoice } from "./header-text";
@@ -66,6 +72,12 @@ import { Settings as SettingsView } from "./Settings";
 import { cardPhase } from "./scroll-lock";
 import { browserStorage, loadSettings, saveSettings } from "./settings-store";
 import {
+	createSingleNoteFlow,
+	type SingleNoteListen,
+	type SingleNoteState,
+} from "./single-note-flow";
+import { singleNoteView } from "./single-note-view";
+import {
 	chooseTune,
 	chosenTune,
 	NO_SONG,
@@ -78,6 +90,7 @@ import {
 	type TimedListen,
 	type TimedState,
 } from "./timed-flow";
+import { tonePassLengthMs, toneSegment } from "./trace";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -114,12 +127,21 @@ const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
 /** The checks a sounding reading passes, for the overrun's trace. */
 const CHECKS = { ...DEFAULT_THRESHOLDS, band: BAND };
+/**
+ * Single note's tone watch has no hold-off: no reference tone plays, so there is no
+ * room tail to skip, and a hold-off would throw away the start of a tone played
+ * straight after the last. A tone still counts only after a silence since the reset.
+ */
+const TONE_WATCH_CHECKS = { ...CHECKS, holdOffMs: 0 };
 /** The playhead's clocks: stable functions, so its frame loop restarts only with the song. */
 const playheadNow = () => timedClock.now();
 const playheadLatency = () => outputLatencySeconds(audio);
 /** The timed flow now running, for the overlay to read its scoring and readings; stable functions, so its frame loop restarts only with the song. */
 let activeTimed: TimedFlow | null = null;
 const fillProgress = () => activeTimed?.progress() ?? null;
+/** The Single note flow's live trace of the tone now sounding, for the overlay; null when none runs. */
+let activeSingleTrace: (() => Segment | null) | null = null;
+const toneTrace = () => activeSingleTrace?.() ?? null;
 const fillReading = () => activeTimed?.reading() ?? null;
 
 function listenFor(settings: Settings): CardListen | null {
@@ -143,6 +165,32 @@ function timedListenFor(settings: Settings): TimedListen | null {
 			checks: { ...DEFAULT_THRESHOLDS, band: BAND },
 			sounding: (p) => soundingPitch(instrument, p),
 		},
+	};
+}
+
+/** Judges each Single note from the microphone: the tone rule against the note's sounding pitch and its segment's length (the written length less the release). */
+function singleListenFor(
+	settings: Settings,
+	song: Song,
+	timeline: Timeline,
+): SingleNoteListen | null {
+	if (!settings.judgeEnabled) return null;
+	return {
+		listener,
+		watch: createToneWatch(TONE_WATCH_CHECKS),
+		grade: (index, readings) => {
+			const note = timeline.notes[index];
+			const written = song.notes[index];
+			if (!note || !written) return "wrong";
+			return gradeTone(readings, {
+				expected: soundingPitch(instrument, written.pitch),
+				toleranceCents: settings.toleranceCents,
+				lengthMs: tonePassLengthMs(note),
+				checks: CHECKS,
+			});
+		},
+		// The same clock as the requestAnimationFrame timestamps on readings.
+		now: () => performance.now(),
 	};
 }
 
@@ -176,8 +224,7 @@ export function App() {
 	const [songState, setSongState] = useState<SongState>(NO_SONG);
 	const [open, setOpen] = useState(false);
 	const [card, setCard] = useState<CardState | null>(null);
-	// The song note's length for the card; undefined (a whole note) without a song.
-	const [cardBeats, setCardBeats] = useState<number | undefined>(undefined);
+	const [single, setSingle] = useState<SingleNoteState | null>(null);
 	const [timed, setTimed] = useState<TimedState | null>(null);
 	const [visible, setVisible] = useState(pageVisible);
 	// The Play song button: the song is playing, and where its playback stands.
@@ -190,23 +237,15 @@ export function App() {
 		saveSettings(browserStorage(), next);
 	};
 	// The saved song text is parsed once at load (abcjs loads only when there is
-	// one). A text that no longer passes turns use song off but stays visible.
+	// one). A text that no longer passes leaves no song, and Settings shows the problems.
 	useEffect(() => {
 		const saved = settingsRef.current;
-		if (saved.songAbc === "") {
-			if (saved.useSong) changeSettings({ ...saved, useSong: false });
-			return;
-		}
+		if (saved.songAbc === "") return;
 		let current = true;
 		parseAbc(saved.songAbc, instrument).then((result) => {
 			if (!current || songEdited.current) return;
 			setSongState(songStateFrom(result));
-			if (!result.ok && settingsRef.current.useSong) {
-				changeSettings({ ...settingsRef.current, useSong: false });
-			} else if (
-				result.ok &&
-				settingsRef.current.songTune > result.tunes.length
-			) {
+			if (result.ok && settingsRef.current.songTune > result.tunes.length) {
 				changeSettings({ ...settingsRef.current, songTune: 1 });
 			}
 		});
@@ -242,10 +281,12 @@ export function App() {
 	// With judging on, a hidden page has no flow, so the microphone is released;
 	// showing it again deals a fresh card. With judging off visibility is ignored.
 	// A timed song stops when the page is hidden, whether or not it judges.
-	const timedSong = keepTempoApplies(settings);
+	const timedSong = tempoApplies(settings);
 	// Scoring after the song: no live lanes, playhead or readout; the result comes at the end.
 	const after = scoringAfterApplies(settings);
-	const visibleKey = settings.judgeEnabled || timedSong ? visible : true;
+	const singleNote = singleNoteApplies(settings);
+	const visibleKey =
+		settings.judgeEnabled || settings.mode === "song" ? visible : true;
 	const song = chosenTune(songState.tunes, settings.songTune);
 	const barsPerLine = settings.barsPerLine;
 	const lines = useMemo(
@@ -267,83 +308,106 @@ export function App() {
 		if (playing) {
 			setCard(null);
 			setTimed(null);
+			setSingle(null);
 			return;
 		}
-		// With use song on, the song is still parsing until `song` arrives; load
-		// turns use song off for a text that fails. No flow and no card meanwhile.
-		const smart = smartSamplingApplies(settings);
-		let next: PitchSource;
-		let beats: number | undefined;
-		if (settings.useSong) {
-			if (song === null) {
-				setCard(null);
-				setTimed(null);
-				return;
-			}
-			next = songSource(song.pitches, (index) => {
-				beats = song.notes[index]?.beats;
-			});
-		} else {
-			const pool = poolFor(settings);
-			next = smart
-				? needSource(pool, () => scoresRef.current as Scores, Math.random)
-				: randomSource(pool, Math.random);
+		// In Song mode the song is still parsing until `song` arrives, and stays
+		// absent for a text that fails. No flow and no card meanwhile.
+		if (settings.mode === "song" && song === null) {
+			setCard(null);
+			setTimed(null);
+			setSingle(null);
+			return;
 		}
-		const onChange = (state: CardState) => {
-			setCard(state);
-			setCardBeats(beats);
-			if (state.listening === "unavailable") setJudgeUnavailable(true);
-			else if (state.listening === "running") setJudgeUnavailable(false);
-		};
 		const onGraded = (pitch: Pitch, grade: ProgressGrade) => {
 			const scores = applyGrade(scoresRef.current as Scores, pitch, grade);
 			scoresRef.current = scores;
 			saveProgress(browserStorage(), instrument, scores);
 			setScoreTick((t) => t + 1);
 		};
-		const flow =
-			timedSong && song !== null
-				? createTimedFlow({
-						song,
-						clock: timedClock,
-						clicker,
-						// Nothing is stored: no `onGraded`, so smart sampling is untouched.
-						metronome: metronomeApplies(settings),
-						after: scoringAfterApplies(settings),
-						listen: timedListenFor(settings),
-						outputLatency: playheadLatency,
-						onChange: (state) => {
-							setTimed(state);
-							if (state.listening === "unavailable") setJudgeUnavailable(true);
-							else if (state.listening === "running")
-								setJudgeUnavailable(false);
-						},
-					})
-				: createCardFlow({
-						next,
-						delayMs: settings.delaySeconds * 1000,
-						advanceDelayMs: settings.autoAdvance
-							? settings.advanceDelaySeconds * 1000
-							: null,
-						tone: settings.soundEnabled
-							? {
-									delayMs: settings.soundDelaySeconds * 1000,
-									play: (p) =>
-										player.play(
-											soundingPitch(instrument, p),
-											settings.soundDurationSeconds,
-										),
-									stop: () => player.stop(),
-								}
-							: null,
-						listen: listenFor(settings),
-						wait: settings.useSong && settings.judgeEnabled,
-						onGraded: smart ? onGraded : null,
-						onChange,
-					});
-		// A card and a timed song never show together.
-		if (timedSong) setCard(null);
-		else setTimed(null);
+		let flow: { start(): void; step(): void; stop(): void };
+		if (singleNote && song !== null) {
+			// One note at a time with no clock; with judging on the microphone decides.
+			const built = buildTimeline(song, song.tempo ?? DEFAULT_TEMPO);
+			let currentNote = 0;
+			const single = createSingleNoteFlow({
+				count: song.notes.length,
+				fingeringDelayMs: settings.fingeringDelaySeconds * 1000,
+				advanceDelayMs: settings.singleAdvanceDelaySeconds * 1000,
+				listen: singleListenFor(settings, song, built),
+				onChange: (state) => {
+					currentNote = state.index;
+					setSingle(state);
+					if (state.listening === "unavailable") setJudgeUnavailable(true);
+					else if (state.listening === "running") setJudgeUnavailable(false);
+				},
+			});
+			flow = single;
+			activeSingleTrace = () => {
+				const note = built.notes[currentNote];
+				const written = song.notes[currentNote];
+				if (!note || !written) return null;
+				return toneSegment(
+					single.tone(),
+					note,
+					soundingPitch(instrument, written.pitch),
+					CHECKS,
+				);
+			};
+			setCard(null);
+			setTimed(null);
+		} else if (timedSong && song !== null) {
+			flow = createTimedFlow({
+				song,
+				clock: timedClock,
+				clicker,
+				// Nothing is stored: no `onGraded`, so smart sampling is untouched.
+				metronome: metronomeApplies(settings),
+				after: scoringAfterApplies(settings),
+				listen: timedListenFor(settings),
+				outputLatency: playheadLatency,
+				onChange: (state) => {
+					setTimed(state);
+					if (state.listening === "unavailable") setJudgeUnavailable(true);
+					else if (state.listening === "running") setJudgeUnavailable(false);
+				},
+			});
+			setCard(null);
+			setSingle(null);
+		} else {
+			// Flashcards: always a random draw from the pool, whatever song is saved.
+			const smart = smartSamplingApplies(settings);
+			const pool = poolFor(settings);
+			flow = createCardFlow({
+				next: smart
+					? needSource(pool, () => scoresRef.current as Scores, Math.random)
+					: randomSource(pool, Math.random),
+				delayMs: settings.delaySeconds * 1000,
+				advanceDelayMs: settings.autoAdvance
+					? settings.advanceDelaySeconds * 1000
+					: null,
+				tone: settings.soundEnabled
+					? {
+							delayMs: settings.soundDelaySeconds * 1000,
+							play: (p) =>
+								player.play(
+									soundingPitch(instrument, p),
+									settings.soundDurationSeconds,
+								),
+							stop: () => player.stop(),
+						}
+					: null,
+				listen: listenFor(settings),
+				onGraded: smart ? onGraded : null,
+				onChange: (state: CardState) => {
+					setCard(state);
+					if (state.listening === "unavailable") setJudgeUnavailable(true);
+					else if (state.listening === "running") setJudgeUnavailable(false);
+				},
+			});
+			setTimed(null);
+			setSingle(null);
+		}
 		const onClick = (event: MouseEvent) => {
 			if (
 				event.target instanceof Element &&
@@ -365,10 +429,12 @@ export function App() {
 		};
 		document.addEventListener("click", onClick);
 		window.addEventListener("keydown", onKeyDown);
-		if (timedSong && song !== null) activeTimed = flow as TimedFlow;
+		if (timedSong && !singleNote && song !== null)
+			activeTimed = flow as TimedFlow;
 		flow.start();
 		return () => {
 			if (activeTimed === flow) activeTimed = null;
+			activeSingleTrace = null;
 			document.removeEventListener("click", onClick);
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
@@ -376,7 +442,7 @@ export function App() {
 	}, [settings, open, visibleKey, song, playing]);
 	// The song played from the header: a count-in, then its tones on the audio clock.
 	useEffect(() => {
-		if (!playing || open || song === null || !settings.useSong) return;
+		if (!playing || open || song === null || settings.mode !== "song") return;
 		const flow = createPlaybackFlow({
 			song,
 			clock: timedClock,
@@ -517,6 +583,43 @@ export function App() {
 					font={{ family: FONT_FAMILY, status: fontStatus }}
 				/>
 			)}
+			{!open &&
+				!playing &&
+				singleNote &&
+				single &&
+				song !== null &&
+				timeline !== null && (
+					<Card
+						pitch={
+							(song.notes[single.index] ?? (song.notes[0] as SongNote)).pitch
+						}
+						revealed={false}
+						judging={settings.judgeEnabled}
+						legend={settings.judgeEnabled}
+						single={{
+							ended: single.ended,
+							fingering: single.fingering,
+							message: single.message,
+						}}
+						song={singleNoteView(
+							{
+								lines,
+								meter: song.meter,
+								barsPerLine,
+								timeline,
+								tempo: songTempo,
+							},
+							single,
+							settings.judgeEnabled
+								? { trace: toneTrace, tolerance: settings.toleranceCents }
+								: null,
+						)}
+						header={headerRef}
+						instrument={instrument}
+						staffOptions={STAFF_OPTIONS}
+						font={{ family: FONT_FAMILY, status: fontStatus }}
+					/>
+				)}
 			{!open && !playing && timedSong && timed && (
 				<Card
 					pitch={timed.pitch}
@@ -583,14 +686,12 @@ export function App() {
 			{!open && !playing && !timedSong && card && (
 				<Card
 					pitch={card.pitch}
-					beats={cardBeats}
 					revealed={card.revealed}
 					listening={card.listening}
 					judging={settings.judgeEnabled}
 					verdict={card.verdict}
-					hint={card.hint}
 					need={
-						smartSamplingApplies(settings) && !settings.useSong
+						smartSamplingApplies(settings)
 							? needOf(scoresRef.current as Scores, card.pitch)
 							: null
 					}

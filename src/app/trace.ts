@@ -2,8 +2,16 @@ import {
 	type Progress,
 	RIGHT_NOTE_BAND_CENTS,
 	type Segment,
+	type TimelineNote,
 	TRACE_SPAN_CENTS,
 } from "../core/coverage";
+import {
+	centsFrom,
+	passesChecks,
+	type Reading,
+	type StabilityOptions,
+} from "../core/judge";
+import type { Pitch } from "../core/pitch";
 import type { RowMap } from "../render/staff";
 import type { LaneSegment, NoteEnd } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
@@ -181,5 +189,58 @@ export function settledPaths(
 			faultMarks(scored.timingFaults, scored.notSeparated, segments, ends),
 			rows,
 		),
+	};
+}
+
+/**
+ * The length a Single note tone is graded against: the note's lane segment,
+ * from its start to where its release starts (its written length for a note
+ * slurred into the next). This is the grey box the player sees.
+ */
+export function tonePassLengthMs(note: TimelineNote): number {
+	return note.endMs - note.releaseMs - note.startMs;
+}
+
+/**
+ * The trace of a tone sounding now in Single note, as a coverage segment on
+ * `note`. The tone's time axis starts at its own start, not at a clock:
+ * a reading at `time` is placed at `note.startMs + (time - tone.startMs)`. Only
+ * readings that pass `checks` become points, each with its offset in cents from
+ * the `sounding` pitch. Nothing is placed past the note's written end, so a
+ * tone held longer draws nothing more. Null without a tone, or when nothing of
+ * it is inside the note.
+ */
+export function toneSegment(
+	tone: { startMs: number; readings: readonly Reading[] } | null,
+	note: TimelineNote,
+	sounding: Pitch,
+	checks: StabilityOptions,
+): Segment | null {
+	if (tone === null || tone.readings.length === 0) return null;
+	const at = (time: number) => note.startMs + (time - tone.startMs);
+	const points: { timeMs: number; cents: number }[] = [];
+	let endMs = note.startMs;
+	for (const reading of tone.readings) {
+		const timeMs = at(reading.time);
+		if (timeMs >= note.endMs) break;
+		endMs = timeMs;
+		if (passesChecks(reading, checks)) {
+			points.push({
+				timeMs,
+				cents: centsFrom(reading.frequency as number, sounding),
+			});
+		}
+	}
+	const last = tone.readings[tone.readings.length - 1] as Reading;
+	// A tone still inside the note ends at its newest reading; one past the end at the written end.
+	if (at(last.time) >= note.endMs) endMs = note.endMs;
+	if (points.length === 0) return null;
+	return {
+		startMs: note.startMs,
+		endMs,
+		kind: "right-in-tune",
+		on: "note",
+		graded: true,
+		points,
 	};
 }

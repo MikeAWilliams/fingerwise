@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { playheadBeat, playheadPlace } from "../../src/app/playhead";
+import { headPlace, playheadBeat, playheadPlace } from "../../src/app/playhead";
 import type { RowLayout, Stop } from "../../src/render/staff";
 
 describe("playheadBeat (F09-S05 AC1, AC3, AC7)", () => {
@@ -35,6 +35,8 @@ function row(line: number, stops: Stop[]): RowLayout {
 		bottom: 0,
 		laneTop: 0,
 		laneBottom: 0,
+		stripTop: 0,
+		stripBottom: 0,
 		stops,
 		notes: new Map(),
 	};
@@ -130,5 +132,57 @@ describe("playheadPlace (F09-S05 AC2, AC3, AC4)", () => {
 
 	test("has no place without rows", () => {
 		expect(playheadPlace(0, [])).toBeNull();
+	});
+});
+
+describe("headPlace (F16-S02 AC2, AC7)", () => {
+	// ♩ = 60: a beat is 1000 ms.
+	const rows = [
+		row(0, [
+			{ x: 0, beat: 0 },
+			{ x: 10, beat: 0 },
+			{ x: 50, beat: 1 },
+			{ x: 90, beat: 3 },
+			{ x: 100, beat: 4 },
+		]),
+		row(1, [
+			{ x: 0, beat: 4 },
+			{ x: 20, beat: 4 },
+			{ x: 70, beat: 5 },
+			{ x: 100, beat: 8 },
+		]),
+	];
+	const note = (index: number, startMs: number, endMs: number) => ({
+		index,
+		written: 60 as never,
+		startMs,
+		endMs,
+		releaseMs: 0,
+		graded: true,
+	});
+	const timeline = {
+		notes: [note(0, 0, 1000), note(1, 1000, 3000), note(2, 4000, 5000)],
+		rests: [],
+		joins: [],
+	};
+
+	test("is at the start of the note, whatever the time", () => {
+		expect(headPlace(0, timeline, 60, rows)).toEqual({ row: 0, x: 10 });
+		expect(headPlace(1, timeline, 60, rows)).toEqual({ row: 0, x: 50 });
+	});
+
+	test("a note that starts a new row is on that row at its first note", () => {
+		expect(headPlace(2, timeline, 60, rows)).toEqual({ row: 1, x: 20 });
+	});
+
+	test("follows the tempo", () => {
+		// At ♩ = 120 note 1 starts at beat 2, halfway between x 50 and x 90.
+		expect(headPlace(1, timeline, 120, rows)).toEqual({ row: 0, x: 70 });
+	});
+
+	test("is null for an index that is no note, or no rows", () => {
+		expect(headPlace(3, timeline, 60, rows)).toBeNull();
+		expect(headPlace(-1, timeline, 60, rows)).toBeNull();
+		expect(headPlace(0, timeline, 60, [])).toBeNull();
 	});
 });

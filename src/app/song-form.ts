@@ -1,6 +1,6 @@
 import defaultsJson from "../../data/settings/defaults.json";
 import type { AbcProblem, AbcResult } from "../abc";
-import { type Settings, scoringAfterApplies } from "../core/settings";
+import type { Settings } from "../core/settings";
 import { DEFAULT_TEMPO, type Song } from "../core/song";
 
 /** What the app holds of the player's song, apart from the saved text. */
@@ -109,8 +109,8 @@ export interface SongEdit {
 /**
  * The effect of the text in the box. A passing text is saved, and keeps the
  * chosen tune when the text still has that many tunes (tune 1 otherwise). A failing text
- * changes nothing but the problems shown. An empty text clears the song and
- * turns use song off; `result` is not looked at then (it may be null).
+ * changes nothing but the problems shown. An empty text clears the song
+ * and leaves the mode alone; `result` is not looked at then (it may be null).
  */
 export function applySongText(
 	settings: Settings,
@@ -119,7 +119,7 @@ export function applySongText(
 ): SongEdit {
 	if (isEmptySong(text)) {
 		return {
-			settings: { ...settings, songAbc: "", songTune: 1, useSong: false },
+			settings: { ...settings, songAbc: "", songTune: 1 },
 			state: NO_SONG,
 			problems: [],
 		};
@@ -153,18 +153,15 @@ export function chooseTune(
 		: { ...settings, songTune: position };
 }
 
-/** Whether the use song toggle may be turned on: only while a valid song is held. */
-export function canUseSong(song: Song | null): boolean {
-	return song !== null;
-}
-
-/** One line of the Song section's values, shown while it is closed. */
-export function songSectionSummary(settings: Settings): string {
-	if (!settings.useSong) return "off";
-	if (!settings.keepTempo) return "on";
-	return scoringAfterApplies(settings)
-		? "on, keep tempo, scored after the song"
-		: "on, keep tempo";
+/** One line of the Song section's values, shown while it is closed: the song's summary and bars per line. */
+export function songSectionSummary(
+	settings: Settings,
+	state: SongState,
+): string {
+	const bars = plural(settings.barsPerLine, "bar", "bars");
+	return state.summary === null
+		? `no song, ${bars} per line`
+		: `${state.summary}, ${bars} per line`;
 }
 
 /** The default song, also shown greyed in the empty box so the format is clear. */

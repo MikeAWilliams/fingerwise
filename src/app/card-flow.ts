@@ -1,10 +1,5 @@
 import type { ListenResult, PitchReading } from "../audio/listener";
-import {
-	drawPitch,
-	drawWeighted,
-	nextInOrder,
-	type RandomSource,
-} from "../core/drill";
+import { drawPitch, drawWeighted, type RandomSource } from "../core/drill";
 import type { Grade, ToneTracker } from "../core/judge";
 import type { Pitch } from "../core/pitch";
 import { drawWeight, type ProgressGrade, type Scores } from "../core/progress";
@@ -28,14 +23,8 @@ export type Listening =
 export interface CardState {
 	pitch: Pitch;
 	revealed: boolean;
-	/**
-	 * Null while the card is hidden. A card waiting for the correct note (see
-	 * `wait`) stays hidden and may carry a passing `incorrect` verdict, which clears
-	 * after `WRONG_VERDICT_MS`.
-	 */
+	/** Null while the card is hidden. */
 	verdict: Verdict | null;
-	/** A waiting card shows its note letter and tablature as a hint while it keeps listening. */
-	hint: boolean;
 	listening: Listening;
 }
 
@@ -85,28 +74,6 @@ export function needSource(
 		drawWeighted(pool, previous, (p) => drawWeight(scores(), p), random);
 }
 
-/**
- * The notes of a song in order, looping after the last. It keeps its own
- * position, so a repeated note is shown again; each flow builds a new one and
- * so starts at the first note. It draws nothing at random. `onIndex` hears the
- * position of each note it deals, before the card shows.
- */
-export function songSource(
-	pitches: readonly Pitch[],
-	onIndex?: (index: number) => void,
-): PitchSource {
-	let index: number | null = null;
-	return () => {
-		const next = nextInOrder(pitches, index);
-		index = next.index;
-		onIndex?.(index);
-		return next.pitch;
-	};
-}
-
-/** How long a wrong-note verdict shows on a waiting card before it clears. */
-export const WRONG_VERDICT_MS = 1000;
-
 export interface CardFlowOptions {
 	next: PitchSource;
 	delayMs: number;
@@ -116,13 +83,6 @@ export interface CardFlowOptions {
 	tone?: CardTone | null;
 	/** Judges each card before its reveal; null or absent turns judging off. */
 	listen?: CardListen | null;
-	/**
-	 * Wait for the correct note: while listening runs with its window open, an
-	 * incorrect tone shows its verdict briefly instead of revealing the card. The
-	 * reveal delay and then a step show the hint, and a step on the hint deals
-	 * the next card. Needs `listen`; false by default.
-	 */
-	wait?: boolean;
 	/**
 	 * Called once for a card revealed while the stream runs: `correct` for a correct
 	 * verdict, `miss` for an incorrect one or none. Not called in any other state.
@@ -134,10 +94,7 @@ export interface CardFlowOptions {
 export interface CardFlow {
 	/** Draw the first card and start its timer. */
 	start(): void;
-	/**
-	 * Reveal the card if hidden, otherwise show the next one. Exactly one per call.
-	 * A waiting card shows the hint first, then a step skips it.
-	 */
+	/** Reveal the card if hidden, otherwise show the next one. Exactly one per call. */
 	step(): void;
 	/** Cancel any pending reveal or advance, and stop listening. */
 	stop(): void;
@@ -151,15 +108,12 @@ export function createCardFlow({
 	advanceDelayMs,
 	tone = null,
 	listen = null,
-	wait = false,
 	onGraded = null,
 	onChange,
 }: CardFlowOptions): CardFlow {
 	let state: CardState | null = null;
 	let cancelTimer: (() => void) | null = null;
 	let cancelSound: (() => void) | null = null;
-	// Clears a wrong verdict; apart from `cancelTimer` so the reveal delay still runs.
-	let cancelMiss: (() => void) | null = null;
 	// Bumped on every deal and on stop, so a late listener result knows its card is gone.
 	let dealt = 0;
 	let stopped = false;
@@ -170,23 +124,6 @@ export function createCardFlow({
 	function cancel() {
 		cancelTimer?.();
 		cancelTimer = null;
-	}
-
-	function cancelClear() {
-		cancelMiss?.();
-		cancelMiss = null;
-	}
-
-	/** True while the card is hidden and only the correct note moves it on. */
-	function waiting(): boolean {
-		return (
-			wait &&
-			listen !== null &&
-			state !== null &&
-			!state.revealed &&
-			state.listening === "running" &&
-			windowOpen
-		);
 	}
 
 	function cancelTone() {
@@ -224,7 +161,6 @@ export function createCardFlow({
 
 	function reveal(verdict: Verdict = NONE) {
 		cancel();
-		cancelClear();
 		windowOpen = false;
 		if (state === null || state.revealed) return;
 		const graded = listen !== null && state.listening === "running";
@@ -240,20 +176,8 @@ export function createCardFlow({
 		}
 	}
 
-	/** Shows the hint on a waiting card: no tone, no advance, the window stays open. */
-	function showHint() {
-		cancel();
-		if (state !== null) show({ ...state, hint: true });
-	}
-
-	// While waiting, the reveal delay gives the hint instead of revealing.
-	function timedReveal() {
-		if (waiting()) showHint();
-		else reveal();
-	}
-
 	function startRevealDelay() {
-		cancelTimer = startRevealTimer(delayMs, timedReveal);
+		cancelTimer = startRevealTimer(delayMs, reveal);
 	}
 
 	function openWindow(active: CardListen) {
@@ -271,17 +195,6 @@ export function createCardFlow({
 			const hz = listen.tracker.push(reading);
 			if (hz === null) return;
 			const grade = listen.grade(state.pitch, hz);
-			if (grade === "incorrect" && waiting()) {
-				show({ ...state, verdict: { grade, frequency: hz } });
-				listen.tracker.reset(listen.now());
-				cancelClear();
-				cancelMiss = startRevealTimer(WRONG_VERDICT_MS, () => {
-					cancelMiss = null;
-					// Reveal, deal and stop cancel this timer, so the card is still unrevealed.
-					if (state) show({ ...state, verdict: null });
-				});
-				return;
-			}
 			reveal({ grade, frequency: hz });
 		} catch {
 			// A failing judge leaves the card to its reveal timer.
@@ -321,7 +234,6 @@ export function createCardFlow({
 
 	function deal(previous: Pitch | null) {
 		cancel();
-		cancelClear();
 		cancelTone();
 		windowOpen = false;
 		dealt++;
@@ -331,7 +243,6 @@ export function createCardFlow({
 				pitch,
 				revealed: false,
 				verdict: null,
-				hint: false,
 				listening: "off",
 			});
 			startRevealDelay();
@@ -342,7 +253,6 @@ export function createCardFlow({
 				pitch,
 				revealed: false,
 				verdict: null,
-				hint: false,
 				listening: "unavailable",
 			});
 			startRevealDelay();
@@ -353,7 +263,6 @@ export function createCardFlow({
 				pitch,
 				revealed: false,
 				verdict: null,
-				hint: false,
 				listening: "running",
 			});
 			openWindow(listen);
@@ -365,7 +274,6 @@ export function createCardFlow({
 			pitch,
 			revealed: false,
 			verdict: null,
-			hint: false,
 			listening: "opening",
 		});
 		openStream(listen);
@@ -376,16 +284,13 @@ export function createCardFlow({
 		step() {
 			if (state === null) return;
 			if (state.revealed) deal(state.pitch);
-			else if (!waiting()) reveal();
-			else if (state.hint) deal(state.pitch);
-			else showHint();
+			else reveal();
 		},
 		stop() {
 			stopped = true;
 			dealt++;
 			windowOpen = false;
 			cancel();
-			cancelClear();
 			cancelTone();
 			if (!listen) return;
 			try {

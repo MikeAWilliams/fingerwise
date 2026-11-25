@@ -26,7 +26,7 @@ A tune as an ordered list of notes (pitch, start and length in beats), with its 
 
 ## Dependencies
 
-`src/core/pitch` and `src/core/instrument` only. The [drill](drill.md) does not import it; the card flow passes `song.pitches` to the drill's `nextInOrder`.
+`src/core/pitch` and `src/core/instrument` only. The [drill](drill.md) does not import it; no flashcard follows a song's order (F16).
 
 ## Tests
 

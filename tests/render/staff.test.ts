@@ -4,6 +4,8 @@ import { type Pitch, parsePitch } from "../../src/core/pitch";
 import {
 	ROW_HEIGHT,
 	rowFrame,
+	STRIP_HEIGHT,
+	STRIP_OVERLAP,
 	songHeight,
 	splitBeats,
 } from "../../src/render/staff";
@@ -166,5 +168,47 @@ describe("rows of the whole song (F10-S02 AC3, AC11)", () => {
 		const f = rowFrame(2);
 		expect(f.laneBottom - f.top).toBe(ROW_HEIGHT);
 		expect(songHeight(7)).toBeGreaterThan(songHeight(6));
+	});
+});
+
+describe("the fingering strip (F16-S02 AC3)", () => {
+	const frames = Array.from({ length: 6 }, (_, i) => rowFrame(i, true));
+
+	test("every row has a strip of the same height under its lane", () => {
+		for (const f of frames) {
+			expect(f.stripTop).toBe(f.laneBottom);
+			expect(f.stripBottom - f.stripTop).toBe(STRIP_HEIGHT);
+		}
+	});
+
+	test("without a strip it has no height and sits at the lane's bottom", () => {
+		for (let i = 0; i < 6; i++) {
+			const f = rowFrame(i);
+			expect(f.stripBottom).toBe(f.laneBottom);
+			expect(f.stripTop).toBe(f.laneBottom);
+		}
+		expect(rowFrame(0)).toEqual(rowFrame(0, false));
+	});
+
+	test("rows stay evenly spaced and overlap only by the strip overlap", () => {
+		const step = (frames[1]?.top as number) - (frames[0]?.top as number);
+		expect(step).toBe(ROW_HEIGHT + STRIP_HEIGHT - STRIP_OVERLAP);
+		for (let i = 1; i < frames.length; i++) {
+			expect((frames[i]?.top as number) - (frames[i - 1]?.top as number)).toBe(
+				step,
+			);
+			expect((frames[i]?.top as number) + STRIP_OVERLAP).toBe(
+				frames[i - 1]?.stripBottom as number,
+			);
+		}
+	});
+
+	test("the drawing is taller by a strip a row, and the page's height holds the last strip", () => {
+		expect(songHeight(6, true) - songHeight(6)).toBe(
+			6 * STRIP_HEIGHT - 5 * STRIP_OVERLAP,
+		);
+		expect(songHeight(6, true)).toBeGreaterThanOrEqual(
+			(frames[5] as ReturnType<typeof rowFrame>).stripBottom,
+		);
 	});
 });

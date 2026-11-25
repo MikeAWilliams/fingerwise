@@ -15,7 +15,6 @@ Decides which pitch comes next. It knows only pitches and instrument definitions
 - `buildPool(instrument, options): Pitch[]`: every pitch from `lowest` to `highest`, ascending, keeping only naturals (see [`isNatural`](pitch.md)) when `includeSharps` is false. Throws `DrillError` if `lowest > highest`, if either bound is outside the instrument's written range, or if the pool is empty.
 - `drawPitch(pool, previous, random): Pitch`: uniform over the pool minus `previous`, via `Math.floor(random() * candidates.length)`. A pool of one returns that pitch even when it is `previous`. An empty pool throws `DrillError`. The module never calls `Math.random`.
 - `drawWeighted(pool, previous, weight, random): Pitch` (F06-S01): like `drawPitch`, but each candidate (the pool minus `previous`) is chosen with probability proportional to `weight(pitch)`, by walking the weights against `random() * total`. A pool of one returns that pitch; an empty pool, or a candidate weight that is not finite and above zero, throws `DrillError`. When all candidate weights are equal it returns `drawPitch(...)`, so uniform draws are unchanged exactly. It takes the weight as a function, so the drill never imports [progress](progress.md).
-- `nextInOrder(pitches, previousIndex): { index, pitch }`: the tune's order for song cards. Index 0 for `null`, otherwise `(previousIndex + 1) % length`, so it wraps after the last. Repeated neighbours come in turn and a one-note list always gives index 0. An empty list throws `DrillError`. It takes a plain `readonly Pitch[]`, so the drill never imports [song](song.md); the caller keeps the index.
 
 ## Dependencies
 
@@ -27,5 +26,4 @@ Decides which pitch comes next. It knows only pitches and instrument definitions
 - `tests/core/core-imports.test.ts`: covers this folder too (relative imports, no browser globals).
 - `tests/extensibility/drill-layers.test.ts` (F01-S07): follows relative imports transitively from every drill file and fails if any reaches `src/render/`, `src/app/`, anything named clef or staff, `vexflow` or `preact`; in-memory source maps show the check fails for direct and transitive cases.
 - `tests/extensibility/fixture-instrument.test.ts` (F01-S07): the pool and `drawPitch` with a 6-hole fixture instrument (C5..C6).
-- `tests/core/drill.test.ts` also covers `nextInOrder` (F05-S01): first for `null`, the following one, the wrap, repeated neighbours, a one-note list, an empty list, and that the source never mentions `../song`.
 - `tests/core/drill.test.ts` also covers `drawWeighted` (F06-S01): proportions 1:3 under a stepping random, every candidate reachable, the previous never drawn, one-pitch and empty pools, bad weights, equal weights matching `drawPitch`, and that the source never mentions `../progress`.

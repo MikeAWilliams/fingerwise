@@ -6,23 +6,94 @@ import {
 	pitchesInRange,
 } from "../core/pitch";
 import {
+	isMode,
+	isPractice,
 	isScoring,
 	isValidBarsPerLine,
 	isValidTolerance,
-	keepTempoApplies,
 	MAX_DELAY_SECONDS,
 	MIN_DELAY_SECONDS,
 	MIN_SOUND_DELAY_SECONDS,
 	MIN_SOUND_DURATION_SECONDS,
+	type Mode,
+	type Practice,
 	type Scoring,
 	type Settings,
 	setTimings,
 } from "../core/settings";
 import { formatSeconds } from "./section";
 
-/** Shown in Cards while a song is in use: the controls it overrides. */
-export const SONG_IN_USE =
-	"A song is in use, so the note range, sharps and smart sampling do not apply.";
+/** The Mode list's choices, in order, with their labels. */
+export const MODE_LABELS: Record<Mode, string> = {
+	flashcards: "Flashcards",
+	song: "Song",
+};
+
+/** The Practice list's choices, in order, with their labels. */
+export const PRACTICE_LABELS: Record<Practice, string> = {
+	single: "Single note",
+	tempo: "Tempo",
+};
+
+/** The line under Single note's advance delay while it is greyed out. */
+export const SINGLE_ADVANCE_NOTE = "Used with the microphone off";
+
+export type SettingsSection =
+	| "cards"
+	| "sound"
+	| "song"
+	| "practice"
+	| "microphone";
+
+/** The sections Settings shows for the mode, in order; the first one opens. */
+export function settingsSections(settings: Settings): SettingsSection[] {
+	return settings.mode === "song"
+		? ["song", "practice", "microphone"]
+		: ["cards", "sound", "microphone"];
+}
+
+export type PracticeControl =
+	| "fingeringDelay"
+	| "singleAdvanceDelay"
+	| "metronome"
+	| "scoring";
+
+/** The controls the Practice section shows for the chosen practice. */
+export function practiceControls(settings: Settings): PracticeControl[] {
+	return settings.practice === "single"
+		? ["fingeringDelay", "singleAdvanceDelay"]
+		: ["metronome", "scoring"];
+}
+
+/** Single note's advance delay is used with the microphone off, so judging greys it out. */
+export function singleAdvanceDisabled(settings: Settings): boolean {
+	return settings.judgeEnabled;
+}
+
+/** One line of the Practice section's values, shown while it is closed. */
+export function practiceSummary(settings: Settings): string {
+	if (settings.practice === "single") {
+		return `single note, fingering ${formatSeconds(settings.fingeringDelaySeconds)}`;
+	}
+	return settings.judgeEnabled && settings.scoring === "after"
+		? "tempo, scored after the song"
+		: "tempo";
+}
+
+/** The settings with `value` as the mode, or unchanged when it is not a mode. */
+export function applyModeInput(settings: Settings, value: string): Settings {
+	if (!isMode(value)) return settings;
+	return { ...settings, mode: value };
+}
+
+/** The settings with `value` as the practice, or unchanged when it is not a practice. */
+export function applyPracticeInput(
+	settings: Settings,
+	value: string,
+): Settings {
+	if (!isPractice(value)) return settings;
+	return { ...settings, practice: value };
+}
 
 /** Asked before progress is cleared. */
 export const RESET_CONFIRM = "Reset progress? This can't be undone.";
@@ -33,9 +104,9 @@ export const SCORING_LABELS: Record<Scoring, string> = {
 	after: "After the song",
 };
 
-/** The Scoring list needs a held song, keep tempo and judging; off, it keeps its value. */
+/** The Scoring list shows only under Tempo, and needs judging; off, it keeps its value. */
 export function scoringEnabled(settings: Settings): boolean {
-	return keepTempoApplies(settings) && settings.judgeEnabled;
+	return settings.judgeEnabled;
 }
 
 /** The settings with `value` as the scoring, or unchanged when it is not "live" or "after". */
@@ -44,9 +115,9 @@ export function applyScoringInput(settings: Settings, value: string): Settings {
 	return { ...settings, scoring: value };
 }
 
-/** The smart sampling checkbox is off-limits without judging or with a song. */
+/** The smart sampling checkbox is off-limits without judging. */
 export function smartSamplingDisabled(settings: Settings): boolean {
-	return !settings.judgeEnabled || settings.useSong;
+	return !settings.judgeEnabled;
 }
 
 /** The line under the smart sampling checkbox while judging is off, else null. */
@@ -122,6 +193,24 @@ export function applyAdvanceDelayInput(
 ): Settings {
 	if (!isDelayInput(value)) return settings;
 	return { ...settings, advanceDelaySeconds: value };
+}
+
+/** The settings with `value` as Single note's fingering delay, or unchanged when it is not a finite number from 0.5 to 30. */
+export function applyFingeringDelayInput(
+	settings: Settings,
+	value: number,
+): Settings {
+	if (!isDelayInput(value)) return settings;
+	return { ...settings, fingeringDelaySeconds: value };
+}
+
+/** The settings with `value` as Single note's advance delay, or unchanged when it is not a finite number from 0.5 to 30. */
+export function applySingleAdvanceDelayInput(
+	settings: Settings,
+	value: number,
+): Settings {
+	if (!isDelayInput(value)) return settings;
+	return { ...settings, singleAdvanceDelaySeconds: value };
 }
 
 /** The settings with `value` as the tolerance, or unchanged when it is not a finite number from 10 to 45. */
