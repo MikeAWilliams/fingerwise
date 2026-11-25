@@ -155,7 +155,7 @@ export function createToneTracker(options: StabilityOptions): ToneTracker {
  */
 export const TONE_END_SILENCE_MS = 150;
 
-/** The share of a note's written length a tone must spend within the tolerance to pass (a live-check value). */
+/** The share of `lengthMs` a tone must spend within the tolerance to pass (a live-check value). */
 export const SINGLE_NOTE_PASS_SHARE = 0.75;
 
 /** How a finished tone went against the note: it passed, was right but too short, or was mostly wrong. */
@@ -165,7 +165,7 @@ export interface ToneGradeOptions {
 	/** The sounding pitch expected. */
 	expected: Pitch;
 	toleranceCents: number;
-	/** The note's written length in time. */
+	/** The length the tone is held against, in time; the app gives the note's lane segment (written length less the release). */
 	lengthMs: number;
 	/** What makes a reading count as sounding. */
 	checks: StabilityOptions;
@@ -175,8 +175,8 @@ export interface ToneGradeOptions {
  * Grades a finished tone. Each reading lasts until the next one's time (the
  * last lasts no time). Sounding time is the readings that pass the checks;
  * time within is those the judge grades correct against the tolerance. The
- * tone passes when time within is at least `SINGLE_NOTE_PASS_SHARE` of the
- * note's length, however much longer it sounded; otherwise it is too short
+ * tone passes when time within is at least `SINGLE_NOTE_PASS_SHARE` of
+ * `lengthMs`, however much longer it sounded; otherwise it is too short
  * when more than half its sounding time was within, and wrong when not.
  */
 export function gradeTone(

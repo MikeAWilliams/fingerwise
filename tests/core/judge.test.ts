@@ -531,6 +531,44 @@ describe("createToneWatch (F16-S03 AC3)", () => {
 		).toBeGreaterThanOrEqual(HOLD);
 	});
 
+	describe("with no hold-off, as Single note uses (F16-S03 AC1)", () => {
+		const noHoldOff = () => {
+			const w = createToneWatch({ ...WITH_BAND, holdOffMs: 0 });
+			w.reset(0);
+			return w;
+		};
+
+		test("a tone played straight after the reset starts at its first reading and passes at full length", () => {
+			const w = noHoldOff();
+			const events = feed(w, [
+				...hold(0, 100, null),
+				...hold(100, 500, A4),
+				...hold(600, 300, null),
+			]);
+			expect(events.map((e) => e.event.kind)).toEqual(["start", "end"]);
+			expect(
+				(events[0]?.event as { startMs: number } | undefined)?.startMs,
+			).toBe(100);
+			const end = events[1]?.event;
+			if (end?.kind !== "end") throw new Error("expected an end");
+			expect(
+				gradeTone(end.readings, {
+					expected: pitch("A4"),
+					toleranceCents: 40,
+					lengthMs: 500,
+					checks: WITH_BAND,
+				}),
+			).toBe("passed");
+		});
+
+		test("a sound held from before the reset still waits for a silence", () => {
+			const w = noHoldOff();
+			expect(feed(w, hold(0, 1000, A4))).toEqual([]);
+			const events = feed(w, [...hold(1000, 50, null), ...hold(1050, 600, A4)]);
+			expect(events.map((e) => e.event.kind)).toEqual(["start"]);
+		});
+	});
+
 	test("a blip shorter than the settle time is not a tone and reports nothing", () => {
 		const w = watch();
 		const events = feed(w, [

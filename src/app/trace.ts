@@ -193,6 +193,15 @@ export function settledPaths(
 }
 
 /**
+ * The length a Single note tone is graded against: the note's lane segment,
+ * from its start to where its release starts (its written length for a note
+ * slurred into the next). This is the grey box the player sees.
+ */
+export function tonePassLengthMs(note: TimelineNote): number {
+	return note.endMs - note.releaseMs - note.startMs;
+}
+
+/**
  * The trace of a tone sounding now in Single note, as a coverage segment on
  * `note`. The tone's time axis starts at its own start, not at a clock:
  * a reading at `time` is placed at `note.startMs + (time - tone.startMs)`. Only

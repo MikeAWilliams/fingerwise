@@ -33,12 +33,12 @@ Run with `make dev` (and an ocarina for the microphone checks). The pure parts a
 ## S03: Single note, microphone on
 
 - [ ] With judging on and the microphone allowed: holding the right note grows a trace from the left of the current note's segment, green in tune, amber out of tune, red beyond ±50 cents. A tone held past the written length draws nothing more.
-- [ ] Hold the whole note value: the head moves on. Hold only a short right tone: "Play the note's whole value" shows until the next tone starts. Play a wrong fingering: the fingering shows and stays; the note keeps listening.
+- [ ] Fill the grey segment, or most of it: the head moves on. Hold only a short right tone: "Play the note's whole value" shows until the next tone starts. Play a wrong fingering: the fingering shows and stays; the note keeps listening.
 - [ ] A held tone longer than the note passes with no message. Two notes at the same pitch: a tone held across both passes only the first.
 - [ ] Without the microphone (denied, or before the first tap): Single note behaves as with judging off and Settings shows the unavailable notice. The legend shows with judging on, and there is no verdict row.
 
 ### Tune these constants (S03)
 
 - [ ] `TONE_END_SILENCE_MS` (`src/core/judge/index.ts`, now 150): a breath or tongue stop ends a tone, a dropout inside a held note does not.
-- [ ] `SINGLE_NOTE_PASS_SHARE` (`src/core/judge/index.ts`, now 0.75): a whole note at ♩ = 60 needs 3 s within tolerance; lower it if that feels too long.
+- [ ] `SINGLE_NOTE_PASS_SHARE` (`src/core/judge/index.ts`, now 0.75): the share of the grey segment (the written length less the release); a quarter at ♩ = 70 needs 482 ms within tolerance, a whole note at ♩ = 60 about 2.6 s; lower it if that feels too long.
 - [ ] The trace's reach past the grey segment into the release gap looks right.

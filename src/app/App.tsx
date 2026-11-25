@@ -90,7 +90,7 @@ import {
 	type TimedListen,
 	type TimedState,
 } from "./timed-flow";
-import { toneSegment } from "./trace";
+import { tonePassLengthMs, toneSegment } from "./trace";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -127,6 +127,12 @@ const timedClock = { now: () => clicker.now() ?? performance.now() / 1000 };
 const BAND = frequencyBand(instrument);
 /** The checks a sounding reading passes, for the overrun's trace. */
 const CHECKS = { ...DEFAULT_THRESHOLDS, band: BAND };
+/**
+ * Single note's tone watch has no hold-off: no reference tone plays, so there is no
+ * room tail to skip, and a hold-off would throw away the start of a tone played
+ * straight after the last. A tone still counts only after a silence since the reset.
+ */
+const TONE_WATCH_CHECKS = { ...CHECKS, holdOffMs: 0 };
 /** The playhead's clocks: stable functions, so its frame loop restarts only with the song. */
 const playheadNow = () => timedClock.now();
 const playheadLatency = () => outputLatencySeconds(audio);
@@ -162,7 +168,7 @@ function timedListenFor(settings: Settings): TimedListen | null {
 	};
 }
 
-/** Judges each Single note from the microphone: the tone rule against the note's sounding pitch and written length. */
+/** Judges each Single note from the microphone: the tone rule against the note's sounding pitch and its segment's length (the written length less the release). */
 function singleListenFor(
 	settings: Settings,
 	song: Song,
@@ -171,7 +177,7 @@ function singleListenFor(
 	if (!settings.judgeEnabled) return null;
 	return {
 		listener,
-		watch: createToneWatch(CHECKS),
+		watch: createToneWatch(TONE_WATCH_CHECKS),
 		grade: (index, readings) => {
 			const note = timeline.notes[index];
 			const written = song.notes[index];
@@ -179,7 +185,7 @@ function singleListenFor(
 			return gradeTone(readings, {
 				expected: soundingPitch(instrument, written.pitch),
 				toleranceCents: settings.toleranceCents,
-				lengthMs: note.endMs - note.startMs,
+				lengthMs: tonePassLengthMs(note),
 				checks: CHECKS,
 			});
 		},

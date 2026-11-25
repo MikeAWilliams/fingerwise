@@ -10,6 +10,7 @@ import {
 	settledPaths,
 	TRACE_COLOURS,
 	TRACE_THICKNESS,
+	tonePassLengthMs,
 	toneSegment,
 	traceColour,
 	traceY,
@@ -408,6 +409,26 @@ describe("settledPaths (F12-S02 AC5, AC6)", () => {
 		);
 		expect(settled.fill).toEqual(rows.map(emptyPaths));
 		expect(settled.marks).toEqual(["", ""]);
+	});
+});
+
+describe("tonePassLengthMs (F16-S03 AC4)", () => {
+	const note = (releaseMs: number): TimelineNote => ({
+		index: 0,
+		written: 69 as never,
+		startMs: 1000,
+		endMs: 1857,
+		releaseMs,
+		graded: true,
+	});
+
+	test("the lane segment: the written length less the release", () => {
+		// A quarter at 70: 857 ms written, a 214 ms release, a 643 ms box.
+		expect(tonePassLengthMs(note(214))).toBe(643);
+	});
+
+	test("a note slurred into the next has no release, so its whole written length", () => {
+		expect(tonePassLengthMs(note(0))).toBe(857);
 	});
 });
 

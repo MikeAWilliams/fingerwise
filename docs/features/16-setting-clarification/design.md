@@ -52,12 +52,12 @@ Settings open with one choice: **Flashcards** or **Song**. Below it are only the
 
 **Single note practice: with the microphone on**
 
-Applies while judging is on and the microphone stream is running. The [hold-off](../../glossary.md) applies each time a note becomes current, as today.
+Applies while judging is on and the microphone stream is running. No [hold-off](../../glossary.md) applies when a note becomes current, since no reference tone plays (decided 2026-11-25 at acceptance, [F16-S03](stories/F16-S03-single-note-listening.md) AC1: the hold-off threw away the start of a tone played straight after the last note). A tone still needs a silence since the note became current.
 
 - **The trace follows the tone, not a clock** (decided 2026-11-25). When the player starts a tone, the pitch trace starts at the left of the current note's segment and grows while they play, with the lane's colours and heights as in Tempo: green in tune, amber the right note out of tune, red beyond ±50 cents. Holding too short leaves part of the segment empty. Holding past its end draws nothing more (*default*).
 - **A tone ends on silence.** A change of pitch does not end it. A blip shorter than the [settle time](../../glossary.md) is not a tone (decided 2026-11-25).
 - **When a tone ends** (decided 2026-11-25):
-  1. **Passed:** the time within the [tolerance](../../glossary.md) adds up to at least **75% of the note's written length** at the tune's tempo. The head moves to the next note.
+  1. **Passed:** the time within the [tolerance](../../glossary.md) adds up to at least **75% of the note's segment**, its written length at the tune's tempo less the [release](../../glossary.md) (changed 2026-11-25 at acceptance: 75% of the written length was the whole grey box, since the release is 25%, so filling the box only just passed and any reading lost at the start or a dip failed; [F16-S03](stories/F16-S03-single-note-listening.md) AC4). The head moves to the next note.
   2. **Right note, too short:** most of the tone's sounding time was within the tolerance, but it fell short of 75%. The segment clears and the pinned bar says "Play the note's whole value" (decided 2026-11-25, so the player knows why the head did not move). No fingering and no mark. The note waits for another try. The message stays until the next tone starts (*default*).
   3. **Wrong note:** most of the tone's sounding time was outside the tolerance. The fingering shows, the segment clears, and the note waits.
 - Duration is part of the pass, but softly: the only message is the one above, when a right note was too short. Holding too long is never commented on.
@@ -120,7 +120,7 @@ The audio, detector, abc, song core, coverage scoring of Tempo, analysis and pla
 ## Risks and open questions
 
 - **Where a tone ends.** Silence ends a tone, but a dropout of a reading or two inside a held note must not. How long a silence must last is tuned in the live check.
-- **The 75% at slow tempos.** A whole note at ♩ = 60 needs 3 s within tolerance. That may be long for a novice. The share is a code constant, tuned in the live check.
+- **The 75% at slow tempos.** A whole note at ♩ = 60 needs about 2.6 s within tolerance. That may be long for a novice. The share is a code constant, tuned in the live check.
 - **Fingering width at 3 or 4 bars per line.** Notes may sit closer together than the glyph is wide. Only one fingering shows at a time, so it cannot collide with another, but it may hang over its neighbours' space.
 - **Height in Single note.** With the strip, fewer lines fit the screen. Accepted, since reading ahead does not matter without time pressure.
 - **Repeated notes at the same pitch.** The player must stop between them for the tone to end. This is natural tonguing, but a slurred repeat held as one tone passes only the first note.

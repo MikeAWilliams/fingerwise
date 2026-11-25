@@ -280,7 +280,7 @@ describe("createSingleNoteFlow listening (F16-S03)", () => {
 		for (let k = 0; k < 5; k++) await Promise.resolve();
 	}
 
-	test("AC1: the current note listens from the moment it becomes current, with the hold-off", async () => {
+	test("AC1: the current note listens from the moment it becomes current", async () => {
 		vi.setSystemTime(1000);
 		const t = setup();
 		t.flow.start();
