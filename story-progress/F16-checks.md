@@ -27,8 +27,8 @@ Run with `make dev` (and an ocarina for the microphone checks). The pure parts a
 
 ### Tune these constants (S02)
 
-- [ ] `STRIP_HEIGHT` (`src/render/staff/song-lines.ts`, now 60): the strip is tall enough for the letter and glyph without wasting space.
-- [ ] `FINGERING_NAME_SIZE`, `FINGERING_GLYPH_SIZE`, `FINGERING_MESSAGE_SIZE` (`src/app/SongOverlay.tsx`, now 13, 38, 10): the glyph is not cut off or crowded, at 1 and 4 bars per line.
+- [x] `STRIP_HEIGHT` (`src/render/staff/song-lines.ts`, now 60): the strip is tall enough for the letter and glyph without wasting space.
+- [x] `FINGERING_NAME_SIZE`, `FINGERING_GLYPH_SIZE`, `FINGERING_MESSAGE_SIZE` (`src/app/SongOverlay.tsx`, now 13, 38, 10): the glyph is not cut off or crowded, at 1 and 4 bars per line.
 
 ## S03: Single note, microphone on
 

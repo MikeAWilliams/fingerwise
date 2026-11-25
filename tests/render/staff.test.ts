@@ -5,6 +5,7 @@ import {
 	ROW_HEIGHT,
 	rowFrame,
 	STRIP_HEIGHT,
+	STRIP_OVERLAP,
 	songHeight,
 	splitBeats,
 } from "../../src/render/staff";
@@ -189,21 +190,23 @@ describe("the fingering strip (F16-S02 AC3)", () => {
 		expect(rowFrame(0)).toEqual(rowFrame(0, false));
 	});
 
-	test("rows stay evenly spaced and do not overlap", () => {
+	test("rows stay evenly spaced and overlap only by the strip overlap", () => {
 		const step = (frames[1]?.top as number) - (frames[0]?.top as number);
-		expect(step).toBe(ROW_HEIGHT + STRIP_HEIGHT);
+		expect(step).toBe(ROW_HEIGHT + STRIP_HEIGHT - STRIP_OVERLAP);
 		for (let i = 1; i < frames.length; i++) {
 			expect((frames[i]?.top as number) - (frames[i - 1]?.top as number)).toBe(
 				step,
 			);
-			expect(frames[i]?.top).toBeGreaterThanOrEqual(
+			expect((frames[i]?.top as number) + STRIP_OVERLAP).toBe(
 				frames[i - 1]?.stripBottom as number,
 			);
 		}
 	});
 
 	test("the drawing is taller by a strip a row, and the page's height holds the last strip", () => {
-		expect(songHeight(6, true) - songHeight(6)).toBe(6 * STRIP_HEIGHT);
+		expect(songHeight(6, true) - songHeight(6)).toBe(
+			6 * STRIP_HEIGHT - 5 * STRIP_OVERLAP,
+		);
 		expect(songHeight(6, true)).toBeGreaterThanOrEqual(
 			(frames[5] as ReturnType<typeof rowFrame>).stripBottom,
 		);

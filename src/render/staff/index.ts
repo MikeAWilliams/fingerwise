@@ -34,6 +34,7 @@ export {
 	rowHeight,
 	type SongLayout,
 	STRIP_HEIGHT,
+	STRIP_OVERLAP,
 	songHeight,
 	splitBeats,
 } from "./song-lines";

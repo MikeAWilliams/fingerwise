@@ -40,9 +40,15 @@ export const ROW_HEIGHT = LINE_HEIGHT + LANE_GAP + LANE_HEIGHT;
  * Height of the fingering strip under a row's lane in Single note, where the
  * current note's letter and tablature are drawn (a live-check value).
  */
-export const STRIP_HEIGHT = 60;
+export const STRIP_HEIGHT = 50;
 /** Extra space between one row's lane and the next row's staff. */
 export const ROW_SPACING = 0;
+/**
+ * How far the next row is pulled up into the headroom above its staff when rows
+ * hold a fingering strip, so the strip's glyph is not far from the next line
+ * (a live-check value).
+ */
+export const STRIP_OVERLAP = 16;
 const MARGIN = 10;
 
 /** The colour of every note but the one to play. */
@@ -87,9 +93,14 @@ export function rowHeight(strip = false): number {
 	return ROW_HEIGHT + (strip ? STRIP_HEIGHT : 0);
 }
 
+/** The space between one row and the next. */
+function rowSpacing(strip: boolean): number {
+	return ROW_SPACING - (strip ? STRIP_OVERLAP : 0);
+}
+
 /** The frame of row `index`: rows follow one another, each `rowHeight(strip)` tall. */
 export function rowFrame(index: number, strip = false): RowFrame {
-	const top = index * (rowHeight(strip) + ROW_SPACING);
+	const top = index * (rowHeight(strip) + rowSpacing(strip));
 	const laneBottom = top + ROW_HEIGHT;
 	return {
 		top,
@@ -105,7 +116,7 @@ export function rowFrame(index: number, strip = false): RowFrame {
 export function songHeight(lineCount: number, strip = false): number {
 	return (
 		lineCount * rowHeight(strip) +
-		Math.max(0, lineCount - 1) * ROW_SPACING +
+		Math.max(0, lineCount - 1) * rowSpacing(strip) +
 		MARGIN
 	);
 }
