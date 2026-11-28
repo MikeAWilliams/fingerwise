@@ -63,7 +63,7 @@ A `quick-fix/` branch runs the same steps on one branch: step 1 is not merged fi
 - The stack is Bun, Vite, Preact, Vitest and Biome ([ADR 0001](docs/architecture/decisions/0001-toolchain-and-ui.md)). Do not add dependencies or tools without the user's agreement.
 - `make verify` (lint, type-check, tests, build) must pass before any commit. Biome does not touch Markdown or `.claude/`; do not run formatters over them.
 - `src/core/` imports no framework or browser APIs, and `src/` never uses Bun-specific APIs.
-- `README.md` describes the app as built: keep its Modes and Using sections current when a feature adds or changes a mode or major capability, in the same commit as the code. It need not list every feature.
+- `README.md` describes the app as built: keep its intro and Modes section current when a feature adds or changes a mode or major capability, in the same commit as the code. It need not list every feature.
 - Do not commit unless asked. Running `fw-execute` counts as asking: it commits locally on a `feature/` or `quick-fix/` branch, never on `main`, and never pushes.
 
 ## Conventions

@@ -19,6 +19,12 @@ The maintainer is not a sophisticated musician, and cannot check fingerings or m
 
 For anything feature-sized, open an issue or discussion first. The direction is set in the feature designs in [`docs/features/`](docs/features/), so a good idea may still not fit the plan, and it is better to find out before you write the code.
 
+### Describing a feature
+
+A feature-sized change should come with a short description in [`docs/features/`](docs/features/): a folder `<n>-<name>/` holding a `design.md`, written from the [feature template](docs/templates/feature-design.md). Say what it is for, how it behaves, and what it leaves out. You do not need to write stories or a story breakdown; the maintainer's story workflow is not required of you.
+
+Send the description and the implementation in one pull request, not two. Open the issue first, as above, so the idea can be agreed before you write the code. The architecture docs for any code you land go in the same pull request (see the rules below).
+
 ## Fingering data: open sources only
 
 Never copy from a commercial fingering chart. Fingerings must come from open sources (with a license that allows reuse), open fonts, or your own testing on a real instrument. Say where the data came from in your pull request.

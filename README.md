@@ -100,6 +100,10 @@ make verify      # lint, type-check, tests and build
 
 See [Building](#building) for the full command list.
 
+## Contributing
+
+Contributions are welcome, especially bug fixes, fingering corrections and new instruments. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first. This project is built with AI assistance; the details are there.
+
 ## License
 
 MIT, see [`LICENSE`](LICENSE). Dependencies such as VexFlow and abcjs are MIT, and panzi's tablature fonts are unrestricted (the pitch detector is our own, [ADR 0005](docs/architecture/decisions/0005-yin-pitch-detector.md)). Fingerings must never be copied from commercial charts (Songbird, STL Ocarina and similar); use open sources and the open fonts. Code license and third-party asset notes stay separate in the repo.
