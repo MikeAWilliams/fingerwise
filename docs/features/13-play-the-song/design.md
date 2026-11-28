@@ -1,6 +1,6 @@
 # F13: Play the song
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-24. The user wanted a button that plays the song in song mode, whatever keep tempo and scoring are set to, so a tune can be heard before it is practised.
 

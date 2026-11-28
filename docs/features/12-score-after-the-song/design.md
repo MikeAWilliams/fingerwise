@@ -1,6 +1,6 @@
 # F12: Score after the song
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-23, alongside [F11: Score analysis](../11-score-analysis/design.md). The user wanted to play a song as a performance, from the music alone, and be judged afterwards, the way their recording of "Mary Had a Little Lamb" was analysed after the fact.
 

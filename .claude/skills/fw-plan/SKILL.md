@@ -43,6 +43,7 @@ Say what you intend to write and where, then write it.
 - **A feature** gets `docs/features/<NN>-<name>/design.md` from the template, and its row in `docs/features/README.md` updated.
 - **Stories** go in that feature's `stories/` as `F<NN>-S<NN>-<name>.md` from the template. Acceptance criteria are numbered `AC1...`, concrete and checkable. Stories say _what_; leave _how_ to the breakdown skill.
 - **Architecture docs** describe only what is built. Do not put plans there.
+- **The README** is the app's front page. When a design adds a mode or changes what the app is, note in the design that `README.md` needs updating (the breakdown will plan it). The README need not list every feature; only modes and major capabilities. Do not edit it for a design that is not built yet.
 - Do not leave two sources of truth: when something moves elsewhere, leave a one-line pointer.
 
 ## Boundaries

@@ -7,8 +7,8 @@ features/
   01-core-flashcards/
     design.md          behavior, UX, edge cases, modules touched
     stories/
-      F01-S01-show-note.md
-      F01-S02-reveal-after-delay.md
+      F01-S01-pitch-and-instrument.md
+      F01-S02-show-note-on-staff.md
 ```
 
 Use the templates in [`../templates/`](../templates/). Stories are durable specs: their acceptance criteria do not change as work happens. The "how" for a feature in flight is tracked as a checklist in [`../../story-progress/`](../../story-progress/), not here.
@@ -36,6 +36,8 @@ Use the templates in [`../templates/`](../templates/). Stories are durable specs
 | 17  | Load a song file               | done          |
 | 18  | Retry and tempo                | done          |
 | 19  | Tuner mode                     | done          |
+
+Story numbers within a feature are never reused or closed up: F04 has no S01, because its spike story was removed (its work is [ADR 0005](../architecture/decisions/0005-yin-pitch-detector.md) and the [research note](../research/pitch-detection-spike.md)).
 
 This index is the feature order. Folders are created when a feature is designed, not before.
 

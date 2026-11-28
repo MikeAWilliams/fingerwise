@@ -153,7 +153,7 @@ The font loads on page load, not at reveal, so it is usually ready when the dela
 
 ## Dependencies
 
-`src/core/*`, `src/abc`, `src/render/staff`, `src/render/tab`, Preact.
+`src/core/*`, `src/abc`, `src/audio`, `src/render/staff`, `src/render/tab`, `src/render/graph`, Preact, and from `data/`: the instrument JSON, `data/settings/defaults.json`, the tablature fonts (`font.ts`, through `import.meta.glob`) and the font license (`OFL.txt?url`).
 
 ## Tests
 

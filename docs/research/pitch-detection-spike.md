@@ -3,7 +3,7 @@
 - **Date:** 2026-11-07
 - **Question:** which pitch detector, and which clarity threshold, noise gate, settle time, hold-off and tolerance, should the [F04 judge](../features/04-record-and-judge/design.md) use for a 12-hole alto C ocarina?
 - **Outcome:** a hand-written YIN, no dependency ([ADR 0005](../architecture/decisions/0005-yin-pitch-detector.md)). Thresholds below.
-- **Status of the numbers:** provisional. Every fixture is generated; no real recording was used (the user's choice). The thresholds are confirmed or retuned in the live check after [F04-S06](../features/04-record-and-judge/stories/F04-S06-verdict-and-pitch-graph.md), when the user plays a real ocarina.
+- **Status of the numbers:** generated fixtures only; no real recording was used (the user's choice). The user later accepted the thresholds after playing a real ocarina (live check after [F04-S06](../features/04-record-and-judge/stories/F04-S06-verdict-and-pitch-graph.md)).
 
 ## Method
 

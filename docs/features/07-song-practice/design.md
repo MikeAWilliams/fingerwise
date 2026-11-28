@@ -1,6 +1,6 @@
 # F07: Song practice
 
-- **Status:** designed
+- **Status:** done
 
 > The one-note song card with waiting, hint and skip is to be replaced by Single note practice in [F16](../16-setting-clarification/design.md) ([ADR 0012](../../architecture/decisions/0012-two-practice-modes.md)). The example song stays.
 

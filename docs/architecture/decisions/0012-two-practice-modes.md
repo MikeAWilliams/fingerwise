@@ -1,6 +1,6 @@
 # 0012: Two practice modes, flashcards and song; songs no longer set the card order
 
-- **Status:** accepted
+- **Status:** accepted ("two modes" superseded by [0014](0014-tuner-mode.md))
 - **Date:** 2026-11-25
 
 ## Context

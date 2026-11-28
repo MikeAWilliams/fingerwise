@@ -1,6 +1,6 @@
 # F16: Setting clarification
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-25. The settings were grouped by what each control does, not by its net effect. The net effect is one of two modes, flashcards or song, so the mode becomes the first choice and each setting moves under the mode it affects. Songs no longer set the flashcard order. The one-note-at-a-time song practice that order gave is rebuilt inside song mode as **Single note**. The decision is recorded in [ADR 0012](../../architecture/decisions/0012-two-practice-modes.md).
 

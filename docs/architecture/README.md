@@ -6,7 +6,7 @@ This folder describes what is **built**, not what is planned. Plans live in [`..
 
 | Path                       | Holds                                                           |
 | -------------------------- | --------------------------------------------------------------- |
-| `overview.md`              | Layers, dependency rules, data flow. (Not written yet.)         |
+| [`overview.md`](overview.md) | Layers, dependency rules, data flow.                          |
 | [`modules/`](modules/)     | One doc per module, mirroring the folders under `src/`.         |
 | [`data-formats.md`](data-formats.md) | Instrument JSON schema, settings defaults file, settings storage. |
 | [`deployment.md`](deployment.md) | GitHub Pages workflow, triggers, permissions, repo settings. |
