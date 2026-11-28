@@ -13,6 +13,7 @@ import {
 	cardsSummary,
 	editTiming,
 	highestOptions,
+	judgeCheckboxShown,
 	lowestOptions,
 	MODE_LABELS,
 	micSummary,
@@ -348,7 +349,12 @@ describe("mode and practice (F16-S01)", () => {
 	const base = settings("A3", "F5");
 
 	test("the labels", () => {
-		expect(MODE_LABELS).toEqual({ flashcards: "Flashcards", song: "Song" });
+		expect(MODE_LABELS).toEqual({
+			flashcards: "Flashcards",
+			song: "Song",
+			tuner: "Tuner",
+		});
+		expect(Object.keys(MODE_LABELS)).toEqual(["flashcards", "song", "tuner"]);
 		expect(PRACTICE_LABELS).toEqual({ single: "Single note", tempo: "Tempo" });
 	});
 
@@ -363,6 +369,41 @@ describe("mode and practice (F16-S01)", () => {
 			"practice",
 			"microphone",
 		]);
+	});
+
+	test("Tuner shows only the Microphone section (F19-S01 AC2)", () => {
+		expect(settingsSections({ ...base, mode: "tuner" })).toEqual([
+			"microphone",
+		]);
+	});
+
+	test("the judge checkbox is hidden only in Tuner (F19-S01 AC2)", () => {
+		expect(judgeCheckboxShown({ ...base, mode: "flashcards" })).toBe(true);
+		expect(judgeCheckboxShown({ ...base, mode: "song" })).toBe(true);
+		expect(judgeCheckboxShown({ ...base, mode: "tuner" })).toBe(false);
+	});
+
+	test("the Microphone summary in Tuner ignores judging (F19-S01 AC2)", () => {
+		for (const judgeEnabled of [false, true]) {
+			expect(micSummary({ ...base, mode: "tuner", judgeEnabled })).toBe(
+				"within 40¢",
+			);
+		}
+	});
+
+	test("the mode input takes tuner, and switching to Tuner and back keeps every field (F19-S01 AC2)", () => {
+		expect(applyModeInput(base, "tuner")).toEqual({ ...base, mode: "tuner" });
+		for (const start of ["flashcards", "song"] as const) {
+			const s = {
+				...base,
+				mode: start,
+				delaySeconds: 7,
+				fingeringDelaySeconds: 5,
+				judgeEnabled: true,
+				toleranceCents: 25,
+			};
+			expect(applyModeInput(applyModeInput(s, "tuner"), start)).toEqual(s);
+		}
 	});
 
 	test("practice controls by practice (AC4)", () => {

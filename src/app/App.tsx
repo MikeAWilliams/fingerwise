@@ -92,6 +92,7 @@ import {
 	type TimedState,
 } from "./timed-flow";
 import { tonePassLengthMs, toneSegment } from "./trace";
+import { createTunerFlow, type TunerState } from "./tuner-flow";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -110,6 +111,16 @@ const STAFF_OPTIONS: StaffOptions = {
 	keySignature: "C",
 	lowest: instrument.lowest,
 	highest: instrument.highest,
+};
+
+/**
+ * Tuner draws a note up to an octave beyond the instrument's written range
+ * either way, so a note outside the range still fits on the staff.
+ */
+const TUNER_STAFF_OPTIONS: StaffOptions = {
+	...STAFF_OPTIONS,
+	lowest: (instrument.lowest - 12) as Pitch,
+	highest: (instrument.highest + 12) as Pitch,
 };
 
 const audioFactory = browserAudioFactory();
@@ -227,6 +238,7 @@ export function App() {
 	const [card, setCard] = useState<CardState | null>(null);
 	const [single, setSingle] = useState<SingleNoteState | null>(null);
 	const [timed, setTimed] = useState<TimedState | null>(null);
+	const [tunerState, setTunerState] = useState<TunerState | null>(null);
 	const [visible, setVisible] = useState(pageVisible);
 	// The Play song button: the song is playing, and where its playback stands.
 	const [playing, setPlaying] = useState(false);
@@ -290,8 +302,9 @@ export function App() {
 	// Scoring after the song: no live lanes, playhead or readout; the result comes at the end.
 	const after = scoringAfterApplies(settings);
 	const singleNote = singleNoteApplies(settings);
+	const tuner = settings.mode === "tuner";
 	const visibleKey =
-		settings.judgeEnabled || settings.mode === "song" ? visible : true;
+		settings.judgeEnabled || settings.mode === "song" || tuner ? visible : true;
 	const song = chosenTune(songState.tunes, settings.songTune);
 	const barsPerLine = settings.barsPerLine;
 	const lines = useMemo(
@@ -314,6 +327,7 @@ export function App() {
 			setCard(null);
 			setTimed(null);
 			setSingle(null);
+			setTunerState(null);
 			return;
 		}
 		// In Song mode the song is still parsing until `song` arrives, and stays
@@ -322,6 +336,7 @@ export function App() {
 			setCard(null);
 			setTimed(null);
 			setSingle(null);
+			setTunerState(null);
 			return;
 		}
 		const onGraded = (pitch: Pitch, grade: ProgressGrade) => {
@@ -331,7 +346,20 @@ export function App() {
 			setScoreTick((t) => t + 1);
 		};
 		let flow: { start(): void; step(): void; stop(): void };
-		if (singleNote && song !== null) {
+		if (tuner) {
+			// The microphone is always on in Tuner, whatever the judge checkbox says.
+			flow = createTunerFlow({
+				listen: { listener, now: () => performance.now() },
+				onChange: (state) => {
+					setTunerState(state);
+					if (state.listening === "unavailable") setJudgeUnavailable(true);
+					else if (state.listening === "running") setJudgeUnavailable(false);
+				},
+			});
+			setCard(null);
+			setTimed(null);
+			setSingle(null);
+		} else if (singleNote && song !== null) {
 			// One note at a time with no clock; with judging on the microphone decides.
 			const built = buildTimeline(song, song.tempo ?? DEFAULT_TEMPO);
 			let currentNote = 0;
@@ -361,6 +389,7 @@ export function App() {
 			};
 			setCard(null);
 			setTimed(null);
+			setTunerState(null);
 		} else if (timedSong && song !== null) {
 			flow = createTimedFlow({
 				song,
@@ -379,6 +408,7 @@ export function App() {
 			});
 			setCard(null);
 			setSingle(null);
+			setTunerState(null);
 		} else {
 			// Flashcards: always a random draw from the pool, whatever song is saved.
 			const smart = smartSamplingApplies(settings);
@@ -412,6 +442,7 @@ export function App() {
 			});
 			setTimed(null);
 			setSingle(null);
+			setTunerState(null);
 		}
 		const onClick = (event: MouseEvent) => {
 			if (
@@ -444,7 +475,7 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, [settings, open, visibleKey, song, playing]);
+	}, [settings, open, visibleKey, song, playing, tuner]);
 	// The song played from the header: a count-in, then its tones on the audio clock.
 	useEffect(() => {
 		if (!playing || open || song === null || settings.mode !== "song") return;
@@ -688,7 +719,17 @@ export function App() {
 					font={{ family: FONT_FAMILY, status: fontStatus }}
 				/>
 			)}
-			{!open && !playing && !timedSong && card && (
+			{!open && !playing && tuner && tunerState && (
+				<Card
+					pitch={instrument.lowest}
+					revealed={false}
+					tuner={tunerState}
+					instrument={instrument}
+					staffOptions={TUNER_STAFF_OPTIONS}
+					font={{ family: FONT_FAMILY, status: fontStatus }}
+				/>
+			)}
+			{!open && !playing && !tuner && !timedSong && card && (
 				<Card
 					pitch={card.pitch}
 					revealed={card.revealed}

@@ -43,7 +43,7 @@ Every error is an `InstrumentError` whose message names the offending field (dot
 | `judgeEnabled` | boolean | Whether the microphone judges the played note before the reveal. |
 | `smartSampling` | boolean | Whether cards are drawn by need (F06). Only takes effect with judging on and mode Flashcards. |
 | `toleranceCents` | number | How far, in cents, a played tone may be from the expected pitch and still be correct. Finite, 10 to 45 inclusive. |
-| `mode` | `"flashcards"` or `"song"` | What is drilled: random cards from the range, or the song (F16). `"flashcards"` in the defaults file. |
+| `mode` | `"flashcards"`, `"song"` or `"tuner"` | What is drilled: random cards from the range, or the song (F16); or Tuner, which shows the note played and its offset (F19). `"flashcards"` in the defaults file. |
 | `practice` | `"single"` or `"tempo"` | How a song is practised: one note at a time, or in time through the whole song (F08, F16). Does nothing in Flashcards. `"single"` in the defaults file. |
 | `fingeringDelaySeconds` | number | Single note: seconds before the fingering shows. Finite, 0.5 to 30 inclusive. `3` in the defaults file. |
 | `singleAdvanceDelaySeconds` | number | Single note with the microphone off: seconds from the fingering showing to the next note. Finite, 0.5 to 30 inclusive. `3` in the defaults file. |

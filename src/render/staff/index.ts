@@ -44,15 +44,17 @@ const HEIGHT = 150;
 
 /**
  * Draw `pitch` as a note `beats` quarter notes long (a whole note by default) on
- * a one-note staff inside `element`, replacing its contents.
+ * a one-note staff inside `element`, replacing its contents. A null pitch draws
+ * the stave (clef and key) with no note.
  */
 export function drawStaff(
 	element: HTMLDivElement,
-	pitch: Pitch,
+	pitch: Pitch | null,
 	options: StaffOptions,
 	beats = 4,
 ): void {
-	const layout = noteLayout(pitch, options);
+	// With no note, lay out the instrument's lowest pitch only to get the clef and key.
+	const layout = noteLayout(pitch ?? options.lowest, options);
 	element.replaceChildren();
 	const renderer = new Renderer(element, Renderer.Backends.SVG);
 	renderer.resize(WIDTH, HEIGHT);
@@ -62,5 +64,6 @@ export function drawStaff(
 	const stave = buildStave(layout, 10, 30, WIDTH - 20);
 	stave.setContext(ctx).draw();
 
+	if (pitch === null) return;
 	Formatter.FormatAndDraw(ctx, stave, [buildNote(layout, beats)]);
 }

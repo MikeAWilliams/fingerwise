@@ -11,6 +11,7 @@ import {
 	END_OF_SONG,
 	JUDGE_UNAVAILABLE,
 	LISTEN_PROMPT,
+	PLAY_A_NOTE,
 	START_PROMPT,
 } from "./judge-text";
 import { Legend } from "./Legend";
@@ -18,6 +19,7 @@ import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
 import { scrollLockApplies, setScrollLock } from "./scroll-lock";
 import { isBelowView, jumpTo } from "./scroll-to";
+import type { TunerState } from "./tuner-flow";
 import { graphLabel, judgedNote, playedOffset } from "./verdict";
 
 interface CardProps {
@@ -57,6 +59,8 @@ interface CardProps {
 	 * in the bar. There is no start prompt and the page is never locked.
 	 */
 	single?: { ended: boolean; fingering: boolean; message?: string | null };
+	/** Tuner: the staff shows the note played and the reveal area its prompts. */
+	tuner?: TunerState;
 	/** The app's header, whose height a timed song's page keeps clear when it scrolls. */
 	header?: RefObject<HTMLElement | null>;
 	instrument: Instrument;
@@ -82,6 +86,7 @@ export function Card({
 	readout = false,
 	song,
 	single,
+	tuner,
 	header,
 	instrument,
 	staffOptions,
@@ -150,6 +155,26 @@ export function Card({
 					)}
 					{readout && <p class="card-status card-readout" ref={heard} />}
 					{legend && <Legend />}
+				</div>
+			</div>
+		);
+	}
+	if (tuner) {
+		return (
+			<div class="card">
+				<div class="card-staff">
+					<Staff pitch={tuner.note?.pitch ?? null} options={staffOptions} />
+				</div>
+				<div class="card-reveal judging">
+					{tuner.listening === "locked" && (
+						<p class="card-status">{LISTEN_PROMPT}</p>
+					)}
+					{tuner.listening === "unavailable" && (
+						<p class="card-status">{JUDGE_UNAVAILABLE}</p>
+					)}
+					{tuner.listening !== "locked" &&
+						tuner.listening !== "unavailable" &&
+						tuner.note === null && <p class="card-status">{PLAY_A_NOTE}</p>}
 				</div>
 			</div>
 		);

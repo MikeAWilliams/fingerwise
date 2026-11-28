@@ -12,7 +12,7 @@ export function tempoText(quartersPerMinute: number): string {
  * The title and tempo the header shows, each null when it shows nothing. The
  * title needs Song mode and a titled song; the tempo needs a song and Song
  * mode (either practice) or the song playing, and falls back to the default
- * tempo. Flashcards show neither. Nothing shows while Settings is open.
+ * tempo. Outside Song mode there is neither. Nothing shows while Settings is open.
  */
 export function headerSong(
 	settings: Settings,

@@ -25,7 +25,7 @@ import {
 	soundTooLongReason,
 } from "../core/settings";
 import { pickTextFile } from "./file-picker";
-import { JUDGE_HELP, JUDGE_UNAVAILABLE } from "./judge-text";
+import { JUDGE_HELP, JUDGE_UNAVAILABLE, TUNER_HELP } from "./judge-text";
 import { Section } from "./Section";
 import {
 	applyBarsPerLineInput,
@@ -39,6 +39,7 @@ import {
 	cardsSummary,
 	editTiming,
 	highestOptions,
+	judgeCheckboxShown,
 	lowestOptions,
 	MODE_LABELS,
 	micSummary,
@@ -555,17 +556,26 @@ export function Settings({
 				summary={micSummary(settings)}
 				hasMessage={judgeUnavailable}
 			>
-				<label>
-					<input
-						type="checkbox"
-						checked={settings.judgeEnabled}
-						onChange={(e) =>
-							onChange({ ...settings, judgeEnabled: e.currentTarget.checked })
-						}
-					/>
-					Judge my playing
-				</label>
-				<p class="settings-note">{JUDGE_HELP}</p>
+				{judgeCheckboxShown(settings) ? (
+					<>
+						<label>
+							<input
+								type="checkbox"
+								checked={settings.judgeEnabled}
+								onChange={(e) =>
+									onChange({
+										...settings,
+										judgeEnabled: e.currentTarget.checked,
+									})
+								}
+							/>
+							Judge my playing
+						</label>
+						<p class="settings-note">{JUDGE_HELP}</p>
+					</>
+				) : (
+					<p class="settings-note">{TUNER_HELP}</p>
+				)}
 				{judgeUnavailable && <p class="settings-note">{JUDGE_UNAVAILABLE}</p>}
 				<label>
 					Tolerance (¢)

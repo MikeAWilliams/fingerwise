@@ -8,11 +8,11 @@ export function isScoring(value: unknown): value is Scoring {
 	return value === "live" || value === "after";
 }
 
-/** What the player drills: random cards from the range, or a song. */
-export type Mode = "flashcards" | "song";
+/** What the player does: drill random cards from the range, drill a song, or tune (the note played and its offset). */
+export type Mode = "flashcards" | "song" | "tuner";
 
 export function isMode(value: unknown): value is Mode {
-	return value === "flashcards" || value === "song";
+	return value === "flashcards" || value === "song" || value === "tuner";
 }
 
 /** How a song is practised: one note at a time, or in tempo through the whole song. */
@@ -501,7 +501,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		);
 	}
 	if (!isMode(obj.mode)) {
-		throw new SettingsError('mode must be "flashcards" or "song"');
+		throw new SettingsError('mode must be "flashcards", "song" or "tuner"');
 	}
 	if (!isPractice(obj.practice)) {
 		throw new SettingsError('practice must be "single" or "tempo"');

@@ -459,6 +459,16 @@ test("a bad stored practice resets alone", () => {
 	});
 });
 
+test("Tuner mode saves and loads back (F19-S01 AC8)", () => {
+	const { storage, data } = fakeStorage();
+	const settings: Settings = { ...DEFAULTS, mode: "tuner" };
+	saveSettings(storage, settings);
+	expect(JSON.parse(data.get(SETTINGS_KEY) as string)).toMatchObject({
+		mode: "tuner",
+	});
+	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
+});
+
 test("metronome saves and loads back", () => {
 	const { storage, data } = fakeStorage();
 	const settings: Settings = {
