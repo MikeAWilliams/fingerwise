@@ -38,7 +38,7 @@ All three are pure, over the readings of one tone, in sounding pitch; the app co
 
 ## Thresholds
 
-The values are provisional, from the [detector spike](../../research/pitch-detection-spike.md#proposed-values) on generated tones, and are confirmed or retuned in the live check after [F04-S06](../../features/04-record-and-judge/stories/F04-S06-verdict-and-pitch-graph.md). Retuning needs no new ADR ([ADR 0005](../decisions/0005-yin-pitch-detector.md)).
+The values come from the [detector spike](../../research/pitch-detection-spike.md#proposed-values) on generated tones and have been accepted by the user after playing a real ocarina. Retuning them later needs no new ADR ([ADR 0005](../decisions/0005-yin-pitch-detector.md)).
 
 ## Dependencies
 
