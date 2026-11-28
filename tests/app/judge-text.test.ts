@@ -6,6 +6,7 @@ import {
 	HEARING_NOTHING,
 	hearingText,
 	READOUT_INTERVAL_MS,
+	RETRY_RIGHT,
 	summaryText,
 	tuningText,
 } from "../../src/app/judge-text";
@@ -236,4 +237,8 @@ describe("tuningText (F09-S08 AC3)", () => {
 	test("is null with none outside the tolerance", () => {
 		expect(tuningText([])).toBeNull();
 	});
+});
+
+test("RETRY_RIGHT is the verdict line for a missed card played right (F18-S03 AC2)", () => {
+	expect(RETRY_RIGHT).toBe("Right, counted as a miss");
 });

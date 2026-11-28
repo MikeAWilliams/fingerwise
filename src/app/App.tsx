@@ -407,9 +407,13 @@ export function App() {
 				advanceDelayMs: settings.autoAdvance
 					? settings.advanceDelaySeconds * 1000
 					: null,
+				retryAdvanceMs: settings.autoAdvance
+					? null
+					: settings.advanceDelaySeconds * 1000,
 				tone: settings.soundEnabled
 					? {
 							delayMs: settings.soundDelaySeconds * 1000,
+							durationMs: settings.soundDurationSeconds * 1000,
 							play: (p) =>
 								player.play(
 									soundingPitch(instrument, p),
@@ -736,6 +740,7 @@ export function App() {
 					listening={card.listening}
 					judging={settings.judgeEnabled}
 					verdict={card.verdict}
+					retry={card.retry}
 					need={
 						smartSamplingApplies(settings)
 							? needOf(scoresRef.current as Scores, card.pitch)
