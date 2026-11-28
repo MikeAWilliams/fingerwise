@@ -24,6 +24,7 @@ Covers: AC1
 ## Closing
 
 - [ ] Verify every story's acceptance criteria
+- [ ] Check `README.md` still describes the app (update it if this feature adds or changes a mode or a major capability)
 - [ ] User acceptance
 - [ ] Delete this file (final commit before merge)
 - [ ] Mark feature as done in docs/features/README.md

@@ -1,6 +1,6 @@
 # fingerwise
 
-A flashcard drill for learning ocarina fingerings. A note appears on the staff, you finger it from memory, and after a delay the app reveals the note name and the fingering chart, then plays the note so you can check by ear. Optionally it listens through the microphone while you play the note on your ocarina and tells you whether you got it right. It runs in the browser as an installable, offline-capable web app, and it is open source.
+A practice app for learning ocarina fingerings. It has three modes: **Flashcards** to learn the notes, **Song** to play a whole tune, and **Tuner** to see how in tune a note is. It listens through the microphone while you play your ocarina, and it plays tones so you can check by ear. It runs in the browser as an installable, offline-capable web app, and it is open source.
 
 **Live site:** <https://mikeawilliams.github.io/fingerwise/>
 
@@ -8,19 +8,17 @@ A flashcard drill for learning ocarina fingerings. A note appears on the staff, 
 
 The first target is the 12-hole ocarina. The design keeps instruments, clefs and staff styles as swappable data and layers so other instruments can be added later.
 
-**Status:** features 1 to 9 are done.
+## Modes
 
-- **Cards:** a random note is drawn on the staff. Its name and fingering appear after the delay or on a click or key press, and the next click or key shows another note. The next note also appears on its own after an advance delay.
-- **Sound:** after the reveal the app plays the note as a plain tone, with a settable delay and duration.
-- **Judging:** with judging on, the app listens through the microphone before the reveal, grades the note you played as correct or incorrect within a tolerance you set, and shows a graph of how your pitch sits against the expected one. It judges pitch, not fingering.
-- **Settings:** note range, sharps, reveal delay, auto-advance and its delay, sound, and judging. They are kept in the browser.
-- **App:** published to GitHub Pages from `main` (every push is verified), lays out for phone and tablet, installs to the home screen, works offline and updates itself silently (see [`deployment.md`](docs/architecture/deployment.md)).
+Settings open with the choice of mode.
 
-Feature 10 (scrolling song view) is designed; other instruments and clefs is a parked idea. See [`docs/features/`](docs/features/) for the list.
+- **Flashcards:** a random note is drawn on the staff. After a delay, or on a click or key press, the app reveals the note name and the fingering and plays the note so you can check by ear. With judging on, it listens before the reveal and grades the note you played within a tolerance you set, with a graph of your pitch against the expected one. It judges pitch, not fingering. Notes you miss come up more often, and a missed card can stay until you play it right.
+- **Song:** paste a tune in ABC notation, or load an ABC file (a whole tune book works; tunes the app cannot read are skipped). The tune is drawn as sheet music and you play it on your ocarina. Practise note by note with no clock, waiting on each note until you play it right, or play in time at the tune's tempo (or one you choose) and get a scored result: how much of each note was right, when it started and stopped, and an analysis of what to work on. Play song lets you hear the tune first.
+- **Tuner:** play any note and the app shows which note it heard, with its name and fingering, and how many cents sharp or flat it is.
+
+Other instruments and clefs is a parked idea. See [`docs/features/`](docs/features/) for the list.
 
 ## Documentation
-
-Planning comes first in this project. The docs are organized by what they are for:
 
 | Where                                      | What it is                                                                                       |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -101,18 +99,6 @@ make verify      # lint, type-check, tests and build
 ```
 
 See [Building](#building) for the full command list.
-
-## Using
-
-The app drills the 12-hole alto C ocarina. A note appears on the staff; name it and finger it, then wait for the reveal (or click or press a key) to see the note name and fingering. The note then sounds. Click or press a key again for the next note, or let auto-advance show it.
-
-To have the app judge you, turn on judging in the Settings view and play the note on your ocarina before the reveal. The browser asks for microphone permission the first time, and the first click, tap or key press is needed to unlock audio. Judging is off by default.
-
-The Settings button sets the note range, whether sharps are included, the delays, the sound, and judging. Settings are kept in the browser.
-
-## Contributing
-
-Contributions are welcome, especially bug fixes, fingering corrections and new instruments. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first. This project is built with AI assistance; the details are there.
 
 ## License
 

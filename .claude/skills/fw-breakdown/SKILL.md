@@ -47,6 +47,6 @@ Ask all blocking questions in one batch, with a recommendation for each (AskUser
 
 ## Output
 
-Write `story-progress/<F>.md` from the template, with a `## <story ID>: <name>` section per story, each holding its checklist, followed by the Closing section. Keep the template's Closing items as they are, including the last one, marking the feature done in `docs/features/README.md`. Add a `Covers: AC1, AC2` line per story so every acceptance criterion of every story is covered; check this before finishing.
+Write `story-progress/<F>.md` from the template, with a `## <story ID>: <name>` section per story, each holding its checklist, followed by the Closing section. Keep the template's Closing items as they are, including the README check and the last one, marking the feature done in `docs/features/README.md`. If the feature adds or changes a mode or other major capability, also add a checklist item to its last story to update `README.md` (the Modes section, Using and the status line), so the README changes in the same commit as the code. Add a `Covers: AC1, AC2` line per story so every acceptance criterion of every story is covered; check this before finishing.
 
 Then summarize in a few lines: the stories in order, the assumptions you made, and anything the user should confirm. Do not start executing. Do not commit unless asked.

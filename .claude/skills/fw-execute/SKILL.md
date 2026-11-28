@@ -21,7 +21,7 @@ Invoking this skill is the user's authorization to edit code and make local comm
 1. Take the first story section with unticked items. Read its story file, the feature design, relevant ADRs, and the architecture docs for the modules it touches.
 2. Implement exactly what the checklist and the story's acceptance criteria require. Follow the layer rule: the drill engine knows only pitch and instrument definitions. Instruments are data, not code. No scope beyond the story.
 3. Run `make verify`. Fix failures that your change caused (`make fix` applies formatting). It must pass before committing.
-4. Update `docs/architecture/modules/` for anything this story completed.
+4. Update `docs/architecture/modules/` for anything this story completed. If the story completes a mode or other major capability, or changes what the app is, update `README.md` in the same commit (see its Modes and Using sections).
 5. Tick the story's checklist items in `story-progress/<F>.md`.
 6. Commit everything for the story, including the tick and doc updates, in one commit. Message: `<story ID>: <name>` (for example `F01-S02: Reveal after delay`), with a short body. Follow the harness's attribution rules for commit trailers. Do not push.
 7. Move straight on to the next story. Do not pause between stories.
@@ -40,6 +40,6 @@ When stopping, record what happened under Notes in the progress file, leave the 
 
 ## Finishing
 
-After the last story, verify each story's acceptance criteria against the running code or tests, tick the Closing items you can, and report which criteria are met and how, story by story. Then stop for user acceptance. Do not delete the progress file yet.
+After the last story, verify each story's acceptance criteria against the running code or tests, check that `README.md` still describes the app (it need not list every feature, but must name every mode and stay true), tick the Closing items you can, and report which criteria are met and how, story by story. Then stop for user acceptance. Do not delete the progress file yet.
 
 If the user then says the feature is accepted, first confirm durable outcomes are already in the architecture docs or ADRs. Then, in a final commit (`<F>: remove progress file`), delete `story-progress/<F>.md` and set the feature's Design status to `done` in `docs/features/README.md`. Do not merge or push unless asked.
