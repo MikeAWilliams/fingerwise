@@ -19,8 +19,8 @@ import { PitchGraph } from "./PitchGraph";
 import { SongStaff, type SongView, Staff } from "./Staff";
 import { scrollLockApplies, setScrollLock } from "./scroll-lock";
 import { isBelowView, jumpTo } from "./scroll-to";
-import type { TunerState } from "./tuner-flow";
-import { graphLabel, judgedNote, playedOffset } from "./verdict";
+import type { TunerNote, TunerState } from "./tuner-flow";
+import { graphLabel, judgedNote, playedOffset, tunerVerdict } from "./verdict";
 
 interface CardProps {
 	pitch: Pitch;
@@ -61,6 +61,8 @@ interface CardProps {
 	single?: { ended: boolean; fingering: boolean; message?: string | null };
 	/** Tuner: the staff shows the note played and the reveal area its prompts. */
 	tuner?: TunerState;
+	/** Tuner: the offset the verdict calls in tune. */
+	toleranceCents?: number;
 	/** The app's header, whose height a timed song's page keeps clear when it scrolls. */
 	header?: RefObject<HTMLElement | null>;
 	instrument: Instrument;
@@ -87,12 +89,14 @@ export function Card({
 	song,
 	single,
 	tuner,
+	toleranceCents = 40,
 	header,
 	instrument,
 	staffOptions,
 	font,
 }: CardProps) {
-	const glyph = glyphFor(instrument, pitch);
+	// Tuner draws the tablature of the note played, which may be out of range.
+	const glyph = glyphFor(instrument, tuner?.note?.pitch ?? pitch);
 	const view = glyph === undefined ? null : tabView(glyph, font);
 	// Its text is set each frame by the song overlay, not by Preact.
 	const heard = useRef<HTMLParagraphElement>(null);
@@ -174,7 +178,15 @@ export function Card({
 					)}
 					{tuner.listening !== "locked" &&
 						tuner.listening !== "unavailable" &&
-						tuner.note === null && <p class="card-status">{PLAY_A_NOTE}</p>}
+						(tuner.note === null ? (
+							<p class="card-status">{PLAY_A_NOTE}</p>
+						) : (
+							<TunerReadout
+								note={tuner.note}
+								view={view}
+								toleranceCents={toleranceCents}
+							/>
+						))}
 				</div>
 			</div>
 		);
@@ -267,6 +279,51 @@ function useAnalysisBelow(
 		};
 	}, [active, bar]);
 	return below;
+}
+
+/** Tuner's reveal area for a shown note: its name, tablature, verdict row and pitch graph. */
+function TunerReadout({
+	note,
+	view,
+	toleranceCents,
+}: {
+	note: TunerNote;
+	view: ReturnType<typeof tabView> | null;
+	toleranceCents: number;
+}) {
+	const verdict = tunerVerdict(note.cents, toleranceCents);
+	const name = formatPitch(note.pitch);
+	return (
+		<>
+			<div class="card-name">{name}</div>
+			{view?.kind === "glyph" && (
+				<div class="card-glyph" style={{ fontFamily: `"${view.fontFamily}"` }}>
+					{view.text}
+				</div>
+			)}
+			{view?.kind === "placeholder" && (
+				<div class="card-glyph card-placeholder">{view.message}</div>
+			)}
+			<div
+				class={`card-verdict ${verdict.inTune ? "verdict-correct" : "verdict-off"}`}
+			>
+				{verdict.inTune && (
+					<>
+						<span class="card-verdict-icon" aria-hidden="true">
+							✓
+						</span>{" "}
+					</>
+				)}
+				{verdict.text}
+			</div>
+			<PitchGraph
+				expected={note.pitch}
+				cents={note.cents}
+				playedName={name}
+				label={`${name}, ${verdict.text}`}
+			/>
+		</>
+	);
 }
 
 const VERDICT_TEXT = {

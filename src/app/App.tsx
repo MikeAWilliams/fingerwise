@@ -18,8 +18,10 @@ import {
 	createToneTracker,
 	createToneWatch,
 	DEFAULT_THRESHOLDS,
+	followNote,
 	frequencyBand,
 	gradeTone,
+	heldNote,
 	judge,
 } from "../core/judge";
 import type { Pitch } from "../core/pitch";
@@ -92,7 +94,12 @@ import {
 	type TimedState,
 } from "./timed-flow";
 import { tonePassLengthMs, toneSegment } from "./trace";
-import { createTunerFlow, type TunerState } from "./tuner-flow";
+import {
+	createTunerFlow,
+	type TunerListen,
+	type TunerNote,
+	type TunerState,
+} from "./tuner-flow";
 
 const instrument = loadInstrument(ocarinaJson);
 const DEFAULT_SETTINGS = parseDefaults(defaultsJson, instrument);
@@ -203,6 +210,29 @@ function singleListenFor(
 		},
 		// The same clock as the requestAnimationFrame timestamps on readings.
 		now: () => performance.now(),
+	};
+}
+
+/** Tuner's microphone and note rules; the pitches the helpers give are sounding, the flow shows written. */
+function tunerListen(): TunerListen {
+	const written = (
+		note: { pitch: Pitch; cents: number } | null,
+	): TunerNote | null =>
+		note === null
+			? null
+			: {
+					pitch: (note.pitch - instrument.transposition) as Pitch,
+					cents: note.cents,
+				};
+	return {
+		listener,
+		watch: createToneWatch(TONE_WATCH_CHECKS),
+		// The same clock as the requestAnimationFrame timestamps on readings.
+		now: () => performance.now(),
+		follow: (readings) =>
+			written(followNote(readings, CHECKS, DEFAULT_THRESHOLDS.settleMs)),
+		hold: (readings) =>
+			written(heldNote(readings, CHECKS, DEFAULT_THRESHOLDS.settleMs)),
 	};
 }
 
@@ -349,7 +379,7 @@ export function App() {
 		if (tuner) {
 			// The microphone is always on in Tuner, whatever the judge checkbox says.
 			flow = createTunerFlow({
-				listen: { listener, now: () => performance.now() },
+				listen: tunerListen(),
 				onChange: (state) => {
 					setTunerState(state);
 					if (state.listening === "unavailable") setJudgeUnavailable(true);
@@ -724,6 +754,7 @@ export function App() {
 					pitch={instrument.lowest}
 					revealed={false}
 					tuner={tunerState}
+					toleranceCents={settings.toleranceCents}
 					instrument={instrument}
 					staffOptions={TUNER_STAFF_OPTIONS}
 					font={{ family: FONT_FAMILY, status: fontStatus }}

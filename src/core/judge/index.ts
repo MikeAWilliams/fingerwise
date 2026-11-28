@@ -53,13 +53,21 @@ export function centsFrom(hz: number, expected: Pitch): number {
 	return 1200 * Math.log2(hz / toFrequency(expected));
 }
 
+/** Whether an offset is within `toleranceCents` (inclusive, absorbing float error). */
+export function withinTolerance(
+	cents: number,
+	toleranceCents: number,
+): boolean {
+	return Math.abs(cents) <= toleranceCents + EPSILON_CENTS;
+}
+
 /** Correct when the heard frequency is within `toleranceCents` (inclusive) of the expected sounding pitch. */
 export function judge(
 	expected: Pitch,
 	hz: number,
 	toleranceCents: number,
 ): Grade {
-	return Math.abs(centsFrom(hz, expected)) <= toleranceCents + EPSILON_CENTS
+	return withinTolerance(centsFrom(hz, expected), toleranceCents)
 		? "correct"
 		: "incorrect";
 }
@@ -285,4 +293,78 @@ export function createToneWatch(
 			return active;
 		},
 	};
+}
+
+/** The note a tuner shows for one tone, in sounding pitch. */
+export interface FollowedNote {
+	pitch: Pitch;
+	/** From the latest passing reading to `pitch`; may go beyond ±50. */
+	cents: number;
+	/** Index in `readings` where the shown note's run began. */
+	since: number;
+}
+
+/**
+ * The note shown while a tone sounds. Readings that fail `passesChecks` are
+ * skipped. The first note is the nearest pitch to the median frequency of the
+ * passing readings in the first `settleMs`, so a scoop at the attack does not
+ * show the wrong note. After that another note takes over only once it has
+ * been the nearest for `settleMs` running (a run starts at a reading whose
+ * nearest pitch differs from the shown note; a reading back on the shown note
+ * ends it, and one on a third note starts its own). `cents` is measured from
+ * the shown note, so it can pass ±50. Null when no reading passes.
+ */
+export function followNote(
+	readings: readonly Reading[],
+	checks: StabilityOptions,
+	settleMs: number,
+): FollowedNote | null {
+	const passing: number[] = [];
+	readings.forEach((r, i) => {
+		if (passesChecks(r, checks)) passing.push(i);
+	});
+	const firstIndex = passing[0];
+	if (firstIndex === undefined) return null;
+	const hzAt = (i: number) => (readings[i] as Reading).frequency as number;
+	const timeAt = (i: number) => (readings[i] as Reading).time;
+	const windowEnd = timeAt(firstIndex) + settleMs;
+	const opening = passing.filter((i) => timeAt(i) < windowEnd);
+	let shown = nearestPitch(median(opening.map(hzAt))).pitch;
+	let since = firstIndex;
+	let run: { pitch: Pitch; from: number } | null = null;
+	for (const i of passing) {
+		if (timeAt(i) < windowEnd) continue;
+		const pitch = nearestPitch(hzAt(i)).pitch;
+		if (pitch === shown) {
+			run = null;
+			continue;
+		}
+		if (run === null || run.pitch !== pitch) run = { pitch, from: i };
+		if (timeAt(i) - timeAt(run.from) >= settleMs) {
+			shown = pitch;
+			since = run.from;
+			run = null;
+		}
+	}
+	const latest = passing[passing.length - 1] as number;
+	return { pitch: shown, cents: centsFrom(hzAt(latest), shown), since };
+}
+
+/**
+ * The note a tuner holds once a tone ends: `followNote`'s final note, and the
+ * median offset of the passing readings from where its run began. Null when
+ * no reading passes.
+ */
+export function heldNote(
+	readings: readonly Reading[],
+	checks: StabilityOptions,
+	settleMs: number,
+): { pitch: Pitch; cents: number } | null {
+	const followed = followNote(readings, checks, settleMs);
+	if (followed === null) return null;
+	const offsets = readings
+		.slice(followed.since)
+		.filter((r) => passesChecks(r, checks))
+		.map((r) => centsFrom(r.frequency as number, followed.pitch));
+	return { pitch: followed.pitch, cents: median(offsets) };
 }

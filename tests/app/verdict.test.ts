@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
-import { graphLabel, judgedNote, playedOffset } from "../../src/app/verdict";
+import {
+	graphLabel,
+	judgedNote,
+	playedOffset,
+	tunerVerdict,
+} from "../../src/app/verdict";
 import { loadInstrument } from "../../src/core/instrument";
 import {
 	formatPitch,
@@ -67,5 +72,38 @@ describe("graphLabel (AC10)", () => {
 		expect(graphLabel(pitch("C5"), -1, pitch("C5"))).toBe(
 			"Played C5, 1 cent flat of C5",
 		);
+	});
+});
+
+describe("tunerVerdict (F19-S02 AC6)", () => {
+	test("within the tolerance, at it and at 0 is in tune, either sign", () => {
+		for (const cents of [0, 12, -12, 40, -40]) {
+			expect(tunerVerdict(cents, 40)).toEqual({
+				inTune: true,
+				text: "In tune",
+			});
+		}
+	});
+
+	test("just past the tolerance reads flat or sharp", () => {
+		expect(tunerVerdict(40.6, 40)).toEqual({
+			inTune: false,
+			text: "41 cents sharp",
+		});
+		expect(tunerVerdict(-40.6, 40)).toEqual({
+			inTune: false,
+			text: "41 cents flat",
+		});
+	});
+
+	test("rounds the offset, and goes beyond 50", () => {
+		expect(tunerVerdict(62.4, 40).text).toBe("62 cents sharp");
+		expect(tunerVerdict(-77.5, 40).text).toBe("78 cents flat");
+	});
+
+	test("one cent is singular", () => {
+		expect(tunerVerdict(1, 0.5).text).toBe("1 cent sharp");
+		expect(tunerVerdict(-1.2, 0.5).text).toBe("1 cent flat");
+		expect(tunerVerdict(2, 0.5).text).toBe("2 cents sharp");
 	});
 });
