@@ -11,6 +11,7 @@ import {
 	END_OF_SONG,
 	JUDGE_UNAVAILABLE,
 	LISTEN_PROMPT,
+	RETRY_RIGHT,
 	START_PROMPT,
 } from "./judge-text";
 import { Legend } from "./Legend";
@@ -29,6 +30,8 @@ interface CardProps {
 	/** Judge on: the reveal area is taller and shows the verdict. */
 	judging?: boolean;
 	verdict?: Verdict | null;
+	/** Flashcards retry: "right" shows the verdict as played right after a miss. */
+	retry?: "listening" | "right" | null;
 	/** Smart sampling need score (0 to 1), shown on reveal. */
 	need?: number | null;
 	/**
@@ -71,6 +74,7 @@ export function Card({
 	listening = "off",
 	judging = false,
 	verdict = null,
+	retry = null,
 	need = null,
 	timed,
 	timedSummary,
@@ -194,6 +198,7 @@ export function Card({
 				{judging && verdict && listening !== "unavailable" && (
 					<VerdictView
 						verdict={verdict}
+						retry={retry}
 						pitch={pitch}
 						instrument={instrument}
 						graph={timed === undefined}
@@ -252,17 +257,21 @@ const VERDICT_TEXT = {
 
 function VerdictView({
 	verdict,
+	retry,
 	pitch,
 	instrument,
 	graph,
 }: {
 	verdict: Verdict;
+	retry: "listening" | "right" | null;
 	pitch: Pitch;
 	instrument: Instrument;
 	/** Draw the pitch graph; a timed song has no room for it. */
 	graph: boolean;
 }) {
-	const { icon, label } = VERDICT_TEXT[verdict.grade];
+	const { icon } = VERDICT_TEXT[verdict.grade];
+	const label =
+		retry === "right" ? RETRY_RIGHT : VERDICT_TEXT[verdict.grade].label;
 	const heard =
 		verdict.grade === "none"
 			? null

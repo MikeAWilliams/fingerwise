@@ -70,6 +70,7 @@ describe("createCardFlow", () => {
 			revealed: true,
 			verdict: NONE,
 			listening: "off",
+			retry: null,
 		});
 		const count = states.length;
 		vi.advanceTimersByTime(DELAY * 2);
@@ -111,6 +112,7 @@ describe("createCardFlow", () => {
 			revealed: true,
 			verdict: NONE,
 			listening: "off",
+			retry: null,
 		});
 	});
 
@@ -142,6 +144,7 @@ describe("createCardFlow", () => {
 			revealed: true,
 			verdict: NONE,
 			listening: "off",
+			retry: null,
 		});
 		vi.advanceTimersByTime(ADVANCE - 1);
 		expect(last()).toEqual({
@@ -149,6 +152,7 @@ describe("createCardFlow", () => {
 			revealed: true,
 			verdict: NONE,
 			listening: "off",
+			retry: null,
 		});
 		vi.advanceTimersByTime(1);
 		expect(last().revealed).toBe(false);
@@ -170,6 +174,7 @@ describe("createCardFlow", () => {
 			revealed: true,
 			verdict: NONE,
 			listening: "off",
+			retry: null,
 		});
 		vi.advanceTimersByTime(1);
 		expect(last().revealed).toBe(false);
@@ -185,6 +190,7 @@ describe("createCardFlow", () => {
 			revealed: false,
 			verdict: null,
 			listening: "off",
+			retry: null,
 		});
 		const count = states.length;
 		flow.step();
@@ -194,6 +200,7 @@ describe("createCardFlow", () => {
 			revealed: true,
 			verdict: NONE,
 			listening: "off",
+			retry: null,
 		});
 	});
 
@@ -215,6 +222,7 @@ describe("createCardFlow", () => {
 				revealed: true,
 				verdict: NONE,
 				listening: "off",
+				retry: null,
 			},
 		]);
 	});
@@ -261,6 +269,7 @@ describe("createCardFlow tone", () => {
 				? null
 				: {
 						delayMs: toneDelayMs,
+						durationMs: 1500,
 						play: (pitch) =>
 							calls.push({ kind: "play", at: Date.now() - start, pitch }),
 						stop: () => calls.push({ kind: "stop", at: Date.now() - start }),
@@ -430,6 +439,7 @@ describe("createCardFlow listen", () => {
 	function listenSetup(
 		over: {
 			advanceDelayMs?: number | null;
+			retryAdvanceMs?: number | null;
 			tracker?: CardListen["tracker"];
 			tone?: CardTone | null;
 			grade?: CardListen["grade"];
@@ -456,6 +466,7 @@ describe("createCardFlow listen", () => {
 			delayMs: DELAY,
 			advanceDelayMs:
 				over.advanceDelayMs === undefined ? null : over.advanceDelayMs,
+			retryAdvanceMs: over.retryAdvanceMs ?? null,
 			tone: over.tone ?? null,
 			listen,
 			onChange: (s) => states.push(s),
@@ -581,6 +592,7 @@ describe("createCardFlow listen", () => {
 			advanceDelayMs: ADVANCE,
 			tone: {
 				delayMs: 500,
+				durationMs: 1500,
 				play: () => calls.push(`play@${Date.now()}`),
 				stop: () => calls.push(`stop@${Date.now()}`),
 			},
@@ -783,6 +795,243 @@ describe("createCardFlow listen", () => {
 		play(listener, 440, 900);
 		expect(graded).toEqual([{ pitch: 69, hz: 440 }]);
 		expect(last().verdict).toMatchObject({ grade: "correct" });
+	});
+
+	describe("retry after the reveal (F18-S03)", () => {
+		const RETRY = 1000;
+		/** Plays `hz` until the card's state satisfies `done`, so timers count from that moment. */
+		function playUntil(
+			listener: FakeListener,
+			hz: number,
+			done: (s: CardState) => boolean,
+		) {
+			for (let t = 0; t < 3000 && !done(last()); t += 16) {
+				listener.read(hz);
+				vi.advanceTimersByTime(16);
+			}
+		}
+		const retrySetup = (tone: CardTone | null = null) => {
+			const setup = listenSetup({ retryAdvanceMs: RETRY, tone });
+			return setup;
+		};
+		const TONE: CardTone = {
+			delayMs: 500,
+			durationMs: 1500,
+			play: () => {},
+			stop: () => {},
+		};
+
+		test("a wrong note reveals, keeps listening, and the right one moves on after the advance delay", async () => {
+			const { flow, listener } = retrySetup();
+			flow.start();
+			await settle();
+			const shown = last().pitch;
+			play(listener, 494, 900);
+			expect(last()).toMatchObject({
+				pitch: shown,
+				revealed: true,
+				verdict: { grade: "incorrect", frequency: 494 },
+				retry: "listening",
+			});
+			// The tracker's hold-off (500 ms) drops the room tail, then the right note counts.
+			vi.advanceTimersByTime(600);
+			playUntil(listener, 440, (st) => st.retry === "right");
+			expect(last()).toMatchObject({
+				pitch: shown,
+				verdict: { grade: "correct", frequency: 440 },
+				retry: "right",
+			});
+			const count = states.length;
+			vi.advanceTimersByTime(RETRY - 20);
+			expect(states).toHaveLength(count);
+			vi.advanceTimersByTime(20);
+			expect(last()).toMatchObject({ revealed: false, retry: null });
+			expect(last().pitch).not.toBe(shown);
+		});
+
+		test("a timed reveal listens too, and the right note moves on", async () => {
+			const { flow, listener } = retrySetup();
+			flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY);
+			expect(last()).toMatchObject({
+				verdict: { grade: "none" },
+				retry: "listening",
+			});
+			vi.advanceTimersByTime(600);
+			play(listener, 440, 900);
+			expect(last()).toMatchObject({ retry: "right" });
+			vi.advanceTimersByTime(RETRY);
+			expect(last()).toMatchObject({ revealed: false });
+		});
+
+		test("a wrong note during the retry updates the verdict and keeps listening", async () => {
+			const { flow, listener } = retrySetup();
+			flow.start();
+			await settle();
+			play(listener, 494, 900);
+			vi.advanceTimersByTime(600);
+			play(listener, 523, 900);
+			expect(last()).toMatchObject({
+				verdict: { grade: "incorrect", frequency: 523 },
+				retry: "listening",
+			});
+			vi.advanceTimersByTime(600);
+			play(listener, 440, 900);
+			expect(last()).toMatchObject({ retry: "right" });
+		});
+
+		test("a tap during the retry deals at once and stops listening", async () => {
+			const { flow, listener, graded } = retrySetup();
+			flow.start();
+			await settle();
+			const shown = last().pitch;
+			play(listener, 494, 900);
+			flow.step();
+			expect(last()).toMatchObject({ revealed: false, retry: null });
+			expect(last().pitch).not.toBe(shown);
+			expect(graded).toHaveLength(1);
+		});
+
+		test("with a tone, its note and the 500 ms after its end are ignored", async () => {
+			const { flow, listener } = retrySetup(TONE);
+			flow.start();
+			await settle();
+			play(listener, 494, 900);
+			// Tone runs from 500 ms to 2000 ms after the reveal; the window opens at 2000 ms.
+			play(listener, 440, 1400);
+			expect(last()).toMatchObject({ retry: "listening" });
+			expect(last().verdict).toEqual({ grade: "incorrect", frequency: 494 });
+			// Within 500 ms of the end: still ignored.
+			play(listener, 440, 480);
+			expect(last().retry).toBe("listening");
+			vi.advanceTimersByTime(200);
+			play(listener, 440, 900);
+			expect(last()).toMatchObject({ retry: "right" });
+		});
+
+		test("played right first time: on after the advance delay, and after the tone's end when later", async () => {
+			const first = retrySetup();
+			first.flow.start();
+			await settle();
+			playUntil(first.listener, 440, (st) => st.revealed);
+			expect(last()).toMatchObject({
+				verdict: { grade: "correct" },
+				retry: null,
+			});
+			const shown = last().pitch;
+			vi.advanceTimersByTime(RETRY - 20);
+			expect(last().pitch).toBe(shown);
+			vi.advanceTimersByTime(20);
+			expect(last().pitch).not.toBe(shown);
+			first.flow.stop();
+
+			states = [];
+			const second = retrySetup(TONE);
+			second.flow.start();
+			await settle();
+			playUntil(second.listener, 440, (st) => st.revealed);
+			const again = last().pitch;
+			// The tone ends 2000 ms after the reveal, later than the 1000 ms delay.
+			vi.advanceTimersByTime(1980);
+			expect(last().pitch).toBe(again);
+			vi.advanceTimersByTime(20);
+			expect(last().pitch).not.toBe(again);
+		});
+
+		test("judging off, locked, unavailable and auto-advance on are unchanged", async () => {
+			// Judging off: no listen, a revealed card waits for a tap.
+			states = [];
+			const flow = createCardFlow({
+				next: randomSource(POOL, () => 0),
+				delayMs: DELAY,
+				advanceDelayMs: null,
+				retryAdvanceMs: RETRY,
+				onChange: (s) => states.push(s),
+			});
+			flow.start();
+			vi.advanceTimersByTime(DELAY + RETRY * 5);
+			expect(last()).toMatchObject({ revealed: true, retry: null });
+			flow.stop();
+
+			// Unavailable: no stream, so no retry.
+			states = [];
+			const off = retrySetup();
+			off.listener.auto = { status: "unavailable", reason: "denied" };
+			off.flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY + RETRY * 5);
+			expect(last()).toMatchObject({ revealed: true, retry: null });
+			off.flow.stop();
+
+			// Locked: likewise.
+			states = [];
+			const locked = retrySetup();
+			locked.listener.auto = { status: "locked" } as ListenResult;
+			locked.flow.start();
+			await settle();
+			vi.advanceTimersByTime(DELAY + RETRY * 5);
+			expect(last()).toMatchObject({ revealed: true, retry: null });
+			locked.flow.stop();
+
+			// Auto-advance on: the old path; retryAdvanceMs is null there.
+			states = [];
+			const on = listenSetup({ advanceDelayMs: ADVANCE });
+			on.flow.start();
+			await settle();
+			play(on.listener, 494, 900);
+			expect(last()).toMatchObject({ revealed: true, retry: null });
+			vi.advanceTimersByTime(ADVANCE);
+			expect(last().revealed).toBe(false);
+		});
+
+		test("onGraded is called once, with a miss, across a retry", async () => {
+			const calls: ProgressGrade[] = [];
+			const listener = new FakeListener();
+			const flow = createCardFlow({
+				next: randomSource(POOL, () => 0),
+				delayMs: DELAY,
+				advanceDelayMs: null,
+				retryAdvanceMs: RETRY,
+				listen: {
+					listener,
+					tracker: createToneTracker(DEFAULT_THRESHOLDS),
+					grade: (_p, hz) => (hz === 440 ? "correct" : "incorrect"),
+					now: () => Date.now(),
+				},
+				onGraded: (_p, g) => calls.push(g),
+				onChange: (s) => states.push(s),
+			});
+			flow.start();
+			await settle();
+			play(listener, 494, 900);
+			vi.advanceTimersByTime(600);
+			play(listener, 440, 900);
+			expect(last().retry).toBe("right");
+			expect(calls).toEqual(["miss"]);
+		});
+
+		test("stop during the tone wait and during listening grades nothing more", async () => {
+			const during = retrySetup(TONE);
+			during.flow.start();
+			await settle();
+			play(during.listener, 494, 900);
+			during.flow.stop();
+			const count = states.length;
+			play(during.listener, 440, 4000);
+			expect(states).toHaveLength(count);
+
+			states = [];
+			const later = retrySetup();
+			later.flow.start();
+			await settle();
+			play(later.listener, 494, 900);
+			vi.advanceTimersByTime(600);
+			later.flow.stop();
+			const after = states.length;
+			play(later.listener, 440, 900);
+			expect(states).toHaveLength(after);
+		});
 	});
 });
 

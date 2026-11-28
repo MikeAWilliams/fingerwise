@@ -19,5 +19,6 @@
 	"scoring": "live",
 	"barsPerLine": 2,
 	"songAbc": "T: Mary Had a Little Lamb\nL:1/4\nQ:70\nE D C D | E E E2 | D D D2 | E G G2 |\nE D C D | E E E E | D D E D | C4 ||",
-	"songTune": 1
+	"songTune": 1,
+	"songTempo": null
 }

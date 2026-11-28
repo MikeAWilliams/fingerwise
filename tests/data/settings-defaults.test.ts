@@ -27,6 +27,7 @@ test("the defaults file is valid for the alto C and holds A3 to F5, sharps, 3 s,
 	expect(settings.metronome).toBe(false);
 	expect(settings.scoring).toBe("live");
 	expect(settings.songTune).toBe(1);
+	expect(settings.songTempo).toBeNull();
 	expect(settings.songAbc).not.toBe("");
 	expect(settings.songAbc.startsWith("T: Mary Had a Little Lamb")).toBe(true);
 });

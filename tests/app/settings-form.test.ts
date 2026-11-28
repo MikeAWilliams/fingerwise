@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import {
+	AUTO_ADVANCE_RETRY_NOTE,
 	applyAdvanceDelayInput,
 	applyBarsPerLineInput,
 	applyDelayInput,
@@ -10,6 +11,7 @@ import {
 	applyScoringInput,
 	applySingleAdvanceDelayInput,
 	applyToleranceInput,
+	autoAdvanceNote,
 	cardsSummary,
 	editTiming,
 	highestOptions,
@@ -66,10 +68,24 @@ function settings(
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	};
 }
 
 const names = (ps: Pitch[]) => ps.map(formatPitch);
+
+describe("autoAdvanceNote (F18-S03 AC10)", () => {
+	test("shows the retry note with judging on, none with it off", () => {
+		const base = settings("A3", "F5");
+		expect(AUTO_ADVANCE_RETRY_NOTE).toBe(
+			"Off: keep playing a missed note until it is right",
+		);
+		expect(autoAdvanceNote({ ...base, judgeEnabled: true })).toBe(
+			AUTO_ADVANCE_RETRY_NOTE,
+		);
+		expect(autoAdvanceNote({ ...base, judgeEnabled: false })).toBeNull();
+	});
+});
 
 describe("pickers", () => {
 	test("the full range is on offer around the default bounds", () => {

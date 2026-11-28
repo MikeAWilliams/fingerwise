@@ -59,3 +59,17 @@ export function headPlace(
 	if (!note) return null;
 	return playheadPlace((note.startMs * tempo) / 60000, rows);
 }
+
+/**
+ * What the song overlay does with the last run's drawing: "run" while the song
+ * runs, "keep" once it stopped with an origin (the summary keeps its fill,
+ * marks and stopped playhead), and "clear" with no origin, which is a fresh flow
+ * in ready, as a tune change gives.
+ */
+export function overlayRun(
+	running: boolean,
+	origin: number | null,
+): "run" | "keep" | "clear" {
+	if (origin === null) return "clear";
+	return running ? "run" : "keep";
+}
