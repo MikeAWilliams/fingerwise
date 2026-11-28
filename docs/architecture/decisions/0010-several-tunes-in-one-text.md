@@ -1,6 +1,6 @@
 # 0010: A song text may hold several tunes
 
-- **Status:** accepted
+- **Status:** accepted ("all must pass" superseded by [0013](0013-dropped-tunes-from-a-file.md))
 - **Date:** 2026-11-24
 
 ## Context

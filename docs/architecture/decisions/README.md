@@ -26,6 +26,4 @@ A short record of a decision: the context, what was chosen, what was rejected, a
 | [0013](0013-dropped-tunes-from-a-file.md) | Tunes that fail in a loaded file are kept as dropped tunes, music removed | accepted |
 | [0014](0014-tuner-mode.md) | A third mode, Tuner, that shows whatever note is played | accepted |
 
-## Likely next ADRs
-
 Open questions are tracked under "Risks and open questions" in each feature design in [`../../features/`](../../features/).

@@ -1,6 +1,6 @@
 # F14: Tune choice
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-24. The user wanted to paste several tunes in one ABC text, as the format allows, and switch between them from the header.
 

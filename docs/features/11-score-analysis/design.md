@@ -1,6 +1,6 @@
 # F11: Score analysis
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-23, after the user's recording of "Mary Had a Little Lamb" at ♩ = 80 scored 60% covered and 82% in tune but sounded right to them. A breakdown of that recording, run through the real detector and coverage core, showed where the score went: notes sounded for about 70% of their length, started about 110 ms late, and three notes were a quarter tone off. The user does not want the rules loosened; the goal is to become a better player, so the app should explain the score the same way.
 
@@ -13,7 +13,7 @@ After a timed song, the player sees why they got the score they did: how much of
 **When it shows**
 
 - At the end of a timed song ([F09](../09-timed-scoring/design.md#summary)) with judging on and at least one note graded. With judging off, or nothing graded ("End of song"), there is no analysis.
-- It is a section under the last line of music, reached by scrolling once the summary shows and scrolling unlocks ([F10](../10-scrolling-song-view/design.md#the-end)). The [pinned bar](../../glossary.md) keeps the summary and tuning list and gains an "Analysis ↓" link that scrolls to the section. The link shows only while the section's heading is below what can be seen, since on a window tall enough to hold the whole page it has nowhere to go (decided 2026-11-23 at acceptance, [F11-S05](stories/F11-S05-breakdown-table.md)).
+- It is a section under the last line of music, reached by scrolling once the summary shows and scrolling unlocks ([F10](../10-scrolling-song-view/design.md#behavior)). The [pinned bar](../../glossary.md) keeps the summary and tuning list and gains an "Analysis ↓" link that scrolls to the section. The link shows only while the section's heading is below what can be seen, since on a window tall enough to hold the whole page it has nowhere to go (decided 2026-11-23 at acceptance, [F11-S05](stories/F11-S05-breakdown-table.md)).
 - A tap on the start prompt starts again as before: the section and the practice-spot shading clear with the lanes.
 
 **Where the score went**

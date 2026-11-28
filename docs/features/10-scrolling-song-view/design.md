@@ -1,6 +1,6 @@
 # F10: Scrolling song view
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-23. It changes how [F08](../08-timed-play-along/design.md) and [F09](../09-timed-scoring/design.md) draw a timed song; the timing, scoring and lane behaviour of F09 are unchanged.
 

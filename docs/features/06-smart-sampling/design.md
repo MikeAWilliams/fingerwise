@@ -1,6 +1,6 @@
 # F06: Smart sampling
 
-- **Status:** designed
+- **Status:** done
 
 ## Goal
 

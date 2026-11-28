@@ -1,6 +1,6 @@
 # 0006: abcjs reads songs, through its audio sequence
 
-- **Status:** accepted
+- **Status:** accepted (one-tune rule superseded by [0010](0010-several-tunes-in-one-text.md))
 - **Date:** 2026-11-07
 
 ## Context

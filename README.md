@@ -24,6 +24,7 @@ Other instruments and clefs is a parked idea. See [`docs/features/`](docs/featur
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | [`docs/architecture/`](docs/architecture/) | What is actually built: overview, module docs, data formats, and decision records (ADRs).        |
 | [`docs/features/`](docs/features/)         | One folder per feature: a design doc plus its stories with acceptance criteria. The plan, not fact. |
+| [`docs/architecture/deployment.md`](docs/architecture/deployment.md) | How the site is built and published to GitHub Pages.                                          |
 | [`docs/research/`](docs/research/)         | Background research: prior art, fingering data sources, licensing.                               |
 | [`docs/templates/`](docs/templates/)       | Templates for features, stories, ADRs and progress files.                                        |
 | [`docs/glossary.md`](docs/glossary.md)     | Domain terms.                                                                                    |

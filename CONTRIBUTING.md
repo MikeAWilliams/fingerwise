@@ -52,7 +52,7 @@ make verify    # lint, type-check, tests and build
 
 ## Branches and pull requests
 
-Fork the repo and branch from an up-to-date `main`. Name the branch `<type>/<name>` in lowercase kebab-case: `fix/ledger-line-clip`, `chore/ci-cache`, `feature/new-instrument-name`. Keep pull requests focused, and fill in the pull request template.
+Fork the repo and branch from an up-to-date `main`. Name the branch `<type>/<name>` in lowercase kebab-case: `fix/ledger-line-clip`, `chore/ci-cache`, `feature/F20-new-instrument-name`. Planning docs go on `plan/<topic>`, and a small feature planned and built together on `quick-fix/<slug>`; see [CLAUDE.md](CLAUDE.md#branches). Keep pull requests focused, and fill in the pull request template.
 
 ## Conduct
 

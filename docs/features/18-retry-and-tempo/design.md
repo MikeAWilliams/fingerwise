@@ -1,6 +1,6 @@
 # F18: Retry and tempo
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-28, on `plan/next-features`, as a bundle of three small changes built on one branch (`feature/F18-retry-and-tempo`). Values marked *default* were not discussed and are open to change in review.
 

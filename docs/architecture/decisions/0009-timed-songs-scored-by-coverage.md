@@ -1,10 +1,10 @@
 # 0009: Timed songs scored by coverage
 
-- **Status:** accepted
+- **Status:** accepted (grace at a released end superseded by [0011](0011-release-allowance.md))
 - **Date:** 2026-11-22
 
 ## Context
-F08 grades a timed song one slot at a time with the judge's tone tracker: a tone must hold steady for the settle time (200 ms, [ADR 0005](0005-yin-pitch-detector.md)) before the slot gets a single verdict ([F08 design](../../features/08-timed-play-along/design.md)). The [F09 review](../../features/09-timed-scoring/design.md#problems-found) found that this cannot grade short notes, punishes a late note twice, and gives the player almost no feedback while playing. The user decided on 2026-11-22 that a note is not right or wrong: it is scored by how much of it was played correctly, and the player sees that fill in as they play.
+F08 grades a timed song one slot at a time with the judge's tone tracker: a tone must hold steady for the settle time (200 ms, [ADR 0005](0005-yin-pitch-detector.md)) before the slot gets a single verdict ([F08 design](../../features/08-timed-play-along/design.md)). The [F09 review](../../features/09-timed-scoring/design.md#problems-found-in-f08) found that this cannot grade short notes, punishes a late note twice, and gives the player almost no feedback while playing. The user decided on 2026-11-22 that a note is not right or wrong: it is scored by how much of it was played correctly, and the player sees that fill in as they play.
 
 ## Decision
 - **Per-reading classification.** In a timed song, each detector reading is classified on its own against the expected pitch, with no settle time: right note (its nearest note is the expected pitch), wrong (its nearest note is another one) or silent. A wrong classification needs a few readings in a row; anything else that is not the right note counts as silent. The tone tracker and its thresholds stay as they are for untimed cards and songs.
