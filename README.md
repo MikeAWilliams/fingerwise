@@ -83,13 +83,17 @@ Vite is run through Bun here, and application code in `src/` runs in the browser
 ### Source layout
 
 ```
-src/core/     pure logic: pitch, instrument, drill (no framework or browser imports)
-src/render/   staff and tablature rendering
-src/audio/    synth and pitch detection
-src/app/      Preact UI and entry point (main.tsx)
+src/core/     pure logic: pitch, instrument, settings, drill, progress, judge,
+              song, coverage, analysis (no framework or browser imports)
+src/abc/      ABC notation to songs (abcjs)
+src/render/   staff, tablature and pitch graph rendering
+src/audio/    tones, metronome clicks, microphone and pitch detection
+src/app/      Preact UI, mode flows and entry point (main.tsx)
 tests/        Vitest tests
-data/         instrument definitions (JSON) and the tablature font
+data/         instrument definitions (JSON), settings defaults and the tablature font
 ```
+
+See [`docs/architecture/overview.md`](docs/architecture/overview.md) for the layers and how they depend on each other.
 
 ## Run it locally
 
