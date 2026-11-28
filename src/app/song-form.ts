@@ -165,7 +165,7 @@ export function applySongText(
 ): SongEdit {
 	if (isEmptySong(text)) {
 		return {
-			settings: { ...settings, songAbc: "", songTune: 1 },
+			settings: { ...settings, songAbc: "", songTune: 1, songTempo: null },
 			state: NO_SONG,
 			problems: [],
 		};
@@ -177,6 +177,7 @@ export function applySongText(
 				...settings,
 				songAbc: text,
 				songTune: tunePosition(state.tunes, settings.songTune),
+				songTempo: null,
 			},
 			state,
 			problems: [],
@@ -196,7 +197,7 @@ export function chooseTune(
 ): Settings | null {
 	return position === settings.songTune
 		? null
-		: { ...settings, songTune: position };
+		: { ...settings, songTune: position, songTempo: null };
 }
 
 /** One line of the Song section's values, shown while it is closed: the song's summary and bars per line. */

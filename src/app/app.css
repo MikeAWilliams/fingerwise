@@ -50,7 +50,14 @@ main {
 
 .app-header button,
 .app-header-tempo {
-	flex: none;
+	flex: 0 0 auto;
+	min-height: 44px;
+	font: inherit;
+}
+
+.app-header-tempo:disabled {
+	color: GrayText;
+	cursor: default;
 }
 
 .app-header-title {

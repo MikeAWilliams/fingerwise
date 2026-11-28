@@ -2,13 +2,18 @@ import { describe, expect, test } from "vitest";
 import alto from "../../data/instruments/ocarina-12-taiwanese.json";
 import defaults from "../../data/settings/defaults.json";
 import {
+	chooseTempo,
+	chosenTempo,
 	headerSong,
 	PLAY_SONG_TEXT,
 	playButton,
 	STOP_TEXT,
+	tempoChoice,
+	tempoEntries,
 	tempoText,
 	tuneChoice,
 	tuneLabels,
+	withTempo,
 } from "../../src/app/header-text";
 import { loadInstrument } from "../../src/core/instrument";
 import { parsePitch } from "../../src/core/pitch";
@@ -40,19 +45,7 @@ describe("tempoText (F10-S01 AC4)", () => {
 	});
 });
 
-describe("headerSong (F10-S01 AC3, AC4, AC7)", () => {
-	test("a given tempo", () => {
-		expect(headerSong(on, song(120, "Ode"), false).tempo).toBe("♩ = 120");
-	});
-
-	test("no tempo in the tune shows the default 90", () => {
-		expect(headerSong(on, song(null), false).tempo).toBe("♩ = 90");
-	});
-
-	test("a Q:3/8=40 tune plays at 60 quarters", () => {
-		expect(headerSong(on, song(60), false).tempo).toBe("♩ = 60");
-	});
-
+describe("headerSong (F10-S01 AC3, AC7; F18-S02 AC1)", () => {
 	test("the title shows in Song mode, in either practice", () => {
 		expect(headerSong(on, song(null, "Ode"), false).title).toBe("Ode");
 		const single = { ...on, practice: "single" as const };
@@ -64,38 +57,172 @@ describe("headerSong (F10-S01 AC3, AC4, AC7)", () => {
 		expect(headerSong(flashcards, song(null, "Ode"), false).title).toBeNull();
 	});
 
-	test("the tempo shows in Song mode in either practice, not in Flashcards", () => {
-		const single = { ...on, practice: "single" as const };
-		expect(headerSong(single, song(120, "Ode"), false).tempo).toBe("♩ = 120");
-		expect(headerSong(flashcards, song(120, "Ode"), false).tempo).toBeNull();
-	});
-
-	test("no song shows nothing", () => {
-		expect(headerSong(on, null, false)).toEqual({ title: null, tempo: null });
-	});
-
-	test("nothing while Settings is open", () => {
-		expect(headerSong(on, song(120, "Ode"), true)).toEqual({
-			title: null,
-			tempo: null,
-		});
+	test("no song, or Settings open, shows nothing", () => {
+		expect(headerSong(on, null, false)).toEqual({ title: null });
+		expect(headerSong(on, song(120, "Ode"), true)).toEqual({ title: null });
 	});
 });
 
-describe("headerSong while playing (F13-S02 AC11)", () => {
-	test("the tempo shows in Flashcards while the song plays", () => {
-		expect(headerSong(flashcards, song(120), false).tempo).toBeNull();
-		expect(headerSong(flashcards, song(120), false, true).tempo).toBe(
-			"♩ = 120",
-		);
-		expect(headerSong(flashcards, song(null), false, true).tempo).toBe(
-			"♩ = 90",
-		);
+function notes(tempo: number | null, beats: number[]) {
+	const pitch = parsePitch("C4");
+	if (pitch === null) throw new Error("bad pitch");
+	let start = 0;
+	const list = beats.map((b) => {
+		const note = { pitch, start, beats: b };
+		start += b;
+		return note;
+	});
+	return createSong(list, { tempo, meter: DEFAULT_METER });
+}
+const values = (s: ReturnType<typeof song>) =>
+	tempoEntries(s).map((e) => e.value);
+const range = (from: number, to: number) => {
+	const out: number[] = [];
+	for (let n = from; n <= to; n += 5) out.push(n);
+	return out;
+};
+
+describe("tempoEntries (F18-S02 AC2, AC3, AC4)", () => {
+	test("a tune at 90 with eighths: 45 to 135, 90 marked", () => {
+		const entries = tempoEntries(notes(90, [0.5, 0.5, 1]));
+		expect(entries.map((e) => e.value)).toEqual(range(45, 135));
+		const own = entries.filter((e) => e.own);
+		expect(own).toHaveLength(1);
+		expect(own[0]).toEqual({ value: 90, label: "♩ = 90 (tune)", own: true });
+		expect(entries.find((e) => e.value === 100)?.label).toBe("♩ = 100");
 	});
 
-	test("no song or Settings open still shows nothing", () => {
-		expect(headerSong(on, null, false, true).tempo).toBeNull();
-		expect(headerSong(on, song(120), true, true).tempo).toBeNull();
+	test("a tune at 96 has 96 marked between 95 and 100", () => {
+		const entries = tempoEntries(notes(96, [1]));
+		const at = entries.findIndex((e) => e.own);
+		expect(entries[at]?.value).toBe(96);
+		expect(entries[at - 1]?.value).toBe(95);
+		expect(entries[at + 1]?.value).toBe(100);
+		expect(entries[0]?.value).toBe(50);
+		expect(entries[entries.length - 1]?.value).toBe(140);
+	});
+
+	test("sixteenths at 100 are capped at 115", () => {
+		const list = values(notes(100, [0.25, 1]));
+		expect(list[0]).toBe(50);
+		expect(list[list.length - 1]).toBe(115);
+	});
+
+	test("a tune past its cap lists only its own entry above it", () => {
+		const entries = tempoEntries(notes(140, [0.25, 1]));
+		expect(entries.map((e) => e.value)).toEqual([...range(70, 115), 140]);
+		expect(entries[entries.length - 1]?.own).toBe(true);
+	});
+
+	test("no Q: line marks 90", () => {
+		const entries = tempoEntries(notes(null, [1]));
+		expect(entries.find((e) => e.own)?.label).toBe("♩ = 90 (tune)");
+	});
+
+	test("Q:3/8=40 is labelled 60 with the exact value", () => {
+		const own = tempoEntries(notes(60, [1])).find((e) => e.own);
+		expect(own).toEqual({ value: 60, label: "♩ = 60 (tune)", own: true });
+		const odd = tempoEntries(notes(60.4, [1])).find((e) => e.own);
+		expect(odd?.value).toBe(60.4);
+		expect(odd?.label).toBe("♩ = 60 (tune)");
+	});
+
+	test("a slow tune starts at the 30 floor", () => {
+		const list = values(notes(40, [1]));
+		expect(list[0]).toBe(30);
+		expect(list).toEqual([30, 35, 40, 45, 50, 55, 60]);
+	});
+
+	test("a rest is not a note, so it does not set the cap", () => {
+		const list = values(notes(100, [1, 1]));
+		expect(list[list.length - 1]).toBe(150);
+	});
+});
+
+describe("chosenTempo (F18-S02 AC5, AC10)", () => {
+	const tune = notes(96, [1]);
+	test("null is the tune's own", () => {
+		expect(chosenTempo(tune, null)).toBe(96);
+	});
+	test("a listed value is used", () => {
+		expect(chosenTempo(tune, 75)).toBe(75);
+		expect(chosenTempo(tune, 96)).toBe(96);
+	});
+	test("an unlisted value gives the tune's own", () => {
+		expect(chosenTempo(tune, 77)).toBe(96);
+		expect(chosenTempo(tune, 400)).toBe(96);
+	});
+});
+
+describe("tempoChoice (F18-S02 AC1, AC5, AC11)", () => {
+	const tune = notes(90, [1]);
+	const args = {
+		settings: on,
+		song: tune,
+		open: false,
+		phase: "ready" as const,
+	};
+	test("null in Flashcards, with no song and with Settings open", () => {
+		expect(tempoChoice({ ...args, settings: flashcards })).toBeNull();
+		expect(tempoChoice({ ...args, song: null })).toBeNull();
+		expect(tempoChoice({ ...args, open: true })).toBeNull();
+	});
+	test("the tune's own entry is selected by default", () => {
+		const choice = tempoChoice(args);
+		expect(choice?.entries[choice.selected]?.own).toBe(true);
+		expect(choice?.disabled).toBe(false);
+	});
+	test("a saved tempo is selected", () => {
+		const choice = tempoChoice({
+			...args,
+			settings: { ...on, songTempo: 60 },
+		});
+		expect(choice?.entries[choice.selected]?.value).toBe(60);
+	});
+	test("disabled only while playing", () => {
+		expect(tempoChoice({ ...args, phase: "playing" })?.disabled).toBe(true);
+		expect(tempoChoice({ ...args, phase: "summary" })?.disabled).toBe(false);
+		expect(tempoChoice({ ...args, phase: undefined })?.disabled).toBe(false);
+	});
+});
+
+describe("chooseTempo (F18-S02 AC5, AC7)", () => {
+	const tune = notes(90, [1]);
+	const index = (v: number) =>
+		tempoEntries(tune).findIndex((e) => e.value === v);
+	test("null for the entry already selected", () => {
+		expect(chooseTempo(on, tune, index(90))).toBeNull();
+		expect(chooseTempo({ ...on, songTempo: 60 }, tune, index(60))).toBeNull();
+	});
+	test("a listed entry saves its value", () => {
+		expect(chooseTempo(on, tune, index(60))).toEqual({ ...on, songTempo: 60 });
+	});
+	test("the tune's own entry saves null", () => {
+		expect(chooseTempo({ ...on, songTempo: 60 }, tune, index(90))).toEqual({
+			...on,
+			songTempo: null,
+		});
+	});
+	test("an index past the list is null", () => {
+		expect(chooseTempo(on, tune, 999)).toBeNull();
+	});
+});
+
+describe("withTempo (F18-S02 AC6)", () => {
+	const tune = notes(90, [1]);
+	test("keeps the song itself for its own tempo", () => {
+		expect(withTempo(tune, 90)).toBe(tune);
+		expect(withTempo(notes(null, [1]), 90).tempo).toBeNull();
+	});
+	test("a copy with the new tempo otherwise, the original untouched", () => {
+		const copy = withTempo(tune, 60);
+		expect(copy).not.toBe(tune);
+		expect(copy.tempo).toBe(60);
+		expect(copy.notes).toBe(tune.notes);
+		expect(tune.tempo).toBe(90);
+	});
+	test("null stays null", () => {
+		expect(withTempo(null, 60)).toBeNull();
 	});
 });
 

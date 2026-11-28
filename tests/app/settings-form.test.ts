@@ -66,6 +66,7 @@ function settings(
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	};
 }
 

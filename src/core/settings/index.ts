@@ -47,6 +47,8 @@ export interface Settings {
 	songAbc: string;
 	/** The chosen tune's 1-based position in the song text. */
 	songTune: number;
+	/** The chosen tempo in quarter notes per minute; null is the tune's own. */
+	songTempo: number | null;
 }
 
 /** Serialized form shared by the defaults file and storage; pitches are note names. */
@@ -75,6 +77,8 @@ export interface SettingsJson {
 	songAbc: string;
 	/** The chosen tune's 1-based position in the song text. */
 	songTune: number;
+	/** The chosen tempo in quarter notes per minute; null is the tune's own. */
+	songTempo: number | null;
 }
 
 export const MIN_DELAY_SECONDS = 0.5;
@@ -125,6 +129,7 @@ export function toSettingsJson(settings: Settings): SettingsJson {
 		barsPerLine: settings.barsPerLine,
 		songAbc: settings.songAbc,
 		songTune: settings.songTune,
+		songTempo: settings.songTempo,
 	};
 }
 
@@ -302,6 +307,14 @@ export function isValidSongTune(value: unknown): value is number {
 	return Number.isInteger(value) && (value as number) >= 1;
 }
 
+/** The chosen tempo: null (the tune's own) or a finite number above 0. */
+export function isValidSongTempo(value: unknown): value is number | null {
+	return (
+		value === null ||
+		(typeof value === "number" && Number.isFinite(value) && value > 0)
+	);
+}
+
 function isValidSongText(value: unknown): value is string {
 	return typeof value === "string" && value.length <= MAX_SONG_CHARS;
 }
@@ -400,6 +413,9 @@ export function validateSettings(
 	const songTune = isValidSongTune(obj.songTune)
 		? obj.songTune
 		: defaults.songTune;
+	const songTempo = isValidSongTempo(obj.songTempo)
+		? obj.songTempo
+		: defaults.songTempo;
 
 	if (lowest >= highest) {
 		lowest = defaults.lowest;
@@ -437,6 +453,7 @@ export function validateSettings(
 		barsPerLine,
 		songAbc,
 		songTune,
+		songTempo,
 	};
 	if (!breaksSoundRule(result)) return result;
 	return {
@@ -538,6 +555,9 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 	if (!isValidSongTune(obj.songTune)) {
 		throw new SettingsError("songTune must be a whole number of at least 1");
 	}
+	if (!isValidSongTempo(obj.songTempo)) {
+		throw new SettingsError("songTempo must be null or a positive number");
+	}
 
 	for (const [field, p] of [
 		["lowest", lowest],
@@ -579,6 +599,7 @@ export function parseDefaults(raw: unknown, instrument: Instrument): Settings {
 		barsPerLine: obj.barsPerLine,
 		songAbc: obj.songAbc,
 		songTune: obj.songTune,
+		songTempo: obj.songTempo,
 	};
 	if (breaksSoundRule(settings)) {
 		throw new SettingsError(
