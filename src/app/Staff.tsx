@@ -25,7 +25,8 @@ import {
 } from "./SongOverlay";
 
 interface StaffProps {
-	pitch: Pitch;
+	/** The note to draw; null draws the stave alone. */
+	pitch: Pitch | null;
 	options: StaffOptions;
 	/** The note's length in quarter-note beats; a whole note when absent. */
 	beats?: number;

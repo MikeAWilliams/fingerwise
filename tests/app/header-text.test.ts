@@ -34,6 +34,38 @@ function song(tempo: number | null, title?: string) {
 	});
 }
 
+describe("Tuner mode (F19-S01 AC3)", () => {
+	const tuner: Settings = { ...base, mode: "tuner" };
+	const two = [song(120, "One"), song(90, "Two")];
+
+	test("no title or tempo, even with a titled song held", () => {
+		expect(headerSong(tuner, song(120, "One"), false)).toEqual({
+			title: null,
+		});
+	});
+
+	test("no Play song button and no tune list, even with two tunes", () => {
+		expect(
+			playButton({
+				settings: tuner,
+				song: two[0] ?? null,
+				open: false,
+				webAudio: true,
+				playing: false,
+				phase: undefined,
+			}),
+		).toBeNull();
+		expect(
+			tuneChoice({
+				settings: tuner,
+				tunes: two,
+				open: false,
+				phase: undefined,
+			}),
+		).toBeNull();
+	});
+});
+
 describe("tempoText (F10-S01 AC4)", () => {
 	test("shows the tempo in quarter notes", () => {
 		expect(tempoText(120)).toBe("♩ = 120");

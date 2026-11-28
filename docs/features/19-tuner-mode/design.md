@@ -1,6 +1,6 @@
 # F19: Tuner mode
 
-- **Status:** designed
+- **Status:** done
 
 > Shaped in dialog on 2026-11-28, on `plan/next-features`. The mode is recorded in [ADR 0014](../../architecture/decisions/0014-tuner-mode.md). Values marked *default* were not discussed and are open to change in review.
 

@@ -1,5 +1,5 @@
 import { type Instrument, soundingPitch } from "../core/instrument";
-import { centsFrom, nearestPitch } from "../core/judge";
+import { centsFrom, nearestPitch, withinTolerance } from "../core/judge";
 import { formatPitch, type Pitch } from "../core/pitch";
 import { formatCents } from "../render/graph";
 
@@ -44,4 +44,23 @@ export function graphLabel(
 			? "in tune with"
 			: `${rounded} ${rounded === 1 ? "cent" : "cents"} ${cents > 0 ? "sharp" : "flat"} of`;
 	return `Played ${formatPitch(played)}, ${where} ${formatPitch(expected)}`;
+}
+
+/**
+ * Tuner's verdict for an offset from the shown note: "In tune" within the
+ * tolerance, otherwise "N cents flat" or "N cents sharp" (N rounded, "1 cent"
+ * singular).
+ */
+export function tunerVerdict(
+	cents: number,
+	toleranceCents: number,
+): { inTune: boolean; text: string } {
+	if (withinTolerance(cents, toleranceCents)) {
+		return { inTune: true, text: "In tune" };
+	}
+	const rounded = Math.round(Math.abs(cents));
+	return {
+		inTune: false,
+		text: `${rounded} ${rounded === 1 ? "cent" : "cents"} ${cents > 0 ? "sharp" : "flat"}`,
+	};
 }

@@ -7,8 +7,10 @@ import {
 	createToneTracker,
 	createToneWatch,
 	DEFAULT_THRESHOLDS,
+	followNote,
 	frequencyBand,
 	gradeTone,
+	heldNote,
 	judge,
 	nearestPitch,
 	passesChecks,
@@ -17,6 +19,7 @@ import {
 	type StabilityOptions,
 	TONE_END_SILENCE_MS,
 	type ToneEvent,
+	withinTolerance,
 } from "../../src/core/judge";
 import judgeSource from "../../src/core/judge/index.ts?raw";
 import {
@@ -669,5 +672,119 @@ describe("layering (AC9)", () => {
 		for (const name of ["Date", "performance", "setTimeout", "setInterval"]) {
 			expect(new RegExp(`\\b${name}\\b`).test(judgeSource), name).toBe(false);
 		}
+	});
+});
+
+describe("the tuner's note (F19-S02)", () => {
+	const D5 = pitch("D5");
+	const E5 = pitch("E5");
+	const d5 = toFrequency(D5);
+	const e5 = toFrequency(E5);
+	const SETTLE = DEFAULT_THRESHOLDS.settleMs;
+	const follow = (r: Reading[]) => followNote(r, WITH_BAND, SETTLE);
+	const hold = (r: Reading[]) => heldNote(r, WITH_BAND, SETTLE);
+
+	test("withinTolerance: 40 is within 40, 40.01 is not, either sign", () => {
+		expect(withinTolerance(40, 40)).toBe(true);
+		expect(withinTolerance(-40, 40)).toBe(true);
+		expect(withinTolerance(40.01, 40)).toBe(false);
+		expect(withinTolerance(-40.01, 40)).toBe(false);
+		expect(withinTolerance(0, 40)).toBe(true);
+	});
+
+	test("a steady tone shows its note, in tune", () => {
+		const got = follow(frames(0, 30, () => d5));
+		expect(got?.pitch).toBe(D5);
+		expect(got?.cents).toBeCloseTo(0, 6);
+		expect(got?.since).toBe(0);
+	});
+
+	test("a tone at +45¢ keeps its note and reads +45", () => {
+		const got = follow(frames(0, 30, () => shift(d5, 45)));
+		expect(got?.pitch).toBe(D5);
+		expect(got?.cents).toBeCloseTo(45, 6);
+		expect(hold(frames(0, 30, () => shift(d5, 45)))?.cents).toBeCloseTo(45, 6);
+	});
+
+	test("a bend across +50¢ held under the settle time keeps the note and goes beyond 50", () => {
+		// 24 steady frames, then 8 frames (133 ms) at +60¢.
+		const r = frames(0, 32, (i) => (i < 24 ? d5 : shift(d5, 60)));
+		const got = follow(r);
+		expect(got?.pitch).toBe(D5);
+		expect(got?.cents).toBeCloseTo(60, 6);
+	});
+
+	test("a bend held longer than the settle time changes the note, and since is its start", () => {
+		// 24 steady frames, then 20 frames (334 ms) at +60¢, nearest D♯5.
+		const r = frames(0, 44, (i) => (i < 24 ? d5 : shift(d5, 60)));
+		const got = follow(r);
+		expect(got?.pitch).toBe(pitch("D♯5"));
+		expect(got?.since).toBe(24);
+		expect(got?.cents).toBeCloseTo(-40, 6);
+	});
+
+	test("a scoop at the attack does not show the wrong note", () => {
+		// Three frames well below, then the note.
+		const r = frames(0, 30, (i) => (i < 3 ? shift(d5, -150) : d5));
+		expect(follow(r)?.pitch).toBe(D5);
+	});
+
+	test("a reading back on the shown note resets the run", () => {
+		// 12 frames steady, 8 high, 1 back, 8 high again: neither run reaches 200 ms.
+		const r = frames(0, 29, (i) =>
+			i < 12 ? d5 : i < 20 ? e5 : i < 21 ? d5 : e5,
+		);
+		expect(follow(r)?.pitch).toBe(D5);
+	});
+
+	test("a third note starts its own run", () => {
+		const F5 = pitch("F5");
+		const f5 = toFrequency(F5);
+		// 12 steady, 8 on E5, then F5 for 20 frames: the E5 run is cut at F5.
+		const r = frames(0, 40, (i) => (i < 12 ? d5 : i < 20 ? e5 : f5));
+		const got = follow(r);
+		expect(got?.pitch).toBe(F5);
+		expect(got?.since).toBe(20);
+	});
+
+	test("a release sag shorter than the held part does not move the held median", () => {
+		// 40 frames in tune, 4 frames sagging 30¢ flat at the end.
+		const r = frames(0, 44, (i) => (i < 40 ? d5 : shift(d5, -30)));
+		const held = hold(r);
+		expect(held?.pitch).toBe(D5);
+		expect(held?.cents).toBeCloseTo(0, 6);
+		// The live readout does follow the sag.
+		expect(follow(r)?.cents).toBeCloseTo(-30, 6);
+	});
+
+	test("the held median takes in a bend that never settled", () => {
+		const r = frames(0, 30, (i) => (i < 20 ? d5 : shift(d5, 60)));
+		expect(hold(r)?.pitch).toBe(D5);
+		expect(hold(r)?.cents).toBeCloseTo(0, 6);
+	});
+
+	test("the held median starts at the final note's run", () => {
+		const r = frames(0, 60, (i) => (i < 24 ? d5 : shift(e5, 10)));
+		const held = hold(r);
+		expect(held?.pitch).toBe(E5);
+		expect(held?.cents).toBeCloseTo(10, 6);
+	});
+
+	test("trailing silent readings are skipped", () => {
+		const r = [
+			...frames(0, 30, () => shift(d5, 20)),
+			...frames(30 * STEP, 12, () => null),
+		];
+		expect(follow(r)?.cents).toBeCloseTo(20, 6);
+		expect(hold(r)?.cents).toBeCloseTo(20, 6);
+	});
+
+	test("no passing reading gives null", () => {
+		expect(follow([])).toBeNull();
+		expect(hold([])).toBeNull();
+		expect(follow(frames(0, 20, () => null))).toBeNull();
+		// Outside the band: a 50 Hz hum.
+		expect(follow(frames(0, 20, () => 50))).toBeNull();
+		expect(hold(frames(0, 20, () => 50))).toBeNull();
 	});
 });

@@ -312,6 +312,7 @@ describe("parseDefaults", () => {
 			[json({ highest: "A5" }), "highest"],
 			[json({ lowest: "E5", highest: "C4" }), "below"],
 			[json({ lowest: "C♯4", includeSharps: false }), "naturals"],
+			[json({ mode: "Tuner" }), 'mode must be "flashcards", "song" or "tuner"'],
 		];
 		for (const [raw, fragment] of bad) {
 			expect(() => parseDefaults(raw, instrument)).toThrow(SettingsError);
@@ -879,7 +880,7 @@ describe("smart sampling field (F06-S02)", () => {
 	test("smartSamplingApplies needs the setting, judging and Flashcards; a song turns it off", () => {
 		for (const smartSampling of [false, true]) {
 			for (const judgeEnabled of [false, true]) {
-				for (const mode of ["flashcards", "song"] as const) {
+				for (const mode of ["flashcards", "song", "tuner"] as const) {
 					expect(
 						smartSamplingApplies({
 							...DEFAULTS,
@@ -985,6 +986,22 @@ describe("mode and practice (F16-S01)", () => {
 		});
 	});
 
+	test("Tuner (F19-S01 AC8): the strict parse accepts it, a stored one loads, and it round trips", () => {
+		expect(parseDefaults(json({ mode: "tuner" }), instrument).mode).toBe(
+			"tuner",
+		);
+		const stored = validateSettings(
+			{ ...json({ mode: "tuner" }), useSong: true, keepTempo: true },
+			instrument,
+			DEFAULTS,
+		);
+		expect(stored).toEqual({ ...DEFAULTS, mode: "tuner" });
+		const input: Settings = { ...DEFAULTS, mode: "tuner" };
+		expect(
+			validateSettings(toSettingsJson(input), instrument, DEFAULTS),
+		).toEqual(input);
+	});
+
 	test("stored data with neither field loads Flashcards with Single note", () => {
 		const { mode, practice, ...old } = json({ delaySeconds: 7 });
 		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
@@ -1035,7 +1052,7 @@ describe("mode and practice (F16-S01)", () => {
 	});
 
 	test("tempoApplies and singleNoteApplies follow the mode and practice", () => {
-		for (const mode of ["flashcards", "song"] as const) {
+		for (const mode of ["flashcards", "song", "tuner"] as const) {
 			for (const practice of ["single", "tempo"] as const) {
 				const s = { ...DEFAULTS, mode, practice };
 				expect(tempoApplies(s)).toBe(mode === "song" && practice === "tempo");
@@ -1145,7 +1162,7 @@ describe("metronome (F08-S04 AC1)", () => {
 	});
 
 	test("metronomeApplies needs Song mode, Tempo and the metronome", () => {
-		for (const mode of ["flashcards", "song"] as const) {
+		for (const mode of ["flashcards", "song", "tuner"] as const) {
 			for (const practice of ["single", "tempo"] as const) {
 				for (const metronome of [false, true]) {
 					expect(
@@ -1214,7 +1231,7 @@ describe("scoring (F12-S01)", () => {
 	});
 
 	test("scoringAfterApplies needs Song mode, Tempo, judging and after", () => {
-		for (const mode of ["flashcards", "song"] as const) {
+		for (const mode of ["flashcards", "song", "tuner"] as const) {
 			for (const practice of ["single", "tempo"] as const) {
 				for (const judgeEnabled of [false, true]) {
 					for (const scoring of ["live", "after"] as const) {

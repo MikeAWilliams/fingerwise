@@ -14,6 +14,13 @@ import { judgedNote } from "./verdict";
 export const JUDGE_HELP =
 	"The microphone is open while you drill with this on. Only the time before each reveal is analysed, and no audio is stored or sent.";
 
+/** Shown in place of `JUDGE_HELP` in Tuner, where the checkbox is hidden. */
+export const TUNER_HELP =
+	"The microphone is open while Tuner shows. No audio is stored or sent.";
+
+/** Tuner's prompt while the microphone is open and no note sounds. */
+export const PLAY_A_NOTE = "Play a note";
+
 export const JUDGE_UNAVAILABLE =
 	"Judging is unavailable (microphone blocked or missing).";
 

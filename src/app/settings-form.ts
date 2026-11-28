@@ -27,6 +27,7 @@ import { formatSeconds } from "./section";
 export const MODE_LABELS: Record<Mode, string> = {
 	flashcards: "Flashcards",
 	song: "Song",
+	tuner: "Tuner",
 };
 
 /** The Practice list's choices, in order, with their labels. */
@@ -47,9 +48,15 @@ export type SettingsSection =
 
 /** The sections Settings shows for the mode, in order; the first one opens. */
 export function settingsSections(settings: Settings): SettingsSection[] {
+	if (settings.mode === "tuner") return ["microphone"];
 	return settings.mode === "song"
 		? ["song", "practice", "microphone"]
 		: ["cards", "sound", "microphone"];
+}
+
+/** The "Judge my playing" checkbox is hidden in Tuner, where the microphone is always on. */
+export function judgeCheckboxShown(settings: Settings): boolean {
+	return settings.mode !== "tuner";
 }
 
 export type PracticeControl =
@@ -154,6 +161,8 @@ export function soundSummary(settings: Settings): string {
 
 /** One line of the Microphone section's values, shown while it is closed. */
 export function micSummary(settings: Settings): string {
+	// Tuner always listens, whatever `judgeEnabled` says.
+	if (settings.mode === "tuner") return `within ${settings.toleranceCents}¢`;
 	if (!settings.judgeEnabled) return "off";
 	return `on, within ${settings.toleranceCents}¢`;
 }

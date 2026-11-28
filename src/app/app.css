@@ -419,6 +419,10 @@ main {
 	color: #b3261e;
 }
 
+.verdict-off {
+	color: #8a5300;
+}
+
 .verdict-none {
 	color: #555;
 }
