@@ -132,6 +132,15 @@ export function smartSamplingNote(settings: Settings): string | null {
 	return settings.judgeEnabled ? null : "Needs Judge my playing";
 }
 
+/** Shown under the auto-advance checkbox with judging on: what turning it off does. */
+export const AUTO_ADVANCE_RETRY_NOTE =
+	"Off: keep playing a missed note until it is right";
+
+/** The note under the auto-advance checkbox: with judging on, what off does; otherwise none. */
+export function autoAdvanceNote(settings: Settings): string | null {
+	return settings.judgeEnabled ? AUTO_ADVANCE_RETRY_NOTE : null;
+}
+
 /** One line of the Cards section's values, shown while it is closed. */
 export function cardsSummary(settings: Settings): string {
 	return [

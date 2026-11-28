@@ -38,6 +38,7 @@ const DEFAULTS: Settings = {
 	barsPerLine: 2,
 	songAbc: "",
 	songTune: 1,
+	songTempo: null,
 };
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -75,6 +76,7 @@ test("saved settings load back unchanged", () => {
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	};
 	saveSettings(storage, settings);
 	expect([...data.keys()]).toEqual([SETTINGS_KEY]);
@@ -100,6 +102,7 @@ test("saved settings load back unchanged", () => {
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	});
 	expect(loadSettings(storage, instrument, DEFAULTS)).toEqual(settings);
 });
@@ -161,6 +164,7 @@ test("settings saved before auto-advance load with its defaults", () => {
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	});
 });
 
@@ -197,6 +201,7 @@ test("settings saved before sound keep their fields and get sound on, 0.5 s, 1.5
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	});
 });
 
@@ -233,6 +238,7 @@ test("settings saved before sound with a 1 s advance delay reset the three timin
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	});
 });
 
@@ -265,6 +271,7 @@ test("settings saved before judging keep their fields and get judge off, 40 cent
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	});
 });
 
@@ -533,5 +540,19 @@ test("settings saved before scoring load it as live and keep their fields", () =
 		...DEFAULTS,
 		delaySeconds: 4,
 		scoring: "live",
+	});
+});
+
+test("a chosen tempo round-trips, and old data loads null (F18-S02 AC8, AC12)", () => {
+	const { storage, data } = fakeStorage();
+	saveSettings(storage, { ...DEFAULTS, songTempo: 72.5 });
+	expect(JSON.parse(data.get(SETTINGS_KEY) as string).songTempo).toBe(72.5);
+	expect(loadSettings(storage, instrument, DEFAULTS).songTempo).toBe(72.5);
+	const old = fakeStorage({
+		[SETTINGS_KEY]: JSON.stringify({ lowest: "C4", highest: "E5" }),
+	});
+	expect(loadSettings(old.storage, instrument, DEFAULTS)).toMatchObject({
+		lowest: pitch("C4"),
+		songTempo: null,
 	});
 });

@@ -7,6 +7,7 @@ import {
 	canTurnAutoAdvanceOn,
 	canTurnSharpsOff,
 	canTurnSoundOn,
+	isValidSongTempo,
 	isValidSongTune,
 	isValidTolerance,
 	MAX_SONG_CHARS,
@@ -70,6 +71,7 @@ function settings(
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 	};
 }
 
@@ -98,6 +100,7 @@ function json(over: Record<string, unknown> = {}): Record<string, unknown> {
 		barsPerLine: 2,
 		songAbc: "",
 		songTune: 1,
+		songTempo: null,
 		...over,
 	};
 }
@@ -1281,6 +1284,7 @@ describe("songTune (F14-S01)", () => {
 			...DEFAULTS,
 			delaySeconds: 7,
 			songTune: 1,
+			songTempo: null,
 		});
 	});
 
@@ -1291,6 +1295,7 @@ describe("songTune (F14-S01)", () => {
 				validateSettings(json({ songTune, delaySeconds: 5 }), instrument, {
 					...withTune,
 					songTune: 1,
+					songTempo: null,
 				}),
 			).toEqual({ ...DEFAULTS, delaySeconds: 5, songTune: 1 });
 		}
@@ -1299,6 +1304,71 @@ describe("songTune (F14-S01)", () => {
 	test("a stored position is kept, and round-trips", () => {
 		const chosen = { ...DEFAULTS, songTune: 3 };
 		expect(toSettingsJson(chosen).songTune).toBe(3);
+		expect(
+			validateSettings(toSettingsJson(chosen), instrument, DEFAULTS),
+		).toEqual(chosen);
+	});
+});
+
+describe("songTempo (F18-S02 AC12)", () => {
+	test("the default is null, the tune's own", () => {
+		expect(DEFAULTS.songTempo).toBeNull();
+		expect(toSettingsJson(DEFAULTS).songTempo).toBeNull();
+	});
+
+	test("a valid tempo is null or a finite number above 0", () => {
+		for (const ok of [null, 1, 60, 72.5])
+			expect(isValidSongTempo(ok)).toBe(true);
+		for (const bad of [
+			0,
+			-1,
+			Number.NaN,
+			Number.POSITIVE_INFINITY,
+			"60",
+			undefined,
+		]) {
+			expect(isValidSongTempo(bad)).toBe(false);
+		}
+	});
+
+	test("the strict parse rejects a missing or bad tempo", () => {
+		expect(parseDefaults(json({ songTempo: 80 }), instrument).songTempo).toBe(
+			80,
+		);
+		expect(
+			parseDefaults(json({ songTempo: null }), instrument).songTempo,
+		).toBeNull();
+		for (const songTempo of [undefined, 0, -1, Number.NaN, "60"]) {
+			expect(() => parseDefaults(json({ songTempo }), instrument)).toThrow(
+				"songTempo must be null or a positive number",
+			);
+		}
+	});
+
+	test("old data without the field loads null and keeps every other field", () => {
+		const { songTempo, ...old } = json({ delaySeconds: 7 });
+		expect(validateSettings(old, instrument, DEFAULTS)).toEqual({
+			...DEFAULTS,
+			delaySeconds: 7,
+			songTempo: null,
+		});
+	});
+
+	test("each bad value resets alone", () => {
+		for (const songTempo of [0, -1, Number.NaN, "60", undefined]) {
+			expect(
+				validateSettings(
+					json({ songTempo, delaySeconds: 5 }),
+					instrument,
+					DEFAULTS,
+				),
+			).toEqual({ ...DEFAULTS, delaySeconds: 5, songTempo: null });
+		}
+	});
+
+	test("a stored tempo is kept, and round-trips", () => {
+		const chosen = { ...DEFAULTS, songTempo: 72.5 };
+		expect(toSettingsJson(chosen).songTempo).toBe(72.5);
 		expect(
 			validateSettings(toSettingsJson(chosen), instrument, DEFAULTS),
 		).toEqual(chosen);

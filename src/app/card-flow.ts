@@ -26,12 +26,20 @@ export interface CardState {
 	/** Null while the card is hidden. */
 	verdict: Verdict | null;
 	listening: Listening;
+	/**
+	 * After a miss with auto-advance off: `listening` while the card waits for its
+	 * note to be played right, `right` once it was (the verdict then says so).
+	 * Null outside a retry.
+	 */
+	retry: "listening" | "right" | null;
 }
 
 /** What the flow needs to sound a card's note: when, and how to start and stop it. */
 export interface CardTone {
 	/** Time from the reveal to `play`; 0 plays inside the reveal itself. */
 	delayMs: number;
+	/** How long the note sounds once it starts. */
+	durationMs: number;
 	play(pitch: Pitch): void;
 	stop(): void;
 }
@@ -79,6 +87,12 @@ export interface CardFlowOptions {
 	delayMs: number;
 	/** How long a revealed card waits before the next one; null turns auto-advance off. */
 	advanceDelayMs: number | null;
+	/**
+	 * With auto-advance off: how long a card played right waits before the next
+	 * one, and the retry applies to a missed card judged by the microphone. Null
+	 * or absent leaves a revealed card waiting for a tap.
+	 */
+	retryAdvanceMs?: number | null;
 	/** Plays the revealed card's note; null or absent keeps the flow silent. */
 	tone?: CardTone | null;
 	/** Judges each card before its reveal; null or absent turns judging off. */
@@ -106,6 +120,7 @@ export function createCardFlow({
 	next,
 	delayMs,
 	advanceDelayMs,
+	retryAdvanceMs = null,
 	tone = null,
 	listen = null,
 	onGraded = null,
@@ -164,7 +179,14 @@ export function createCardFlow({
 		windowOpen = false;
 		if (state === null || state.revealed) return;
 		const graded = listen !== null && state.listening === "running";
-		show({ ...state, revealed: true, verdict });
+		const retrying =
+			graded && retryAdvanceMs !== null && verdict.grade !== "correct";
+		show({
+			...state,
+			revealed: true,
+			verdict,
+			retry: retrying ? "listening" : null,
+		});
 		const shown = state.pitch;
 		if (graded) grade(shown, verdict);
 		if (tone) {
@@ -173,7 +195,23 @@ export function createCardFlow({
 		}
 		if (advanceDelayMs !== null) {
 			cancelTimer = startRevealTimer(advanceDelayMs, () => deal(shown));
+			return;
 		}
+		if (!graded || retryAdvanceMs === null || listen === null) return;
+		const toneEnd = tone ? tone.delayMs + tone.durationMs : 0;
+		if (verdict.grade === "correct") {
+			// Played right first time: on after the advance delay, never before the tone ends.
+			cancelTimer = startRevealTimer(Math.max(retryAdvanceMs, toneEnd), () =>
+				deal(shown),
+			);
+			return;
+		}
+		// A miss: listen again once the tone has ended; the tracker's hold-off drops its tail.
+		const active = listen;
+		cancelTimer = startRevealTimer(toneEnd, () => {
+			cancelTimer = null;
+			openWindow(active);
+		});
 	}
 
 	function startRevealDelay() {
@@ -189,8 +227,44 @@ export function createCardFlow({
 		}
 	}
 
+	function onRetryReading(
+		active: CardListen,
+		current: CardState,
+		reading: PitchReading,
+	) {
+		try {
+			const hz = active.tracker.push(reading);
+			if (hz === null) return;
+			const grade = active.grade(current.pitch, hz);
+			if (grade === "correct") {
+				windowOpen = false;
+				show({
+					...current,
+					verdict: { grade, frequency: hz },
+					retry: "right",
+				});
+				cancel();
+				const shown = current.pitch;
+				cancelTimer = startRevealTimer(retryAdvanceMs ?? 0, () => deal(shown));
+				return;
+			}
+			show({ ...current, verdict: { grade, frequency: hz } });
+			// One tone is reported per reset, so reset for the next wrong or right note.
+			active.tracker.reset(active.now());
+		} catch {
+			// A failing judge closes the window; the card waits for a tap.
+			windowOpen = false;
+		}
+	}
+
 	function onReading(reading: PitchReading) {
-		if (!listen || !windowOpen || state === null || state.revealed) return;
+		if (!listen || !windowOpen || state === null) return;
+		if (state.revealed) {
+			if (state.retry === "listening") {
+				onRetryReading(listen, state, reading);
+			}
+			return;
+		}
 		try {
 			const hz = listen.tracker.push(reading);
 			if (hz === null) return;
@@ -243,6 +317,7 @@ export function createCardFlow({
 				pitch,
 				revealed: false,
 				verdict: null,
+				retry: null,
 				listening: "off",
 			});
 			startRevealDelay();
@@ -253,6 +328,7 @@ export function createCardFlow({
 				pitch,
 				revealed: false,
 				verdict: null,
+				retry: null,
 				listening: "unavailable",
 			});
 			startRevealDelay();
@@ -263,6 +339,7 @@ export function createCardFlow({
 				pitch,
 				revealed: false,
 				verdict: null,
+				retry: null,
 				listening: "running",
 			});
 			openWindow(listen);
@@ -274,6 +351,7 @@ export function createCardFlow({
 			pitch,
 			revealed: false,
 			verdict: null,
+			retry: null,
 			listening: "opening",
 		});
 		openStream(listen);

@@ -48,6 +48,7 @@ const SETTINGS: Settings = {
 	barsPerLine: 2,
 	songAbc: "",
 	songTune: 1,
+	songTempo: null,
 };
 
 const song = createSong([{ pitch: C4, start: 0, beats: 1 }], {
@@ -147,6 +148,15 @@ describe("several tunes (F14-S01)", () => {
 	test("chooseTune returns null for the same position (F14-S02 AC7)", () => {
 		expect(chooseTune(SETTINGS, 1)).toBeNull();
 		expect(chooseTune(SETTINGS, 2)).toEqual({ ...SETTINGS, songTune: 2 });
+	});
+
+	test("choosing a tune, or editing the text, resets a chosen tempo (F18-S02 AC9)", () => {
+		const tempo = { ...SETTINGS, songTempo: 60 };
+		expect(chooseTune(tempo, 2)?.songTempo).toBeNull();
+		expect(applySongText(tempo, "C", passing).settings.songTempo).toBeNull();
+		expect(applySongText(tempo, "", null).settings.songTempo).toBeNull();
+		// A failing text changes nothing, the tempo included.
+		expect(applySongText(tempo, "C", failing).settings).toBe(tempo);
 	});
 
 	test("an edit keeps the position while the text has that many tunes (AC8)", () => {

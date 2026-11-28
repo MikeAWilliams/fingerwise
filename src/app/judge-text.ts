@@ -28,6 +28,9 @@ export const LISTEN_PROMPT = "Tap or press a key to start listening";
 
 export const START_PROMPT = "Tap or press a key to start";
 
+/** Flashcards: the verdict line once a missed card was played right. */
+export const RETRY_RIGHT = "Right, counted as a miss";
+
 export const END_OF_SONG = "End of song";
 
 /** Single note, a right tone that ended before it passed: shown in the bar until the next tone starts. */

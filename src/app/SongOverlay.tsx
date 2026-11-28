@@ -22,7 +22,7 @@ import {
 import type { LaneSegment, NoteEnd } from "./lane";
 import { faultMarks, marksPaths } from "./marks";
 import { OVERRUN_LABEL_SIZE, type OverrunLane } from "./overrun";
-import { headPlace, playheadBeat, playheadPlace } from "./playhead";
+import { headPlace, overlayRun, playheadBeat, playheadPlace } from "./playhead";
 import {
 	emptyPaths,
 	type LaneRow,
@@ -193,7 +193,19 @@ export function SongOverlay({
 	const instrument = fill?.instrument;
 	useEffect(() => {
 		const el = line.current;
-		if (!el || !running || origin === null) return;
+		if (!el) return;
+		const mode = overlayRun(running, origin);
+		if (mode === "clear") {
+			// A fresh flow in ready: empty what the last run drew. Single note
+			// (no fill) owns its own open paths, so they are left alone.
+			if (progress) {
+				for (const path of paths.current) path?.setAttribute("d", "");
+				for (const path of markPaths.current) path?.setAttribute("d", "");
+			}
+			el.setAttribute("visibility", "hidden");
+			return;
+		}
+		if (mode === "keep" || origin === null) return;
 		const set = (row: number, colour: number, open: number, d: string) =>
 			paths.current[fillIndex(row, colour, open)]?.setAttribute("d", d);
 		const clear = () => {

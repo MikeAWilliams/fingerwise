@@ -58,7 +58,15 @@ import {
 	randomSource,
 } from "./card-flow";
 import { fontUrl, loadFont } from "./font";
-import { headerSong, playButton, tuneChoice } from "./header-text";
+import {
+	chooseTempo,
+	chosenTempo,
+	headerSong,
+	playButton,
+	tempoChoice,
+	tuneChoice,
+	withTempo,
+} from "./header-text";
 import {
 	LISTENING_PAST_END,
 	PLAYING_SONG,
@@ -292,7 +300,11 @@ export function App() {
 				const state = songStateFrom(result);
 				const at = tunePosition(state.tunes, settingsRef.current.songTune);
 				if (at !== settingsRef.current.songTune) {
-					changeSettings({ ...settingsRef.current, songTune: at });
+					changeSettings({
+						...settingsRef.current,
+						songTune: at,
+						songTempo: null,
+					});
 				}
 			}
 		});
@@ -341,10 +353,14 @@ export function App() {
 		() => (song === null ? [] : songLines(song, barsPerLine)),
 		[song, barsPerLine],
 	);
-	const songTempo = song?.tempo ?? DEFAULT_TEMPO;
+	// The chosen tempo (the tune's own unless one is chosen and listed), and the
+	// song as played: a copy at that tempo, which the flows read as the song's own.
+	const tempo = song === null ? null : chosenTempo(song, settings.songTempo);
+	const played = useMemo(() => withTempo(song, tempo), [song, tempo]);
+	const songTempo = tempo ?? DEFAULT_TEMPO;
 	const timeline = useMemo(
-		() => (song === null ? null : buildTimeline(song, songTempo)),
-		[song, songTempo],
+		() => (played === null ? null : buildTimeline(played, songTempo)),
+		[played, songTempo],
 	);
 	// Waiting for the tap or counting in: no note is lit yet.
 	const counting = timed?.phase === "ready" || timed?.phase === "count-in";
@@ -362,7 +378,7 @@ export function App() {
 		}
 		// In Song mode the song is still parsing until `song` arrives, and stays
 		// absent for a text that fails. No flow and no card meanwhile.
-		if (settings.mode === "song" && song === null) {
+		if (settings.mode === "song" && played === null) {
 			setCard(null);
 			setTimed(null);
 			setSingle(null);
@@ -389,15 +405,15 @@ export function App() {
 			setCard(null);
 			setTimed(null);
 			setSingle(null);
-		} else if (singleNote && song !== null) {
+		} else if (singleNote && played !== null) {
 			// One note at a time with no clock; with judging on the microphone decides.
-			const built = buildTimeline(song, song.tempo ?? DEFAULT_TEMPO);
+			const built = buildTimeline(played, songTempo);
 			let currentNote = 0;
 			const single = createSingleNoteFlow({
-				count: song.notes.length,
+				count: played.notes.length,
 				fingeringDelayMs: settings.fingeringDelaySeconds * 1000,
 				advanceDelayMs: settings.singleAdvanceDelaySeconds * 1000,
-				listen: singleListenFor(settings, song, built),
+				listen: singleListenFor(settings, played, built),
 				onChange: (state) => {
 					currentNote = state.index;
 					setSingle(state);
@@ -408,7 +424,7 @@ export function App() {
 			flow = single;
 			activeSingleTrace = () => {
 				const note = built.notes[currentNote];
-				const written = song.notes[currentNote];
+				const written = played.notes[currentNote];
 				if (!note || !written) return null;
 				return toneSegment(
 					single.tone(),
@@ -420,9 +436,9 @@ export function App() {
 			setCard(null);
 			setTimed(null);
 			setTunerState(null);
-		} else if (timedSong && song !== null) {
+		} else if (timedSong && played !== null) {
 			flow = createTimedFlow({
-				song,
+				song: played,
 				clock: timedClock,
 				clicker,
 				// Nothing is stored: no `onGraded`, so smart sampling is untouched.
@@ -451,9 +467,13 @@ export function App() {
 				advanceDelayMs: settings.autoAdvance
 					? settings.advanceDelaySeconds * 1000
 					: null,
+				retryAdvanceMs: settings.autoAdvance
+					? null
+					: settings.advanceDelaySeconds * 1000,
 				tone: settings.soundEnabled
 					? {
 							delayMs: settings.soundDelaySeconds * 1000,
+							durationMs: settings.soundDurationSeconds * 1000,
 							play: (p) =>
 								player.play(
 									soundingPitch(instrument, p),
@@ -495,7 +515,7 @@ export function App() {
 		};
 		document.addEventListener("click", onClick);
 		window.addEventListener("keydown", onKeyDown);
-		if (timedSong && !singleNote && song !== null)
+		if (timedSong && !singleNote && played !== null)
 			activeTimed = flow as TimedFlow;
 		flow.start();
 		return () => {
@@ -505,12 +525,12 @@ export function App() {
 			window.removeEventListener("keydown", onKeyDown);
 			flow.stop();
 		};
-	}, [settings, open, visibleKey, song, playing, tuner]);
+	}, [settings, open, visibleKey, played, playing, tuner]);
 	// The song played from the header: a count-in, then its tones on the audio clock.
 	useEffect(() => {
-		if (!playing || open || song === null || settings.mode !== "song") return;
+		if (!playing || open || played === null || settings.mode !== "song") return;
 		const flow = createPlaybackFlow({
-			song,
+			song: played,
 			clock: timedClock,
 			clicker: playbackClicker,
 			tones: scheduler,
@@ -524,7 +544,7 @@ export function App() {
 			flow.stop();
 			setPlayback(null);
 		};
-	}, [playing, open, song, settings]);
+	}, [playing, open, played, settings]);
 	const lanes = timed ? lanesShown(after, timed.phase, timed.summary) : true;
 	// What was played after the last note, only in the summary with scoring after the song; a restart empties the readings.
 	const lastNoteEndMs = timeline?.notes[timeline.notes.length - 1]?.endMs ?? 0;
@@ -537,7 +557,7 @@ export function App() {
 				: null,
 		[after, lanes, overrunPhase, overrunReadings, lastNoteEndMs],
 	);
-	const header = headerSong(settings, song, open, playing);
+	const header = headerSong(settings, song, open);
 	const play = playButton({
 		settings,
 		song,
@@ -549,6 +569,12 @@ export function App() {
 	const choice = tuneChoice({
 		settings,
 		tunes: songState.tunes,
+		open,
+		phase: timed ? cardPhase(timed) : undefined,
+	});
+	const tempoList = tempoChoice({
+		settings,
+		song,
 		open,
 		phase: timed ? cardPhase(timed) : undefined,
 	});
@@ -585,8 +611,27 @@ export function App() {
 						</span>
 					)
 				)}
-				{header.tempo !== null && (
-					<span class="app-header-tempo">{header.tempo}</span>
+				{tempoList !== null && song !== null && (
+					<select
+						class="app-header-tempo"
+						aria-label="Tempo"
+						value={String(tempoList.selected)}
+						disabled={tempoList.disabled}
+						onChange={(e) => {
+							const next = chooseTempo(
+								settings,
+								song,
+								Number(e.currentTarget.value),
+							);
+							if (next) changeSettings(next);
+						}}
+					>
+						{tempoList.entries.map((entry, i) => (
+							<option key={entry.value} value={String(i)}>
+								{entry.label}
+							</option>
+						))}
+					</select>
 				)}
 				{play !== null && (
 					<button
@@ -767,6 +812,7 @@ export function App() {
 					listening={card.listening}
 					judging={settings.judgeEnabled}
 					verdict={card.verdict}
+					retry={card.retry}
 					need={
 						smartSamplingApplies(settings)
 							? needOf(scoresRef.current as Scores, card.pitch)

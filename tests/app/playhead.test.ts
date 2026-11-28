@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { headPlace, playheadBeat, playheadPlace } from "../../src/app/playhead";
+import {
+	headPlace,
+	overlayRun,
+	playheadBeat,
+	playheadPlace,
+} from "../../src/app/playhead";
 import type { RowLayout, Stop } from "../../src/render/staff";
 
 describe("playheadBeat (F09-S05 AC1, AC3, AC7)", () => {
@@ -184,5 +189,18 @@ describe("headPlace (F16-S02 AC2, AC7)", () => {
 		expect(headPlace(3, timeline, 60, rows)).toBeNull();
 		expect(headPlace(-1, timeline, 60, rows)).toBeNull();
 		expect(headPlace(0, timeline, 60, [])).toBeNull();
+	});
+});
+
+describe("overlayRun (F18-S01 AC1, AC2, AC4)", () => {
+	test("runs while running with an origin", () => {
+		expect(overlayRun(true, 5)).toBe("run");
+	});
+	test("keeps a stopped run's fill, marks and playhead for the summary", () => {
+		expect(overlayRun(false, 5)).toBe("keep");
+	});
+	test("clears with no origin, which is a fresh flow in ready", () => {
+		expect(overlayRun(false, null)).toBe("clear");
+		expect(overlayRun(true, null)).toBe("clear");
 	});
 });

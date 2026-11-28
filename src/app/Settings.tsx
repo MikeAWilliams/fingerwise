@@ -36,6 +36,7 @@ import {
 	applyScoringInput,
 	applySingleAdvanceDelayInput,
 	applyToleranceInput,
+	autoAdvanceNote,
 	cardsSummary,
 	editTiming,
 	highestOptions,
@@ -286,6 +287,9 @@ export function Settings({
 					<p class="settings-note">
 						{soundTooLongReason({ ...settings, autoAdvance: true })}
 					</p>
+				)}
+				{autoAdvanceNote(settings) !== null && (
+					<p class="settings-note">{autoAdvanceNote(settings)}</p>
 				)}
 				<label>
 					Advance delay (seconds)
